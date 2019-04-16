@@ -75,7 +75,7 @@ pub enum DeleteType {
 
 /// Provides a Key object for the given subscripts.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```no_run
 /// # #[macro_use] extern crate yottadb;
@@ -112,14 +112,15 @@ impl Key {
         Key{buffer_structs, buffers, needs_sync: true}
     }
 
-    /// Gets the value of this key from the database
+    /// Gets the value of this key from the database and returns the value.
     ///
     /// # Errors
     ///
     /// Possible errors for this function include:
-    /// - YDB_ERR_GVUNDEF, YDB_ERR_INVSVN, YDB_ERR_LVUNDEF as appropriate if no such variable or node exists;
+    /// - YDB_ERR_GVUNDEF, YDB_ERR_INVSVN, YDB_ERR_LVUNDEF as appropriate if no such variable or node exists
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```no_run
     /// # #[macro_use] extern crate yottadb;
@@ -161,7 +162,28 @@ impl Key {
         }
         Ok(out_buffer)
     }
-
+    
+    /// Sets the value of a key in the database.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_INVSVN if no such intrinsic special variable exists
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// let mut key = make_key!("^hello");
+    /// let mut output_buffer = Vec::with_capacity(1024);
+    ///
+    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    ///
+    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    /// ```
     pub fn set_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, new_val: &Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         if self.needs_sync {
@@ -198,7 +220,33 @@ impl Key {
         }
         Ok(out_buffer)
     }
-
+    
+    /// Retuns the following information in DataReturn about a local or global variable node:
+    ///
+    /// - NoData: There is neither a value nor a subtree; i.e it is undefined.
+    /// - ValueData: There is a value, but no subtree.
+    /// - TreeData: There is no value, but there is a subtree.
+    /// - ValueTreeData: There are both a value and a subtree.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - [error return
+    /// codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// let mut key = make_key!("^hello");
+    /// let mut output_buffer = Vec::with_capacity(1024);
+    ///
+    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    ///
+    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    /// ```
     pub fn data_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<(DataReturn, Vec<u8>)> {
         let mut out_buffer = out_buffer;
         if self.needs_sync {
@@ -239,6 +287,27 @@ impl Key {
         }, out_buffer))
     }
 
+    /// Delete nodes in the local or global variable tree or subtree specified.
+    /// A value of DelNode or DelTree for DeleteType specifies whether to delete just the node at the root, leaving the (sub)tree intact, or to delete the node as well as the (sub)tree.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// let mut key = make_key!("^hello");
+    /// let mut output_buffer = Vec::with_capacity(1024);
+    ///
+    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    ///
+    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    /// ```
     pub fn delete_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, delete_type: DeleteType)
             -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
@@ -275,6 +344,28 @@ impl Key {
         Ok(out_buffer)
     }
 
+    /// Converts the value to a number and increments it based on the value specifed by Option.
+    /// It defaults to 1 if the value is NULL.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NUMOFLOW
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// let mut key = make_key!("^hello");
+    /// let mut output_buffer = Vec::with_capacity(1024);
+    ///
+    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    ///
+    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    /// ```
     pub fn incr_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, increment: Option<&Vec<u8>>)
             -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
@@ -318,6 +409,27 @@ impl Key {
         Ok(out_buffer)
     }
 
+    /// Facilitates depth-first traversal of a local or global variable tree, and passes itself in as the output parameter.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// let mut key = make_key!("^hello");
+    /// let mut output_buffer = Vec::with_capacity(1024);
+    ///
+    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    ///
+    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    /// ```
     pub fn node_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         if self.needs_sync {
@@ -359,6 +471,27 @@ impl Key {
         Ok(out_buffer)
     }
 
+    /// Facilitates reverse depth-first traversal of a local or global variable tree and reports the predecessor node, passing itself in as the output parameter.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND.
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// let mut key = make_key!("^hello");
+    /// let mut output_buffer = Vec::with_capacity(1024);
+    ///
+    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    ///
+    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    /// ```
     pub fn node_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         if self.needs_sync {
@@ -400,6 +533,27 @@ impl Key {
         Ok(out_buffer)
     }
 
+    /// Implements breadth-first traversal of a tree by searching for the next subscript.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// let mut key = make_key!("^hello");
+    /// let mut output_buffer = Vec::with_capacity(1024);
+    ///
+    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    ///
+    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    /// ```
     pub fn sub_next_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         if self.needs_sync {
@@ -430,6 +584,27 @@ impl Key {
         Ok(out_buffer)
     }
 
+    /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// let mut key = make_key!("^hello");
+    /// let mut output_buffer = Vec::with_capacity(1024);
+    ///
+    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    ///
+    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    /// ```
     pub fn sub_prev_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         if self.needs_sync {
@@ -460,6 +635,27 @@ impl Key {
         Ok(out_buffer)
     }
 
+    /// Implements breadth-first traversal of a tree by searching for the next subscript, and passes itself in as the output parameter.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// let mut key = make_key!("^hello");
+    /// let mut output_buffer = Vec::with_capacity(1024);
+    ///
+    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    ///
+    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    /// ```
     pub fn sub_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         if self.needs_sync {
@@ -499,6 +695,27 @@ impl Key {
         Ok(out_buffer)
     }
 
+    /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript, and passes itself in as the output parameter.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// let mut key = make_key!("^hello");
+    /// let mut output_buffer = Vec::with_capacity(1024);
+    ///
+    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    ///
+    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    /// ```
     pub fn sub_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         if self.needs_sync {
