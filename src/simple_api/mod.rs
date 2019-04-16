@@ -543,7 +543,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
 pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
              f: &Fn(u64, Vec<u8>) -> YDBResult<Vec<u8>>,
              trans_id: &str,
-             locals_to_reset: &Vec<Vec<u8>>) -> YDBResult<Vec<u8>> {
+             locals_to_reset: &[Vec<u8>]) -> YDBResult<Vec<u8>> {
     let mut out_buffer = out_buffer;
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
     let mut locals = Vec::with_capacity(locals_to_reset.len());
