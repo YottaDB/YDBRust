@@ -1,19 +1,63 @@
-//mod buffer;
-
-//pub use self::buffer::*;
-
+//! Provides a Rust-interface to the YottaDB API in a more friendly manner than the
+//! raw C API (craw).
+//!
+//! Most operations are encapusulated in methods on the Key struct, and generally
+//! consume a Vec<u8> and return ``Result<Vec<u8>>``. The return Vec<u8> will contains
+//! the data we were fetching from the database, or in the error case, an error.
+//! The Vec<u8> may be resized as part of the call.
+//!
+//! # Examples
+//!
+//! A basic database operation (set a value, retrieve it, then delete it).
+//!
+//! ```no_run
+//! # #[macro_use] extern crate yottadb;
+//! use yottadb::craw::YDB_NOTTP;
+//! use yottadb::simple_api::{Key, DeleteType};
+//!
+//! let mut key = make_key!("^MyGlobal", "SubscriptA", "42");
+//! let mut buffer = Vec::with_capacity(1024);
+//! let value = Vec::from("This is a persistent message");
+//! buffer = match key.set_st(YDB_NOTTP, buffer, &value) {
+//!     Ok(x) => x,
+//!     Err(err) => panic!(err),
+//! };
+//! buffer = match key.get_st(YDB_NOTTP, buffer) {
+//!     Ok(v) => v,
+//!     Err(err) => panic!(err),
+//! };
+//! assert_eq!("This is a persistent message", String::from_utf8_lossy(&buffer));
+//! key.delete_st(YDB_NOTTP, buffer, DeleteType::DelNode).unwrap();
+//! ```
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::mem;
 use std::ffi::CString;
 use std::os::raw::c_void;
 use std::cmp::min;
+use std::fmt;
+use std::error;
 use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st,
     ydb_incr_st, ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
     ydb_tp_st, YDB_OK,
     YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE};
 
-pub type YDBResult<T> = Result<T, (Vec<u8>, i32)>;
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct YDBError (Vec<u8>, i32);
+
+impl fmt::Display for YDBError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "YDB Error ({}): {}", self.1, String::from_utf8_lossy(&self.0))
+    }
+}
+
+impl error::Error for YDBError {
+    fn cause(&self) -> Option<&error::Error> {
+        Some(self)
+    }
+}
+
+pub type YDBResult<T> = Result<T, YDBError>;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum DataReturn {
@@ -69,6 +113,25 @@ impl Key {
     }
 
     /// Gets the value of this key from the database
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_GVUNDEF, YDB_ERR_INVSVN, YDB_ERR_LVUNDEF as appropriate if no such variable or node exists;
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// let mut key = make_key!("^hello");
+    /// let mut output_buffer = Vec::with_capacity(1024);
+    ///
+    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    ///
+    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    /// ```
     pub fn get_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         if self.needs_sync {
@@ -94,7 +157,7 @@ impl Key {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
         }
         if status != YDB_OK as i32 {
-            return Err((out_buffer, status));
+            return Err(YDBError(out_buffer, status));
         }
         Ok(out_buffer)
     }
@@ -131,7 +194,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err((out_buffer, status));
+            return Err(YDBError(out_buffer, status));
         }
         Ok(out_buffer)
     }
@@ -159,7 +222,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err((out_buffer, status));
+            return Err(YDBError(out_buffer, status));
         }
         Ok((match retval {
             0 => DataReturn::NoData,
@@ -207,7 +270,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err((out_buffer, status));
+            return Err(YDBError(out_buffer, status));
         }
         Ok(out_buffer)
     }
@@ -250,7 +313,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err((out_buffer, status));
+            return Err(YDBError(out_buffer, status));
         }
         Ok(out_buffer)
     }
@@ -291,7 +354,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err((out_buffer, status));
+            return Err(YDBError(out_buffer, status));
         }
         Ok(out_buffer)
     }
@@ -332,7 +395,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err((out_buffer, status));
+            return Err(YDBError(out_buffer, status));
         }
         Ok(out_buffer)
     }
@@ -362,7 +425,7 @@ impl Key {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
         }
         if status != YDB_OK as i32 {
-            return Err((out_buffer, status));
+            return Err(YDBError(out_buffer, status));
         }
         Ok(out_buffer)
     }
@@ -392,7 +455,7 @@ impl Key {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
         }
         if status != YDB_OK as i32 {
-            return Err((out_buffer, status));
+            return Err(YDBError(out_buffer, status));
         }
         Ok(out_buffer)
     }
@@ -431,7 +494,7 @@ impl Key {
             self.buffers.last_mut().unwrap().set_len(min(last_self_buffer.len_alloc, last_self_buffer.len_used) as usize);
         }
         if status != YDB_OK as i32 {
-            return Err((out_buffer, status));
+            return Err(YDBError(out_buffer, status));
         }
         Ok(out_buffer)
     }
@@ -470,7 +533,7 @@ impl Key {
             self.buffers.last_mut().unwrap().set_len(min(last_self_buffer.len_alloc, last_self_buffer.len_used) as usize);
         }
         if status != YDB_OK as i32 {
-            return Err((out_buffer, status));
+            return Err(YDBError(out_buffer, status));
         }
         Ok(out_buffer)
     }
@@ -534,7 +597,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
     };
     let (vec, retval) = match (callback_struct.cb)(tptoken, vec) {
         Ok(vec) => (vec, YDB_OK as i32),
-        Err((vec, ret)) => (vec, ret),
+        Err(YDBError(vec, ret)) => (vec, ret),
     };
     mem::forget(vec);
     retval
@@ -569,7 +632,7 @@ pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
         unsafe {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
         }
-        return Err((out_buffer, status));
+        return Err(YDBError(out_buffer, status));
     }
     Ok(out_buffer)
 }
@@ -605,7 +668,7 @@ mod tests {
         // Then try getting the value we set
         result = match key.get_st(0, result) {
             Ok(x) => x,
-            Err((x, _)) => {
+            Err(YDBError(x, _)) => {
                 panic!("YDB Error: {}", String::from_utf8_lossy(&x));
             }
         };
@@ -676,7 +739,7 @@ mod tests {
         key[1] = Vec::from("a");
         match key.node_next_self_st(0, result) {
             Ok(x) => x,
-            Err((v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
+            Err(YDBError(v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
         };
     }
 
@@ -691,7 +754,7 @@ mod tests {
         key.truncate(2);
         match key.node_next_self_st(0, result) {
             Ok(x) => x,
-            Err((v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
+            Err(YDBError(v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
         };
     }
 
@@ -706,7 +769,7 @@ mod tests {
         key[1] = Vec::from("z");
         match key.node_prev_self_st(0, result) {
             Ok(x) => x,
-            Err((v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
+            Err(YDBError(v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
         };
     }
 
@@ -723,7 +786,7 @@ mod tests {
         key[1] = Vec::from("z");
         match key.node_prev_self_st(0, result) {
             Ok(x) => x,
-            Err((v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
+            Err(YDBError(v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
         };
     }
 

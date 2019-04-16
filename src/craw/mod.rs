@@ -22,6 +22,7 @@ pub const YDB_TP_ROLLBACK: i32 = (YDB_INT_MAX - 2); /* 0x7ffffffd */
 pub const YDB_NODE_END: i32 = (YDB_INT_MAX - 3); /* 0x7ffffffc */
 pub const YDB_LOCK_TIMEOUT: i32 = (YDB_INT_MAX - 4); /* 0x7ffffffb */
 pub const YDB_NOTOK: i32 = (YDB_INT_MAX - 5); /* 0x7ffffffa */
+pub const YDB_NOTTP: u64 = 0;
 
 
 // Derive some attributes for things
