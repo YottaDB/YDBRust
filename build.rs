@@ -21,6 +21,7 @@ fn main() {
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
         .clang_arg(include_path)
+        .blacklist_item("YDB_NOTTP")
         // Finish the builder and generate the bindings.
         .generate()
         // Unwrap the Result and panic on failure.
