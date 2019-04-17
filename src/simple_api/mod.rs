@@ -1,14 +1,15 @@
-//! Provides a Rust-interface to the YottaDB API in a more friendly manner than the
+//! Provides a more-friendly Rust-interface to the YottaDB API than the
 //! raw C API (craw).
 //!
-//! Most operations are encapusulated in methods on the Key struct, and generally
-//! consume a Vec<u8> and return ``Result<Vec<u8>>``. The return Vec<u8> will contains
-//! the data we were fetching from the database, or in the error case, an error.
+//! Most operations are encapsulated in methods on the Key struct, and generally
+//! consume a Vec<u8> and return ``Result<Vec<u8>>``. The return Vec<u8> will either contain
+//! the data fetched from the database or an error.
+//!
 //! The Vec<u8> may be resized as part of the call.
 //!
 //! # Examples
 //!
-//! A basic database operation (set a value, retrieve it, then delete it).
+//! A basic database operation (set a value, retrieve it, then delete it):
 //!
 //! ```no_run
 //! # #[macro_use] extern crate yottadb;
