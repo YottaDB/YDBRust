@@ -383,6 +383,7 @@ mod tests {
         let ctx = Context::new();
         let mut key = ctx.new_key();
         key.push(Vec::from("^hello"));
+        key.set(&Vec::from("Hello world!")).unwrap();
         key.get().unwrap();
     }
 

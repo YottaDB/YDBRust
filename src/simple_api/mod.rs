@@ -129,7 +129,7 @@ impl Key {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
     /// use yottadb::simple_api::{Key, YDBResult};
@@ -138,6 +138,7 @@ impl Key {
     ///     let mut key = make_key!("^hello");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello world!"))?;
     ///     output_buffer = key.get_st(YDB_NOTTP, output_buffer)?;
     ///
     ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
@@ -185,16 +186,19 @@ impl Key {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
-    /// use yottadb::simple_api::Key;
-    /// let mut key = make_key!("^hello");
-    /// let mut output_buffer = Vec::with_capacity(1024);
+    /// use yottadb::simple_api::{Key, YDBResult};
     ///
-    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    /// fn main() -> YDBResult<()> {
+    ///     let mut key = make_key!("^hello");
+    ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello world!"))?;
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn set_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, new_val: &Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
@@ -248,16 +252,21 @@ impl Key {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
-    /// use yottadb::simple_api::Key;
-    /// let mut key = make_key!("^hello");
-    /// let mut output_buffer = Vec::with_capacity(1024);
+    /// use yottadb::simple_api::{Key, YDBResult, DataReturn};
     ///
-    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    /// fn main() -> YDBResult<()> {
+    ///     let mut key = make_key!("^helloValueDoesntExist");
+    ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     let (output, output_buffer) = key.data_st(YDB_NOTTP, output_buffer)?;
+    ///
+    ///     assert_eq!(DataReturn::NoData, output);
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn data_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<(DataReturn, Vec<u8>)> {
         let mut out_buffer = out_buffer;
@@ -309,16 +318,19 @@ impl Key {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
-    /// use yottadb::simple_api::Key;
-    /// let mut key = make_key!("^hello");
-    /// let mut output_buffer = Vec::with_capacity(1024);
+    /// use yottadb::simple_api::{Key, YDBResult, DeleteType};
     ///
-    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    /// fn main() -> YDBResult<()> {
+    ///     let mut key = make_key!("^hello");
+    ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     output_buffer = key.delete_st(YDB_NOTTP, output_buffer, DeleteType::DelTree)?;
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn delete_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, delete_type: DeleteType)
             -> YDBResult<Vec<u8>> {
@@ -367,16 +379,30 @@ impl Key {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
-    /// use yottadb::simple_api::Key;
-    /// let mut key = make_key!("^hello");
-    /// let mut output_buffer = Vec::with_capacity(1024);
+    /// use yottadb::simple_api::{Key, YDBResult};
+    /// use std::error::Error;
     ///
-    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let mut key = make_key!("^helloIncrementDocTest");
+    ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("0"))?;
+    ///     output_buffer = key.get_st(YDB_NOTTP, output_buffer)?;
+    ///     let before: i32 = String::from_utf8_lossy(&output_buffer).parse()?;
+    ///     output_buffer = key.incr_st(YDB_NOTTP, output_buffer, None)?;
+    ///     let now: i32  = String::from_utf8_lossy(&output_buffer).parse()?;
+    ///     output_buffer = key.get_st(YDB_NOTTP, output_buffer)?;
+    ///     let after: i32 = String::from_utf8_lossy(&output_buffer).parse()?;
+    ///
+    ///     assert!(before < now);
+    ///     assert!(before + 1 == now);
+    ///     assert!(after == now);
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn incr_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, increment: Option<&Vec<u8>>)
             -> YDBResult<Vec<u8>> {
@@ -432,16 +458,29 @@ impl Key {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
-    /// use yottadb::simple_api::Key;
-    /// let mut key = make_key!("^hello");
-    /// let mut output_buffer = Vec::with_capacity(1024);
+    /// use yottadb::simple_api::{Key, YDBResult};
+    /// use std::error::Error;
     ///
-    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let mut key = make_key!("^helloNodeNextSelf", "a");
+    ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     key[1] = Vec::from("b");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     // Lose the subscript, or pretend we are starting at ""
+    ///     unsafe {
+    ///         key[1].set_len(0);
+    ///     }
+    ///     output_buffer = key.node_next_self_st(YDB_NOTTP, output_buffer)?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "a");
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn node_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
@@ -497,16 +536,27 @@ impl Key {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
-    /// use yottadb::simple_api::Key;
-    /// let mut key = make_key!("^hello");
-    /// let mut output_buffer = Vec::with_capacity(1024);
+    /// use yottadb::simple_api::{Key, YDBResult};
+    /// use std::error::Error;
     ///
-    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let mut key = make_key!("^helloNodePrevSelf", "a");
+    ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     key[1] = Vec::from("b");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     // We need to start at node beyond the node we are looking for; just add some Z's
+    ///     key[1] = Vec::from("z");
+    ///     output_buffer = key.node_prev_self_st(YDB_NOTTP, output_buffer)?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "b");
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn node_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
@@ -562,16 +612,27 @@ impl Key {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
-    /// use yottadb::simple_api::Key;
-    /// let mut key = make_key!("^hello");
-    /// let mut output_buffer = Vec::with_capacity(1024);
+    /// use yottadb::simple_api::{Key, YDBResult};
+    /// use std::error::Error;
     ///
-    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let mut key = make_key!("^helloSubNext", "a");
+    ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     key[1] = Vec::from("b");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     // Start at a, next subscript will be b
+    ///     key[1] = Vec::from("a");
+    ///     output_buffer = key.sub_next_st(YDB_NOTTP, output_buffer)?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "b");
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn sub_next_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
@@ -614,16 +675,26 @@ impl Key {
     ///
     /// # Examples
     /// 
-    /// ```no_run
+    /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
-    /// use yottadb::simple_api::Key;
-    /// let mut key = make_key!("^hello");
-    /// let mut output_buffer = Vec::with_capacity(1024);
+    /// use yottadb::simple_api::{Key, YDBResult};
+    /// use std::error::Error;
     ///
-    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let mut key = make_key!("^helloSubPrev", "a");
+    ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     key[1] = Vec::from("b");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     // Starting at b, the previous subscript should be a
+    ///     output_buffer = key.sub_prev_st(YDB_NOTTP, output_buffer)?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "a");
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn sub_prev_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
@@ -666,16 +737,27 @@ impl Key {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
-    /// use yottadb::simple_api::Key;
-    /// let mut key = make_key!("^hello");
-    /// let mut output_buffer = Vec::with_capacity(1024);
+    /// use yottadb::simple_api::{Key, YDBResult};
+    /// use std::error::Error;
     ///
-    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let mut key = make_key!("^helloSubNextSelf", "a");
+    ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     key[1] = Vec::from("b");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     // Starting at a, the next sub should be b
+    ///     key[1] = Vec::from("a");
+    ///     output_buffer = key.sub_next_self_st(YDB_NOTTP, output_buffer)?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "b");
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn sub_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
@@ -731,16 +813,26 @@ impl Key {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
-    /// use yottadb::simple_api::Key;
-    /// let mut key = make_key!("^hello");
-    /// let mut output_buffer = Vec::with_capacity(1024);
+    /// use yottadb::simple_api::{Key, YDBResult};
+    /// use std::error::Error;
     ///
-    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let mut key = make_key!("^helloSubPrevSelf", "a");
+    ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     key[1] = Vec::from("b");
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     // Starting at b, previous should be a
+    ///     output_buffer = key.sub_prev_self_st(YDB_NOTTP, output_buffer)?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "a");
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn sub_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
@@ -1064,18 +1156,18 @@ mod tests {
     fn ydb_subscript_next() {
         let mut result = Vec::with_capacity(1);
         let value = Vec::from("Hello world!");
-        let mut key = make_key!("^helloSubNext", "shire");
+        let mut key = make_key!("^helloSubNext", "a");
         result = key.set_st(0, result, &value).unwrap();
         key[1] = Vec::with_capacity(1);
         result = key.sub_next_st(0, result).unwrap();
-        assert_eq!(result, Vec::from("shire"));
+        assert_eq!(result, Vec::from("a"));
     }
 
     #[test]
     fn ydb_subscript_prev() {
         let mut result = Vec::with_capacity(1);
         let value = Vec::from("Hello world!");
-        let mut key = make_key!("^helloSubprev", "shire");
+        let mut key = make_key!("^helloSubprev", "b");
         result = key.set_st(0, result, &value).unwrap();
         key[1] = Vec::from("z");
         result = key.sub_prev_st(0, result).unwrap();
