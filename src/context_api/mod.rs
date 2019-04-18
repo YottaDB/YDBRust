@@ -40,6 +40,36 @@ macro_rules! gen_iter_proto {
     }
 }
 
+
+/// Create a KeyContext with the given subscripts, provided a context.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate yottadb;
+/// use std::error::Error;
+/// use yottadb::context_api::Context;
+///
+/// fn main() -> Result<(), Box<Error>> {
+///     let mut ctx = Context::new();
+///     let mut key = make_ckey!(ctx, "^hello", "world");
+///     key.data()?;
+///
+///     Ok(())
+/// }
+/// ```
+#[macro_export]
+macro_rules! make_ckey {
+    ( $ctx:expr, $gbl:expr, $($x:expr),* ) => ({
+        let mut key = $ctx.new_key();
+        key.push(Vec::from($gbl));
+        $(
+            key.push(Vec::from($x));
+        )*
+        key
+    })
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 struct ContextInternal {
     buffer: Option<Vec<u8>>,

@@ -1171,7 +1171,7 @@ mod tests {
         result = key.set_st(0, result, &value).unwrap();
         key[1] = Vec::from("z");
         result = key.sub_prev_st(0, result).unwrap();
-        assert_eq!(result, Vec::from("shire"));
+        assert_eq!(result, Vec::from("b"));
     }
 
     #[test]
