@@ -132,13 +132,18 @@ impl Key {
     /// ```no_run
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::craw::YDB_NOTTP;
-    /// use yottadb::simple_api::Key;
-    /// let mut key = make_key!("^hello");
-    /// let mut output_buffer = Vec::with_capacity(1024);
+    /// use yottadb::simple_api::{Key, YDBResult};
     ///
-    /// output_buffer = key.get_st(YDB_NOTTP, output_buffer).unwrap();
+    /// fn main() -> YDBResult<()> {
+    ///     let mut key = make_key!("^hello");
+    ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    /// assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     output_buffer = key.get_st(YDB_NOTTP, output_buffer)?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn get_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
@@ -348,11 +353,6 @@ impl Key {
             }
             return Err(YDBError(out_buffer, status));
         }
-        let new_buffer_size = (ret_subs_used + 1) as usize;
-        unsafe {
-            self.buffers.set_len(new_buffer_size);
-        }
-        self.reverse_sync();
         Ok(out_buffer)
     }
 
@@ -410,19 +410,15 @@ impl Key {
             return self.incr_st(tptoken, out_buffer, increment);
         }
         // Set length of the vec containing the buffer to we can see the value
+        let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
+        unsafe {
+            out_buffer.set_len(new_buffer_size);
+        }
         if status != YDB_OK as i32 {
             // We could end up with a buffer of a larger size if we couldn't fit the error string
             // into the out_buffer, so make sure to pick the smaller size
-            unsafe {
-                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-            }
             return Err(YDBError(out_buffer, status));
         }
-        let new_buffer_size = (ret_subs_used + 1) as usize;
-        unsafe {
-            self.buffers.set_len(new_buffer_size);
-        }
-        self.reverse_sync();
         Ok(out_buffer)
     }
 
@@ -481,11 +477,13 @@ impl Key {
         if status != YDB_OK as i32 {
             // We could end up with a buffer of a larger size if we couldn't fit the error string
             // into the out_buffer, so make sure to pick the smaller size
+            let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
             unsafe {
-                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+                out_buffer.set_len(new_buffer_size);
             }
             return Err(YDBError(out_buffer, status));
         }
+        self.reverse_sync();
         Ok(out_buffer)
     }
 
@@ -544,11 +542,13 @@ impl Key {
         if status != YDB_OK as i32 {
             // We could end up with a buffer of a larger size if we couldn't fit the error string
             // into the out_buffer, so make sure to pick the smaller size
+            let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
             unsafe {
-                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+                out_buffer.set_len(new_buffer_size);
             }
             return Err(YDBError(out_buffer, status));
         }
+        self.reverse_sync();
         Ok(out_buffer)
     }
 
@@ -594,8 +594,9 @@ impl Key {
         // Resize the vec with the buffer to we can see the value
         // We could end up with a buffer of a larger size if we couldn't fit the error string
         // into the out_buffer, so make sure to pick the smaller size
+        let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
         unsafe {
-            out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            out_buffer.set_len(new_buffer_size);
         }
         if status != YDB_OK as i32 {
             return Err(YDBError(out_buffer, status));
@@ -645,8 +646,9 @@ impl Key {
         // Resize the vec with the buffer to we can see the value
         // We could end up with a buffer of a larger size if we couldn't fit the error string
         // into the out_buffer, so make sure to pick the smaller size
+        let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
         unsafe {
-            out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            out_buffer.set_len(new_buffer_size);
         }
         if status != YDB_OK as i32 {
             return Err(YDBError(out_buffer, status));
