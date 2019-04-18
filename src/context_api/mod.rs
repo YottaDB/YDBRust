@@ -60,7 +60,7 @@ macro_rules! gen_iter_proto {
 /// ```
 #[macro_export]
 macro_rules! make_ckey {
-    ( $ctx:expr, $gbl:expr, $($x:expr),* ) => ({
+    ( $ctx:expr, $gbl:expr $(, $x:expr)* ) => ({
         let mut key = $ctx.new_key();
         key.push(Vec::from($gbl));
         $(
