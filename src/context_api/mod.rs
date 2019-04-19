@@ -216,21 +216,11 @@ impl KeyContext {
         }
     }
 
-    pub fn increment(&mut self, increment: Option<&Vec<u8>>) -> YDBResult<()> {
+    pub fn increment(&mut self, increment: Option<&Vec<u8>>) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
-        let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
+        let out_buffer = Vec::with_capacity(1024);
+        match self.context.borrow().multithreaded {
             _ => self.key.incr_st(tptoken, out_buffer, increment)
-        };
-        match result {
-            Ok(x) => {
-                self.context.borrow_mut().buffer = Some(x);
-                Ok(())
-            },
-            Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
-                Err(x)
-            },
         }
     }
 
