@@ -44,7 +44,7 @@ use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_
     YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE};
 
 #[derive(Clone, Hash, Eq, PartialEq)]
-pub struct YDBError (pub(crate) Vec<u8>, pub(crate) i32);
+pub struct YDBError (pub Vec<u8>, pub i32);
 
 impl fmt::Debug for YDBError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
