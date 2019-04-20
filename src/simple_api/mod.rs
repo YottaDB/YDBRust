@@ -412,28 +412,40 @@ impl Key {
         }
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-        let increment_t = match increment {
-            None => ptr::null_mut(),
-            Some(new_val) => {
-                &mut ydb_buffer_t {
-                    buf_addr: new_val.as_ptr() as *const _ as *mut _,
-                    len_alloc: new_val.capacity() as u32,
-                    len_used: new_val.len() as u32,
-                } as *mut _
-            }
-        };
-
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_varname_and_subscripts();
-        // Do the call
-        let status = unsafe {
-            ydb_incr_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
+        let status: i32;
+        // We have to duplicate some code here to ensure that increment_t won't drop
+        // out of scope after we unwrap increment (i.e., if we used a match)
+        // This only showed up in release testing.
+        if increment.is_some() {
+            let increment_v = increment.unwrap();
+            let increment_t = &mut ydb_buffer_t {
+                buf_addr: increment_v.as_ptr() as *const _ as *mut _,
+                len_alloc: increment_v.capacity() as u32,
+                len_used: increment_v.len() as u32,
+            };
+            status = unsafe {
+                ydb_incr_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
                 subscripts, increment_t, &mut out_buffer_t)
-        };
-        // Handle resizing the buffer, if needed
-        if status == YDB_ERR_INVSTRLEN {
-            out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
-            return self.incr_st(tptoken, out_buffer, increment);
+            };
+            // Handle resizing the buffer, if needed
+            if status == YDB_ERR_INVSTRLEN {
+                out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
+                return self.incr_st(tptoken, out_buffer, increment);
+            }
+        } else {
+            let increment_t = ptr::null_mut();
+            // Do the call
+            status = unsafe {
+                ydb_incr_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
+                subscripts, increment_t, &mut out_buffer_t)
+            };
+            // Handle resizing the buffer, if needed
+            if status == YDB_ERR_INVSTRLEN {
+                out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
+                return self.incr_st(tptoken, out_buffer, increment);
+            }
         }
         // Set length of the vec containing the buffer to we can see the value
         let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
