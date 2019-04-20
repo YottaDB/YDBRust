@@ -14,24 +14,22 @@
 //! ```no_run
 //! # #[macro_use] extern crate yottadb;
 //! use yottadb::craw::YDB_NOTTP;
-//! use yottadb::simple_api::{Key, DeleteType};
+//! use yottadb::simple_api::{Key, DeleteType, YDBResult};
 //!
-//! let mut key = make_key!("^MyGlobal", "SubscriptA", "42");
-//! let mut buffer = Vec::with_capacity(1024);
-//! let value = Vec::from("This is a persistent message");
-//! buffer = match key.set_st(YDB_NOTTP, buffer, &value) {
-//!     Ok(x) => x,
-//!     Err(err) => panic!(err),
-//! };
-//! buffer = match key.get_st(YDB_NOTTP, buffer) {
-//!     Ok(v) => v,
-//!     Err(err) => panic!(err),
-//! };
-//! assert_eq!("This is a persistent message", String::from_utf8_lossy(&buffer));
-//! key.delete_st(YDB_NOTTP, buffer, DeleteType::DelNode).unwrap();
+//! fn main() -> YDBResult<()> {
+//!     let mut key = make_key!("^MyGlobal", "SubscriptA", "42");
+//!     let mut buffer = Vec::with_capacity(1024);
+//!     let value = Vec::from("This is a persistent message");
+//!     buffer = key.set_st(YDB_NOTTP, buffer, &value)?;
+//!     buffer = key.get_st(YDB_NOTTP, buffer)?;
+//!     assert_eq!("This is a persistent message", String::from_utf8_lossy(&buffer));
+//!     key.delete_st(YDB_NOTTP, buffer, DeleteType::DelNode).unwrap();
+//!     Ok(())
+//! }
 //! ```
 use std::ops::{Deref, DerefMut};
 use std::ptr;
+use std::error::Error;
 use std::mem;
 use std::ffi::CString;
 use std::os::raw::c_void;
@@ -64,7 +62,7 @@ impl error::Error for YDBError {
     }
 }
 
-pub type YDBResult<T> = Result<T, YDBError>;
+pub type YDBResult<T> = Result<T, Box<Error>>;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum DataReturn {
@@ -171,7 +169,7 @@ impl Key {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
         }
         if status != YDB_OK as i32 {
-            return Err(YDBError(out_buffer, status));
+            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         Ok(out_buffer)
     }
@@ -232,7 +230,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err(YDBError(out_buffer, status));
+            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         Ok(out_buffer)
     }
@@ -291,7 +289,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err(YDBError(out_buffer, status));
+            return Err(Box::new(YDBError(out_buffer, status)));
         }
         Ok((match retval {
             0 => DataReturn::NoData,
@@ -363,7 +361,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err(YDBError(out_buffer, status));
+            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         Ok(out_buffer)
     }
@@ -455,7 +453,7 @@ impl Key {
         if status != YDB_OK as i32 {
             // We could end up with a buffer of a larger size if we couldn't fit the error string
             // into the out_buffer, so make sure to pick the smaller size
-            return Err(YDBError(out_buffer, status));
+            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         Ok(out_buffer)
     }
@@ -532,7 +530,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(new_buffer_size);
             }
-            return Err(YDBError(out_buffer, status));
+            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         self.reverse_sync();
         Ok(out_buffer)
@@ -608,7 +606,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(new_buffer_size);
             }
-            return Err(YDBError(out_buffer, status));
+            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         self.reverse_sync();
         Ok(out_buffer)
@@ -672,7 +670,7 @@ impl Key {
             out_buffer.set_len(new_buffer_size);
         }
         if status != YDB_OK as i32 {
-            return Err(YDBError(out_buffer, status));
+            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         Ok(out_buffer)
     }
@@ -734,7 +732,7 @@ impl Key {
             out_buffer.set_len(new_buffer_size);
         }
         if status != YDB_OK as i32 {
-            return Err(YDBError(out_buffer, status));
+            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         Ok(out_buffer)
     }
@@ -805,7 +803,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
             }
-            return Err(YDBError(out_buffer, status));
+            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         unsafe {
             self.buffers.last_mut().unwrap()
@@ -880,7 +878,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
             }
-            return Err(YDBError(out_buffer, status));
+            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         unsafe {
             self.buffers.last_mut().unwrap()
@@ -959,7 +957,8 @@ impl Clone for Key {
 
 /// Passes the callback function as a structure to the callback
 struct CallBackStruct<'a> {
-    cb: &'a mut FnMut(u64, Vec<u8>) -> YDBResult<Vec<u8>>,
+    cb: &'a mut FnMut(u64, Vec<u8>) -> Result<Vec<u8>, Box<Error>>,
+    retval: Option<Result<Vec<u8>, Box<Error>>>,
 }
 
 extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
@@ -969,18 +968,35 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
     let vec = unsafe {
         Vec::from_raw_parts((*errstr).buf_addr as *mut u8, (*errstr).len_alloc as usize, (*errstr).len_used as usize) 
     };
-    let (vec, retval) = match (callback_struct.cb)(tptoken, vec) {
-        Ok(vec) => (vec, YDB_OK as i32),
-        Err(YDBError(vec, ret)) => (vec, ret),
+    let retval = match (callback_struct.cb)(tptoken, vec) {
+        Ok(vec) => {
+            mem::forget(vec);
+            YDB_OK as i32
+        },
+        Err(x) => {
+            // Try to cast into YDBError; if we can do that, return the error code
+            // Else, return YDB_OK with the vec
+            let ydberr = x.downcast::<YDBError>();
+            match ydberr {
+                Ok(x) => {
+                    mem::forget(x.0);
+                    x.1
+                },
+                Err(x) => {
+                    callback_struct.retval = Some(Err(x));
+                    YDB_OK as i32
+                },
+            }
+        },
     };
-    mem::forget(vec);
+    mem::forget(callback_struct);
     retval
 }
 
 pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
-             f: &mut FnMut(u64, Vec<u8>) -> YDBResult<Vec<u8>>,
+             f: &mut FnMut(u64, Vec<u8>) -> Result<Vec<u8>, Box<Error>>,
              trans_id: &str,
-             locals_to_reset: &[Vec<u8>]) -> YDBResult<Vec<u8>> {
+             locals_to_reset: &[Vec<u8>]) -> Result<Vec<u8>, Box<Error>> {
     let mut out_buffer = out_buffer;
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
     let mut locals = Vec::with_capacity(locals_to_reset.len());
@@ -996,7 +1012,7 @@ pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
         _ => locals.as_mut_ptr(),
     };
     let c_str = CString::new(trans_id).unwrap();
-    let mut callback_struct = CallBackStruct { cb: f };
+    let mut callback_struct = CallBackStruct { cb: f, retval: None };
     let arg = &mut callback_struct as *mut _ as *mut c_void;
     let status = unsafe {
         ydb_tp_st(tptoken, &mut out_buffer_t, Some(fn_callback), arg, c_str.as_ptr(),
@@ -1006,7 +1022,10 @@ pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
         unsafe {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
         }
-        return Err(YDBError(out_buffer, status));
+        return Err(Box::new(YDBError(out_buffer, status)));
+    }
+    if callback_struct.retval.is_some() {
+        return callback_struct.retval.unwrap();
     }
     Ok(out_buffer)
 }
@@ -1042,8 +1061,8 @@ mod tests {
         // Then try getting the value we set
         result = match key.get_st(0, result) {
             Ok(x) => x,
-            Err(YDBError(x, _)) => {
-                panic!("YDB Error: {}", String::from_utf8_lossy(&x));
+            Err(x) => {
+                panic!("YDB Error: {}", x);
             }
         };
         assert_eq!(result, Vec::from("Hello world!"));
@@ -1111,10 +1130,7 @@ mod tests {
         key[1] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
         key[1] = Vec::from("a");
-        match key.node_next_self_st(0, result) {
-            Ok(x) => x,
-            Err(YDBError(v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
-        };
+        key.node_next_self_st(0, result).unwrap();
     }
 
     #[test]
@@ -1126,10 +1142,7 @@ mod tests {
         key[2] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
         key.truncate(2);
-        match key.node_next_self_st(0, result) {
-            Ok(x) => x,
-            Err(YDBError(v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
-        };
+        key.node_next_self_st(0, result).unwrap();
     }
 
     #[test]
@@ -1141,10 +1154,7 @@ mod tests {
         key[1] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
         key[1] = Vec::from("z");
-        match key.node_prev_self_st(0, result) {
-            Ok(x) => x,
-            Err(YDBError(v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
-        };
+        key.node_prev_self_st(0, result).unwrap();
     }
 
     #[test]
@@ -1158,10 +1168,7 @@ mod tests {
         // TODO: why does this break things?
         //key.truncate(2);
         key[1] = Vec::from("z");
-        match key.node_prev_self_st(0, result) {
-            Ok(x) => x,
-            Err(YDBError(v, x)) => panic!("Failed ({}): {}", x, String::from_utf8_lossy(&v)),
-        };
+        key.node_prev_self_st(0, result).unwrap();
     }
 
     #[test]
@@ -1212,7 +1219,7 @@ mod tests {
     #[test]
     fn ydb_tp_st() {
         let result = Vec::with_capacity(1);
-        tp_st(0, result, &mut |_tptoken: u64, out: Vec<u8>| -> YDBResult<Vec<u8>> {
+        tp_st(0, result, &mut |_tptoken: u64, out: Vec<u8>| {
             Ok(out)
         }, "BATCH", &Vec::new()).unwrap();
     }

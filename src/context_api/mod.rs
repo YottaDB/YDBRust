@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
+use std::error::Error;
 
 use crate::craw::{YDB_NOTTP, YDB_ERR_NODEEND};
 use crate::simple_api::{tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType};
@@ -20,9 +21,17 @@ macro_rules! implement_iterator {
                     Ok(_) => {
                         $next(self)
                     },
-                    Err(YDBError(x, y)) => match y {
-                        YDB_ERR_NODEEND => None,
-                        _ => panic!(YDBError(x, y)),
+                    Err(x) => {
+                        let x = x.downcast::<YDBError>();
+                        match x {
+                            Ok(x) => {
+                                match x.1 {
+                                    YDB_ERR_NODEEND => None,
+                                    _ => Some(Err(x)),
+                                }
+                            }
+                            Err(z) => Some(Err(z))
+                        }
                     }
                 }
             }
@@ -106,8 +115,8 @@ impl Context {
         }
     }
 
-    pub fn tp(&mut self, f: &mut FnMut(&mut Context) -> YDBResult<()>, trans_id: &str,
-        locals_to_reset: &[Vec<u8>]) -> YDBResult<()> {
+    pub fn tp(&mut self, f: &mut FnMut(&mut Context) -> Result<(), Box<Error>>, trans_id: &str,
+        locals_to_reset: &[Vec<u8>]) -> Result<(), Box<Error>> {
 
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
@@ -345,7 +354,8 @@ implement_iterator!(ForwardSubIterator, next_sub_self, Vec<u8>, |me: &mut Forwar
 implement_iterator!(ForwardSubValueIterator, next_sub_self, (Vec<u8>, Vec<u8>), |me: &mut ForwardSubValueIterator| {
     let val = me.key.get();
     if val.is_err() {
-        panic!(val);
+        let err = val.err().unwrap();
+        return Some(Err(err));
     }
     Some(Ok((me.key.last().unwrap().clone(), val.unwrap())))
 });
@@ -377,7 +387,8 @@ implement_iterator!(ReverseSubIterator, prev_sub_self, Vec<u8>, |me: &mut Revers
 implement_iterator!(ReverseSubValueIterator, prev_sub_self, (Vec<u8>, Vec<u8>), |me: &mut ReverseSubValueIterator| {
     let val = me.key.get();
     if val.is_err() {
-        panic!(val);
+        let err = val.err().unwrap();
+        return Some(Err(err));
     }
     Some(Ok((me.key.last().unwrap().clone(), val.unwrap())))
 });
@@ -397,6 +408,7 @@ implement_iterator!(ReverseKeyNodeIterator, prev_node_self, KeyContext, |me: &mu
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::num::ParseIntError;
 
     #[test]
     fn simple_get() {
@@ -576,5 +588,17 @@ mod tests {
             key.push(Vec::from("^hello"));
             key.set(&Vec::from("Hello world!"))
         }, "BATCH", &Vec::new()).unwrap();
+    }
+
+    #[test]
+    fn test_tp_returning_non_ydb_error() {
+        let mut ctx = Context::new();
+        let result = ctx.tp(&mut |_ctx: &mut Context| {
+            // We expect this to have an error
+            String::from("Hello world!").parse::<u64>()?;
+            Ok(())
+        }, "BATCH", &Vec::new());
+        assert!(result.is_err());
+        assert!(result.err().unwrap().is::<ParseIntError>());
     }
 }
