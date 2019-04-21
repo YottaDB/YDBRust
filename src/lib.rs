@@ -1,5 +1,6 @@
 pub mod craw;
 pub mod simple_api;
+pub mod context_api;
 
 #[cfg(test)]
 mod tests {
