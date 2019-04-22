@@ -1,3 +1,32 @@
+//! Provides a Rust-interface for YottaDB which hides some of the complexity related to
+//! managing error-return buffers and tptoken's.
+//!
+//! Most operations are encapsulated in methods on the KeyContext struct. In addition
+//! to easier-to-use get/set/delete/data, iteration helpers are available to iterate
+//! over values in the database in a variety of ways.
+//!
+//! # Examples
+//!
+//! A basic database operation (set a value, retrieve it, and delete it)
+//!
+//! ```no_run
+//! # #[macro_use] extern crate yottadb;
+//! use yottadb::craw::YDB_NOTTP;
+//! use yottadb::context_api::Context;
+//! use yottadb::simple_api::{DeleteType, YDBResult};
+//!
+//! fn main() -> YDBResult<()> {
+//!     let ctx = Context::new();
+//!     let mut key = make_ckey!(ctx, "^MyGlobal", "SubscriptA", "42");
+//!     let value = Vec::from("This is a persistent message");
+//!     key.set(&value)?;
+//!     let buffer = key.get()?;
+//!     assert_eq!("This is a persistent message", String::from_utf8_lossy(&buffer));
+//!     key.delete(DeleteType::DelNode)?;
+//!     Ok(())
+//! }
+//! ```
+//!
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
@@ -163,6 +192,33 @@ impl DerefMut for KeyContext {
 }
 
 impl KeyContext {
+    /// Gets the value of this key from the database and returns the value.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_GVUNDEF, YDB_ERR_INVSVN, YDB_ERR_LVUNDEF as appropriate if no such variable or node exists
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn get(&mut self) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = Vec::with_capacity(1024);
