@@ -1,7 +1,7 @@
 //! Provides a Rust-interface for YottaDB which hides some of the complexity related to
-//! managing error-return buffers and tptoken's.
+//! managing error-return buffers and tptokens.
 //!
-//! Most operations are encapsulated in methods on the KeyContext struct. In addition
+//! Most operations are encapsulated in methods in the KeyContext struct. In addition
 //! to easier-to-use get/set/delete/data, iteration helpers are available to iterate
 //! over values in the database in a variety of ways.
 //!
@@ -227,6 +227,33 @@ impl KeyContext {
         }
     }
 
+    /// Sets the value of a key in the database.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_INVSVN if no such intrinsic special variable exists
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn set(&mut self, new_val: &Vec<u8>) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
@@ -245,6 +272,37 @@ impl KeyContext {
         }
     }
 
+    /// Retuns the following information in DataReturn about a local or global variable node:
+    ///
+    /// * NoData: There is neither a value nor a subtree; i.e it is undefined.
+    /// * ValueData: There is a value, but no subtree.
+    /// * TreeData: There is no value, but there is a subtree.
+    /// * ValueTreeData: There are both a value and a subtree.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn data(&mut self) -> YDBResult<DataReturn> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
@@ -263,6 +321,33 @@ impl KeyContext {
         }
     }
 
+    /// Delete nodes in the local or global variable tree or subtree specified. A value of DelNode or DelTree for DeleteType 
+    /// specifies whether to delete just the node at the root, leaving the (sub)tree intact, or to delete the node as well as the (sub)tree.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn delete(&mut self, delete_type: DeleteType) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
@@ -281,6 +366,33 @@ impl KeyContext {
         }
     }
 
+    /// Converts the value to a number and increments it based on the value specifed by Option. It defaults to 1 if the value is NULL.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NUMOFLOW
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn increment(&mut self, increment: Option<&Vec<u8>>) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = Vec::with_capacity(1024);
@@ -289,6 +401,33 @@ impl KeyContext {
         }
     }
 
+    /// Implements breadth-first traversal of a tree by searching for the next subscript, and passes itself in as the output parameter.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn next_sub_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
@@ -306,6 +445,33 @@ impl KeyContext {
             },
         }
     }
+    /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript, and passes itself in as the output parameter.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn prev_sub_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
@@ -324,18 +490,99 @@ impl KeyContext {
         }
     }
 
+    /// Implements breadth-first traversal of a tree by searching for the next subscript.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn next_sub(&mut self) -> YDBResult<KeyContext> {
         let mut ret = self.clone();
         ret.next_sub_self()?;
         Ok(ret)
     }
 
+    /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn prev_sub(&mut self) -> YDBResult<KeyContext> {
         let mut ret = self.clone();
         ret.prev_sub_self()?;
         Ok(ret)
     }
 
+    /// Facilitates depth-first traversal of a local or global variable tree, and passes itself in as the output parameter.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn next_node_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
@@ -354,6 +601,33 @@ impl KeyContext {
         }
     }
 
+    /// Facilitates reverse depth-first traversal of a local or global variable tree and reports the predecessor node, passing itself in as the output parameter.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn prev_node_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
@@ -372,30 +646,101 @@ impl KeyContext {
         }
     }
 
+    /// Facilitate depth-first traversal of a local or global variable tree.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn next_node(&mut self) -> YDBResult<KeyContext> {
         let mut ret = self.clone();
         ret.next_node_self()?;
         Ok(ret)
     }
 
+    /// Facilitates reverse depth-first traversal of a local or global variable tree, and returns
+    /// the previous node.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_ERR_NODEEND
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::context_api::Context;
+    /// use std::error::Error;
+    ///
+    /// fn main() -> Result<(), Box<Error>> {
+    ///     let ctx = Context::new();
+    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     let output_buffer = key.get()?;
+    ///
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn prev_node(&mut self) -> YDBResult<KeyContext> {
         let mut ret = self.clone();
         ret.prev_node_self()?;
         Ok(ret)
     }
 
+    /// Iterates over all the values at this level of the database tree and returns the value for
+    /// each node.
     gen_iter_proto!(iter_values, ForwardValueIterator);
+    /// Iterates over all the subscripts at this level of the database tree and returns the
+    /// subscript for each node.
     gen_iter_proto!(iter_subs, ForwardSubIterator);
+    /// Iterates over all the subscripts at this level of the database tree and returns the subscript and value for each node.
     gen_iter_proto!(iter_subs_values, ForwardSubValueIterator);
+    /// Iterates over all subscripts at this level of the database tree and returns a copy of the key at each subscript.
     gen_iter_proto!(iter_key_subs, ForwardKeySubIterator);
+    /// Iterates over all nodes for the global pointed to by the key and returns the value at each node.
     gen_iter_proto!(iter_nodes, ForwardNodeIterator);
+    /// Iterates over all nodes for the global pointed to by the key and returns a copy of the key at each node.
     gen_iter_proto!(iter_key_nodes, ForwardKeyNodeIterator);
 
+    /// Iterates in reverse order over all the values at this level of the database tree and returns the value for
+    /// each node.
     gen_iter_proto!(iter_values_reverse, ReverseValueIterator);
+    /// Iterates in reverse order over all the subscripts at this level of the database tree and returns the
+    /// subscript for each node.
     gen_iter_proto!(iter_subs_reverse, ReverseSubIterator);
+    /// Iterates in reverse order over all the subscripts at this level of the database tree and returns the subscript and value for each node.
     gen_iter_proto!(iter_subs_values_reverse, ReverseSubValueIterator);
+    /// Iterates in reverse order over all subscripts at this level of the database tree and returns a copy of the key at each subscript.
     gen_iter_proto!(iter_key_subs_reverse, ReverseKeySubIterator);
+    /// Iterates in reverse order over all nodes for the global pointed to by the key and returns the value at each node.
     gen_iter_proto!(iter_nodes_reverse, ReverseNodeIterator);
+    /// Iterates in reverse oder over all nodes for the global pointed to by the key and returns a copy of the key at each node.
     gen_iter_proto!(iter_key_nodes_reverse, ReverseKeyNodeIterator);
 }
 
