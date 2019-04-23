@@ -366,7 +366,7 @@ impl KeyContext {
         }
     }
 
-    /// Converts the value to a number and increments it based on the value specifed by Option. It defaults to 1 if the value is NULL.
+    /// Converts the value to a [number](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#canonical-numbers) and increments it based on the value specifed by Option. It defaults to 1 if the value is NULL.
     ///
     /// # Errors
     ///
