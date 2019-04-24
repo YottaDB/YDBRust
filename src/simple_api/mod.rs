@@ -151,11 +151,12 @@ impl Key {
         }
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
+        let mut err_buffer_t = out_buffer_t.clone();
 
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_varname_and_subscripts();
         let status = unsafe {
-            ydb_get_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
+            ydb_get_st(tptoken, &mut err_buffer_t, varname, (self.buffers.len() - 1) as i32,
                 subscripts, &mut out_buffer_t)
         };
         if status == YDB_ERR_INVSTRLEN {
@@ -165,11 +166,14 @@ impl Key {
         // Resize the vec with the buffer to we can see the value
         // We could end up with a buffer of a larger size if we couldn't fit the error string
         // into the out_buffer, so make sure to pick the smaller size
+        if status != YDB_OK as i32 {
+            unsafe {
+                out_buffer.set_len(min(err_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            }
+            return Err(Box::new(YDBError(out_buffer,  status)));
+        }
         unsafe {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-        }
-        if status != YDB_OK as i32 {
-            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         Ok(out_buffer)
     }
@@ -410,6 +414,7 @@ impl Key {
         }
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
+        let mut err_buffer_t = out_buffer_t.clone();
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_varname_and_subscripts();
         let status: i32;
@@ -424,7 +429,7 @@ impl Key {
                 len_used: increment_v.len() as u32,
             };
             status = unsafe {
-                ydb_incr_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
+                ydb_incr_st(tptoken, &mut err_buffer_t, varname, (self.buffers.len() - 1) as i32,
                 subscripts, increment_t, &mut out_buffer_t)
             };
             // Handle resizing the buffer, if needed
@@ -446,14 +451,17 @@ impl Key {
             }
         }
         // Set length of the vec containing the buffer to we can see the value
-        let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
-        unsafe {
-            out_buffer.set_len(new_buffer_size);
-        }
         if status != YDB_OK as i32 {
+            unsafe {
+                out_buffer.set_len(min(err_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            }
             // We could end up with a buffer of a larger size if we couldn't fit the error string
             // into the out_buffer, so make sure to pick the smaller size
             return Err(Box::new(YDBError(out_buffer,  status)));
+        }
+        let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
+        unsafe {
+            out_buffer.set_len(new_buffer_size);
         }
         Ok(out_buffer)
     }
