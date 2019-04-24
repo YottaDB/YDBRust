@@ -511,7 +511,11 @@ impl Key {
         // Handle resizing the buffer, if needed
         if status == YDB_ERR_INVSTRLEN {
             let ret_subs_used = (ret_subs_used + 1) as usize;
-            self.buffers[ret_subs_used].resize_with(self.buffer_structs[ret_subs_used].len_used as usize, Default::default);
+            let t = &mut self.buffers[ret_subs_used];
+            // New size should be size needed + (current size - len used)
+            let new_size = (self.buffer_structs[ret_subs_used].len_used - self.buffer_structs[ret_subs_used].len_alloc) as usize;
+            let new_size = new_size + (t.capacity() - t.len());
+            t.reserve(new_size);
             self.needs_sync = true;
             return self.node_next_self_st(tptoken, out_buffer);
         }
@@ -587,7 +591,11 @@ impl Key {
         // Handle resizing the buffer, if needed
         if status == YDB_ERR_INVSTRLEN {
             let ret_subs_used = (ret_subs_used + 1) as usize;
-            self.buffers[ret_subs_used].resize_with(self.buffer_structs[ret_subs_used].len_used as usize, Default::default);
+            let t = &mut self.buffers[ret_subs_used];
+            // New size should be size needed + (current size - len used)
+            let new_size = (self.buffer_structs[ret_subs_used].len_used - self.buffer_structs[ret_subs_used].len_alloc) as usize;
+            let new_size = new_size + (t.capacity() - t.len());
+            t.reserve(new_size);
             self.needs_sync = true;
             return self.node_prev_self_st(tptoken, out_buffer);
         }
@@ -792,7 +800,11 @@ impl Key {
                 subscripts, &mut last_self_buffer)
         };
         if status == YDB_ERR_INVSTRLEN {
-            self.buffers.last_mut().unwrap().resize_with(last_self_buffer.len_used as usize, Default::default);
+            let t = self.buffers.last_mut().unwrap();
+            // New size should be size needed + (current size - len used)
+            let new_size = (last_self_buffer.len_used - last_self_buffer.len_alloc) as usize;
+            let new_size = new_size + (t.capacity() - t.len());
+            t.reserve(new_size);
             self.needs_sync = true;
             return self.sub_next_self_st(tptoken, out_buffer);
         }
@@ -867,7 +879,11 @@ impl Key {
                 subscripts, &mut last_self_buffer)
         };
         if status == YDB_ERR_INVSTRLEN {
-            self.buffers.last_mut().unwrap().resize_with(last_self_buffer.len_used as usize, Default::default);
+            let t = self.buffers.last_mut().unwrap();
+            // New size should be size needed + (current size - len used)
+            let new_size = (last_self_buffer.len_used - last_self_buffer.len_alloc) as usize;
+            let new_size = new_size + (t.capacity() - t.len());
+            t.reserve(new_size);
             self.needs_sync = true;
             return self.sub_prev_self_st(tptoken, out_buffer);
         }
