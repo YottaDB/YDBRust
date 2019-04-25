@@ -39,7 +39,7 @@ use std::error;
 use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st,
     ydb_incr_st, ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
     ydb_tp_st, YDB_OK,
-    YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE};
+    YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE, YDB_TP_ROLLBACK};
 
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct YDBError (pub Vec<u8>, pub i32);
@@ -1008,7 +1008,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
                 },
                 Err(x) => {
                     callback_struct.retval = Some(Err(x));
-                    YDB_OK as i32
+                    YDB_TP_ROLLBACK as i32
                 },
             }
         },
@@ -1042,7 +1042,7 @@ pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
         ydb_tp_st(tptoken, &mut out_buffer_t, Some(fn_callback), arg, c_str.as_ptr(),
             locals.len() as i32, locals_ptr)
     };
-    if status != YDB_OK as i32 {
+    if status != YDB_OK as i32 && status != YDB_TP_ROLLBACK as i32 {
         unsafe {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
         }
