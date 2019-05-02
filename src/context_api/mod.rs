@@ -69,12 +69,14 @@ macro_rules! implement_iterator {
 }
 
 macro_rules! gen_iter_proto {
-    ($name:ident, $return_type:tt) => {
-        pub fn $name<'a>(&'a mut self) -> $return_type<'a> {
-            $return_type {
-                key: self,
+    ($(#[$meta:meta])*
+     $name:ident, $return_type:tt) => {
+        $(#[$meta])*
+            pub fn $name(&mut self) -> $return_type {
+                $return_type {
+                    key: self,
+                }
             }
-        }
     }
 }
 
@@ -103,8 +105,8 @@ macro_rules! make_ckey {
         key.push(Vec::from($gbl));
         $(
             key.push(Vec::from($x));
-        )*
-        key
+         )*
+            key
     })
 }
 
@@ -118,6 +120,12 @@ struct ContextInternal {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Context {
     context: Rc<RefCell<ContextInternal>>,
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -145,7 +153,7 @@ impl Context {
     }
 
     pub fn tp(&mut self, f: &mut FnMut(&mut Context) -> Result<(), Box<Error>>, trans_id: &str,
-        locals_to_reset: &[Vec<u8>]) -> Result<(), Box<Error>> {
+    locals_to_reset: &[Vec<u8>]) -> Result<(), Box<Error>> {
 
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
@@ -222,8 +230,10 @@ impl KeyContext {
     pub fn get(&mut self) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = Vec::with_capacity(1024);
-        match self.context.borrow().multithreaded {
-            _ => self.key.get_st(tptoken, out_buffer)
+        if self.context.borrow().multithreaded {
+            self.key.get_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!")
         }
     }
 
@@ -247,18 +257,17 @@ impl KeyContext {
     ///     let mut key = make_ckey!(ctx, "^hello");
     ///
     ///     key.set(&Vec::from("Hello world!"))?;
-    ///     let output_buffer = key.get()?;
-    ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
     ///
     ///     Ok(())
     /// }
     /// ```
-    pub fn set(&mut self, new_val: &Vec<u8>) -> YDBResult<()> {
+    pub fn set(&mut self, new_val: &[u8]) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.set_st(tptoken, out_buffer, &new_val)
+        let result = if self.context.borrow().multithreaded {
+            self.key.set_st(tptoken, out_buffer, &new_val)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -288,17 +297,15 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
+    /// use yottadb::simple_api::DataReturn;
     /// use yottadb::context_api::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///     let mut key = make_ckey!(ctx, "^helloDoesNotExist");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
-    ///     let output_buffer = key.get()?;
-    ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(key.data()?, DataReturn::NoData);
     ///
     ///     Ok(())
     /// }
@@ -306,8 +313,10 @@ impl KeyContext {
     pub fn data(&mut self) -> YDBResult<DataReturn> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.data_st(tptoken, out_buffer)
+        let result = if self.context.borrow().multithreaded {
+            self.key.data_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok((y, x)) => {
@@ -334,16 +343,17 @@ impl KeyContext {
     /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::context_api::Context;
+    /// use yottadb::simple_api::{DataReturn, DeleteType};
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///     let mut key = make_ckey!(ctx, "^helloDeleteMe");
     ///
     ///     key.set(&Vec::from("Hello world!"))?;
-    ///     let output_buffer = key.get()?;
+    ///     key.delete(DeleteType::DelTree)?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(key.data()?, DataReturn::NoData);
     ///
     ///     Ok(())
     /// }
@@ -351,8 +361,10 @@ impl KeyContext {
     pub fn delete(&mut self, delete_type: DeleteType) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.delete_st(tptoken, out_buffer, delete_type)
+        let result = if self.context.borrow().multithreaded {
+            self.key.delete_st(tptoken, out_buffer, delete_type)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -383,12 +395,13 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///     let mut key = make_ckey!(ctx, "^helloIncrementMe");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set(&Vec::from("0"))?;
+    ///     key.increment(None)?;
     ///     let output_buffer = key.get()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "1");
     ///
     ///     Ok(())
     /// }
@@ -396,8 +409,10 @@ impl KeyContext {
     pub fn increment(&mut self, increment: Option<&Vec<u8>>) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = Vec::with_capacity(1024);
-        match self.context.borrow().multithreaded {
-            _ => self.key.incr_st(tptoken, out_buffer, increment)
+        if self.context.borrow().multithreaded {
+            self.key.incr_st(tptoken, out_buffer, increment)
+        } else {
+            panic!("Not supported!");
         }
     }
 
@@ -418,12 +433,15 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
     ///     key.set(&Vec::from("Hello world!"))?;
-    ///     let output_buffer = key.get()?;
+    ///     key[1] = Vec::from("1");
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key[1] = Vec::from("0");
+    ///     key.next_sub_self()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "1");
     ///
     ///     Ok(())
     /// }
@@ -431,8 +449,10 @@ impl KeyContext {
     pub fn next_sub_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.sub_next_self_st(tptoken, out_buffer)
+        let result = if self.context.borrow().multithreaded {
+            self.key.sub_next_self_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -462,12 +482,15 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
     ///     key.set(&Vec::from("Hello world!"))?;
-    ///     let output_buffer = key.get()?;
+    ///     key[1] = Vec::from("1");
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key[1] = Vec::from("1");
+    ///     key.prev_sub_self()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "0");
     ///
     ///     Ok(())
     /// }
@@ -475,8 +498,10 @@ impl KeyContext {
     pub fn prev_sub_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.sub_prev_self_st(tptoken, out_buffer)
+        let result = if self.context.borrow().multithreaded {
+            self.key.sub_prev_self_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -507,12 +532,15 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
     ///     key.set(&Vec::from("Hello world!"))?;
-    ///     let output_buffer = key.get()?;
+    ///     key[1] = Vec::from("1");
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key[1] = Vec::from("0");
+    ///     let k2 = key.next_sub()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(String::from_utf8_lossy(&k2[1]), "1");
     ///
     ///     Ok(())
     /// }
@@ -540,12 +568,15 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
     ///     key.set(&Vec::from("Hello world!"))?;
-    ///     let output_buffer = key.get()?;
+    ///     key[1] = Vec::from("1");
+    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key[1] = Vec::from("1");
+    ///     let k2 = key.prev_sub()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(String::from_utf8_lossy(&k2[1]), "0");
     ///
     ///     Ok(())
     /// }
@@ -573,12 +604,16 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///     let mut key = make_ckey!(ctx, "^hello", "0", "0");
     ///
     ///     key.set(&Vec::from("Hello world!"))?;
-    ///     let output_buffer = key.get()?;
+    ///     // Forget the second subscript
+    ///     unsafe {
+    ///         key.set_len(2);
+    ///     }
+    ///     key.next_node_self()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(String::from_utf8_lossy(&key[2]), "0");
     ///
     ///     Ok(())
     /// }
@@ -586,8 +621,10 @@ impl KeyContext {
     pub fn next_node_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.node_next_self_st(tptoken, out_buffer)
+        let result = if self.context.borrow().multithreaded {
+            self.key.node_next_self_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -618,12 +655,18 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///     let mut key = make_ckey!(ctx, "^hello", "0", "0");
     ///
     ///     key.set(&Vec::from("Hello world!"))?;
-    ///     let output_buffer = key.get()?;
+    ///     // Forget the second subscript
+    ///     unsafe {
+    ///         key.set_len(2);
+    ///     }
+    ///     // Go to the next node, then walk backward
+    ///     key[1] = Vec::from("1");
+    ///     key.prev_node_self()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(String::from_utf8_lossy(&key[2]), "0");
     ///
     ///     Ok(())
     /// }
@@ -631,8 +674,10 @@ impl KeyContext {
     pub fn prev_node_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.node_prev_self_st(tptoken, out_buffer)
+        let result = if self.context.borrow().multithreaded {
+            self.key.node_prev_self_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -663,12 +708,16 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///     let mut key = make_ckey!(ctx, "^hello", "0", "0");
     ///
     ///     key.set(&Vec::from("Hello world!"))?;
-    ///     let output_buffer = key.get()?;
+    ///     // Forget the second subscript
+    ///     unsafe {
+    ///         key.set_len(2);
+    ///     }
+    ///     let k2 = key.next_node()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(String::from_utf8_lossy(&k2[2]), "0");
     ///
     ///     Ok(())
     /// }
@@ -697,12 +746,18 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello");
+    ///     let mut key = make_ckey!(ctx, "^helloPrevNode", "0", "0");
     ///
     ///     key.set(&Vec::from("Hello world!"))?;
-    ///     let output_buffer = key.get()?;
+    ///     // Forget the second subscript
+    ///     unsafe {
+    ///         key.set_len(2);
+    ///     }
+    ///     // Go to the next node, then walk backward
+    ///     key[1] = Vec::from("1");
+    ///     let k2 = key.prev_node()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(String::from_utf8_lossy(&k2[2]), "0");
     ///
     ///     Ok(())
     /// }
@@ -713,35 +768,69 @@ impl KeyContext {
         Ok(ret)
     }
 
-    /// Iterates over all the values at this level of the database tree and returns the value for
-    /// each node.
-    gen_iter_proto!(iter_values, ForwardValueIterator);
-    /// Iterates over all the subscripts at this level of the database tree and returns the
-    /// subscript for each node.
-    gen_iter_proto!(iter_subs, ForwardSubIterator);
-    /// Iterates over all the subscripts at this level of the database tree and returns the subscript and value for each node.
-    gen_iter_proto!(iter_subs_values, ForwardSubValueIterator);
-    /// Iterates over all subscripts at this level of the database tree and returns a copy of the key at each subscript.
-    gen_iter_proto!(iter_key_subs, ForwardKeySubIterator);
-    /// Iterates over all nodes for the global pointed to by the key and returns the value at each node.
-    gen_iter_proto!(iter_nodes, ForwardNodeIterator);
-    /// Iterates over all nodes for the global pointed to by the key and returns a copy of the key at each node.
-    gen_iter_proto!(iter_key_nodes, ForwardKeyNodeIterator);
+    gen_iter_proto!(
+        /// Iterates over all the values at this level of the database tree and returns the value for
+        /// each node.
+        iter_values, ForwardValueIterator
+        );
 
-    /// Iterates in reverse order over all the values at this level of the database tree and returns the value for
-    /// each node.
-    gen_iter_proto!(iter_values_reverse, ReverseValueIterator);
-    /// Iterates in reverse order over all the subscripts at this level of the database tree and returns the
-    /// subscript for each node.
-    gen_iter_proto!(iter_subs_reverse, ReverseSubIterator);
-    /// Iterates in reverse order over all the subscripts at this level of the database tree and returns the subscript and value for each node.
-    gen_iter_proto!(iter_subs_values_reverse, ReverseSubValueIterator);
-    /// Iterates in reverse order over all subscripts at this level of the database tree and returns a copy of the key at each subscript.
-    gen_iter_proto!(iter_key_subs_reverse, ReverseKeySubIterator);
-    /// Iterates in reverse order over all nodes for the global pointed to by the key and returns the value at each node.
-    gen_iter_proto!(iter_nodes_reverse, ReverseNodeIterator);
-    /// Iterates in reverse oder over all nodes for the global pointed to by the key and returns a copy of the key at each node.
-    gen_iter_proto!(iter_key_nodes_reverse, ReverseKeyNodeIterator);
+    gen_iter_proto!(
+        /// Iterates over all the subscripts at this level of the database tree and returns the
+        /// subscript for each node.
+        iter_subs, ForwardSubIterator
+        );
+
+    gen_iter_proto!(
+        /// Iterates over all the subscripts at this level of the database tree and returns the subscript and value for each node.
+        iter_subs_values, ForwardSubValueIterator
+        );
+
+    gen_iter_proto!(
+        /// Iterates over all subscripts at this level of the database tree and returns a copy of the key at each subscript.
+        iter_key_subs, ForwardKeySubIterator
+        );
+
+    gen_iter_proto!(
+        /// Iterates over all nodes for the global pointed to by the key and returns the value at each node.
+        iter_nodes, ForwardNodeIterator
+        );
+
+    gen_iter_proto!(
+        /// Iterates over all nodes for the global pointed to by the key and returns a copy of the key at each node.
+        iter_key_nodes, ForwardKeyNodeIterator
+        );
+
+    gen_iter_proto!(
+        /// Iterates in reverse order over all the values at this level of the database tree and returns the value for
+        /// each node.
+        iter_values_reverse, ReverseValueIterator
+        );
+
+    gen_iter_proto!(
+        /// Iterates in reverse order over all the subscripts at this level of the database tree and returns the
+        /// subscript for each node.
+        iter_subs_reverse, ReverseSubIterator
+        );
+
+    gen_iter_proto!(
+        /// Iterates in reverse order over all the subscripts at this level of the database tree and returns the subscript and value for each node.
+        iter_subs_values_reverse, ReverseSubValueIterator
+        );
+
+    gen_iter_proto!(
+        /// Iterates in reverse order over all subscripts at this level of the database tree and returns a copy of the key at each subscript.
+        iter_key_subs_reverse, ReverseKeySubIterator
+        );
+
+    gen_iter_proto!(
+        /// Iterates in reverse order over all nodes for the global pointed to by the key and returns the value at each node.
+        iter_nodes_reverse, ReverseNodeIterator
+        );
+
+    gen_iter_proto!(
+        /// Iterates in reverse oder over all nodes for the global pointed to by the key and returns a copy of the key at each node.
+        iter_key_nodes_reverse, ReverseKeyNodeIterator
+        );
 }
 
 implement_iterator!(ForwardValueIterator, next_sub_self, Vec<u8>, |me: &mut ForwardValueIterator| {
@@ -853,6 +942,23 @@ mod tests {
         key.increment(None).unwrap();
     }
 
+    #[test]
+    fn simple_prev_node() {
+        let ctx = Context::new();
+        let mut key = make_ckey!(ctx, "^hello", "0", "0");
+
+        key.set(&Vec::from("Hello world!")).unwrap();
+        // Forget the second subscript
+        unsafe {
+            key.set_len(2);
+        }
+        // Go to the next node, then walk backward
+        key[1] = Vec::from("1");
+        let k2 = key.prev_node().unwrap();
+
+        assert_eq!(String::from_utf8_lossy(&k2[2]), "0");
+    }
+
     // Macro to test ordered expressions
     macro_rules! make_loop_test {
         ($testname:ident, $func:ident, $transform:expr,
@@ -877,7 +983,7 @@ mod tests {
                     assert_eq!(x, match i {
                         $( $pat => $val ),*,
                         _ => panic!("Unexpected value: <{:#?}>", x),
-                    }, "Values don't matter on {}th iteration", i);
+                    }, "Values don't match on {}th iteration", i);
                 }
             }
         }
@@ -886,99 +992,99 @@ mod tests {
     make_loop_test!(test_iter_values, iter_values, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
     }, 
-                0 => "Song of Ice and Fire",
-                1 => "Elder Scrolls",
-                2 => "Tolkien"
+    0 => "Song of Ice and Fire",
+    1 => "Elder Scrolls",
+    2 => "Tolkien"
     );
 
     make_loop_test!(test_iter_subs, iter_subs, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
     }, 
-                0 => "high garden",
-                1 => "mundus",
-                2 => "shire"
+    0 => "high garden",
+    1 => "mundus",
+    2 => "shire"
     );
 
     make_loop_test!(test_iter_subs_values, iter_subs_values, |(x, y): (Vec<u8>, Vec<u8>)| {
         (String::from_utf8_lossy(&x).into_owned(),
-            String::from_utf8_lossy(&y).into_owned())
+        String::from_utf8_lossy(&y).into_owned())
     }, 
-                0 => (String::from("high garden"), String::from("Song of Ice and Fire")),
-                1 => (String::from("mundus"), String::from("Elder Scrolls")),
-                2 => (String::from("shire"), String::from("Tolkien"))
+    0 => (String::from("high garden"), String::from("Song of Ice and Fire")),
+    1 => (String::from("mundus"), String::from("Elder Scrolls")),
+    2 => (String::from("shire"), String::from("Tolkien"))
     );
 
     make_loop_test!(test_iter_key_subs, iter_key_subs, |x: KeyContext| {
         (String::from_utf8_lossy(&x[0]).into_owned(), String::from_utf8_lossy(&x[1]).into_owned())
     }, 
-                0 => (String::from("^helloSubLoop"), String::from("high garden")),
-                1 => (String::from("^helloSubLoop"), String::from("mundus")),
-                2 => (String::from("^helloSubLoop"), String::from("shire"))
+    0 => (String::from("^helloSubLoop"), String::from("high garden")),
+    1 => (String::from("^helloSubLoop"), String::from("mundus")),
+    2 => (String::from("^helloSubLoop"), String::from("shire"))
     );
 
     make_loop_test!(test_iter_nodes, iter_nodes, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
     }, 
-                0 => "Song of Ice and Fire",
-                1 => "Elder Scrolls",
-                2 => "Tolkien"
+    0 => "Song of Ice and Fire",
+    1 => "Elder Scrolls",
+    2 => "Tolkien"
     );
 
     make_loop_test!(test_iter_key_nodes, iter_key_nodes, |x: KeyContext| {
         (String::from_utf8_lossy(&x[0]).into_owned(), String::from_utf8_lossy(&x[1]).into_owned())
     }, 
-                0 => (String::from("^helloSubLoop"), String::from("high garden")),
-                1 => (String::from("^helloSubLoop"), String::from("mundus")),
-                2 => (String::from("^helloSubLoop"), String::from("shire"))
+    0 => (String::from("^helloSubLoop"), String::from("high garden")),
+    1 => (String::from("^helloSubLoop"), String::from("mundus")),
+    2 => (String::from("^helloSubLoop"), String::from("shire"))
     );
 
     make_loop_test!(test_iter_values_reverse, iter_values_reverse, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
     }, 
-                2 => "Song of Ice and Fire",
-                1 => "Elder Scrolls",
-                0 => "Tolkien"
+    2 => "Song of Ice and Fire",
+    1 => "Elder Scrolls",
+    0 => "Tolkien"
     );
 
     make_loop_test!(test_iter_subs_reverse, iter_subs_reverse, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
     }, 
-                2 => "high garden",
-                1 => "mundus",
-                0 => "shire"
+    2 => "high garden",
+    1 => "mundus",
+    0 => "shire"
     );
 
     make_loop_test!(test_iter_subs_values_reverse, iter_subs_values_reverse, |(x, y): (Vec<u8>, Vec<u8>)| {
         (String::from_utf8_lossy(&x).into_owned(),
-            String::from_utf8_lossy(&y).into_owned())
+        String::from_utf8_lossy(&y).into_owned())
     }, 
-                2 => (String::from("high garden"), String::from("Song of Ice and Fire")),
-                1 => (String::from("mundus"), String::from("Elder Scrolls")),
-                0 => (String::from("shire"), String::from("Tolkien"))
+    2 => (String::from("high garden"), String::from("Song of Ice and Fire")),
+    1 => (String::from("mundus"), String::from("Elder Scrolls")),
+    0 => (String::from("shire"), String::from("Tolkien"))
     );
 
     make_loop_test!(test_iter_key_subs_reverse, iter_key_subs_reverse, |x: KeyContext| {
         (String::from_utf8_lossy(&x[0]).into_owned(), String::from_utf8_lossy(&x[1]).into_owned())
     }, 
-                2 => (String::from("^helloSubLoop"), String::from("high garden")),
-                1 => (String::from("^helloSubLoop"), String::from("mundus")),
-                0 => (String::from("^helloSubLoop"), String::from("shire"))
+    2 => (String::from("^helloSubLoop"), String::from("high garden")),
+    1 => (String::from("^helloSubLoop"), String::from("mundus")),
+    0 => (String::from("^helloSubLoop"), String::from("shire"))
     );
 
     make_loop_test!(test_iter_nodes_reverse, iter_nodes_reverse, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
     }, 
-                2 => "Song of Ice and Fire",
-                1 => "Elder Scrolls",
-                0 => "Tolkien"
+    2 => "Song of Ice and Fire",
+    1 => "Elder Scrolls",
+    0 => "Tolkien"
     );
 
     make_loop_test!(test_iter_key_nodes_reverse, iter_key_nodes_reverse, |x: KeyContext| {
         (String::from_utf8_lossy(&x[0]).into_owned(), String::from_utf8_lossy(&x[1]).into_owned())
     }, 
-                2 => (String::from("^helloSubLoop"), String::from("high garden")),
-                1 => (String::from("^helloSubLoop"), String::from("mundus")),
-                0 => (String::from("^helloSubLoop"), String::from("shire"))
+    2 => (String::from("^helloSubLoop"), String::from("high garden")),
+    1 => (String::from("^helloSubLoop"), String::from("mundus")),
+    0 => (String::from("^helloSubLoop"), String::from("shire"))
     );
 
     #[test]

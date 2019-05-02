@@ -39,7 +39,7 @@ use std::error;
 use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st,
     ydb_incr_st, ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
     ydb_tp_st, YDB_OK,
-    YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE};
+    YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE, YDB_TP_ROLLBACK};
 
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct YDBError (pub Vec<u8>, pub i32);
@@ -146,16 +146,15 @@ impl Key {
     /// ```
     pub fn get_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        if self.needs_sync {
-            self.sync();
-        }
+        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
+        let mut err_buffer_t = out_buffer_t;
 
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_varname_and_subscripts();
         let status = unsafe {
-            ydb_get_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
+            ydb_get_st(tptoken, &mut err_buffer_t, varname, (self.buffers.len() - 1) as i32,
                 subscripts, &mut out_buffer_t)
         };
         if status == YDB_ERR_INVSTRLEN {
@@ -165,11 +164,14 @@ impl Key {
         // Resize the vec with the buffer to we can see the value
         // We could end up with a buffer of a larger size if we couldn't fit the error string
         // into the out_buffer, so make sure to pick the smaller size
+        if status != YDB_OK as i32 {
+            unsafe {
+                out_buffer.set_len(min(err_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            }
+            return Err(Box::new(YDBError(out_buffer,  status)));
+        }
         unsafe {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-        }
-        if status != YDB_OK as i32 {
-            return Err(Box::new(YDBError(out_buffer,  status)));
         }
         Ok(out_buffer)
     }
@@ -198,16 +200,14 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn set_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, new_val: &Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub fn set_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, new_val: &[u8]) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        if self.needs_sync {
-            self.sync();
-        }
+        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
         let mut new_val_t = ydb_buffer_t {
             buf_addr: new_val.as_ptr() as *const _ as *mut _,
-            len_alloc: new_val.capacity() as u32,
+            len_alloc: new_val.len() as u32,
             len_used: new_val.len() as u32,
         };
 
@@ -268,9 +268,7 @@ impl Key {
     /// ```
     pub fn data_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<(DataReturn, Vec<u8>)> {
         let mut out_buffer = out_buffer;
-        if self.needs_sync {
-            self.sync();
-        }
+        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
@@ -333,9 +331,7 @@ impl Key {
     pub fn delete_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, delete_type: DeleteType)
             -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        if self.needs_sync {
-            self.sync();
-        }
+        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
@@ -405,11 +401,10 @@ impl Key {
     pub fn incr_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, increment: Option<&Vec<u8>>)
             -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        if self.needs_sync {
-            self.sync();
-        }
+        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
+        let mut err_buffer_t = out_buffer_t;
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_varname_and_subscripts();
         let status: i32;
@@ -424,7 +419,7 @@ impl Key {
                 len_used: increment_v.len() as u32,
             };
             status = unsafe {
-                ydb_incr_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
+                ydb_incr_st(tptoken, &mut err_buffer_t, varname, (self.buffers.len() - 1) as i32,
                 subscripts, increment_t, &mut out_buffer_t)
             };
             // Handle resizing the buffer, if needed
@@ -446,14 +441,17 @@ impl Key {
             }
         }
         // Set length of the vec containing the buffer to we can see the value
-        let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
-        unsafe {
-            out_buffer.set_len(new_buffer_size);
-        }
         if status != YDB_OK as i32 {
+            unsafe {
+                out_buffer.set_len(min(err_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            }
             // We could end up with a buffer of a larger size if we couldn't fit the error string
             // into the out_buffer, so make sure to pick the smaller size
             return Err(Box::new(YDBError(out_buffer,  status)));
+        }
+        let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
+        unsafe {
+            out_buffer.set_len(new_buffer_size);
         }
         Ok(out_buffer)
     }
@@ -494,15 +492,13 @@ impl Key {
     /// ```
     pub fn node_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        if self.needs_sync {
-            self.sync();
-        }
+        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_varname_and_subscripts();
-        let mut ret_subs_used = (self.buffer_structs.len() - 1) as i32;
+        let mut ret_subs_used = (self.buffers.capacity() - 1) as i32;
         // Do the call
         let status = unsafe {
             ydb_node_next_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
@@ -511,7 +507,11 @@ impl Key {
         // Handle resizing the buffer, if needed
         if status == YDB_ERR_INVSTRLEN {
             let ret_subs_used = (ret_subs_used + 1) as usize;
-            self.buffers[ret_subs_used].resize_with(self.buffer_structs[ret_subs_used].len_used as usize, Default::default);
+            let t = &mut self.buffers[ret_subs_used];
+            // New size should be size needed + (current size - len used)
+            let new_size = (self.buffer_structs[ret_subs_used].len_used - self.buffer_structs[ret_subs_used].len_alloc) as usize;
+            let new_size = new_size + (t.capacity() - t.len());
+            t.reserve(new_size);
             self.needs_sync = true;
             return self.node_next_self_st(tptoken, out_buffer);
         }
@@ -531,6 +531,10 @@ impl Key {
                 out_buffer.set_len(new_buffer_size);
             }
             return Err(Box::new(YDBError(out_buffer,  status)));
+        }
+        unsafe {
+            self.buffers.set_len((ret_subs_used + 1) as usize);
+            self.buffer_structs.set_len((ret_subs_used + 1) as usize);
         }
         self.reverse_sync();
         Ok(out_buffer)
@@ -570,15 +574,13 @@ impl Key {
     /// ```
     pub fn node_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        if self.needs_sync {
-            self.sync();
-        }
+        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_varname_and_subscripts();
-        let mut ret_subs_used = (self.buffer_structs.len() - 1) as i32;
+        let mut ret_subs_used = (self.buffers.capacity() - 1) as i32;
         // Do the call
         let status = unsafe {
             ydb_node_previous_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
@@ -587,7 +589,11 @@ impl Key {
         // Handle resizing the buffer, if needed
         if status == YDB_ERR_INVSTRLEN {
             let ret_subs_used = (ret_subs_used + 1) as usize;
-            self.buffers[ret_subs_used].resize_with(self.buffer_structs[ret_subs_used].len_used as usize, Default::default);
+            let t = &mut self.buffers[ret_subs_used];
+            // New size should be size needed + (current size - len used)
+            let new_size = (self.buffer_structs[ret_subs_used].len_used - self.buffer_structs[ret_subs_used].len_alloc) as usize;
+            let new_size = new_size + (t.capacity() - t.len());
+            t.reserve(new_size);
             self.needs_sync = true;
             return self.node_prev_self_st(tptoken, out_buffer);
         }
@@ -607,6 +613,11 @@ impl Key {
                 out_buffer.set_len(new_buffer_size);
             }
             return Err(Box::new(YDBError(out_buffer,  status)));
+        }
+        unsafe {
+            println!("ret_subs_used: {}", ret_subs_used);
+            self.buffers.set_len((ret_subs_used + 1) as usize);
+            self.buffer_structs.set_len((ret_subs_used + 1) as usize);
         }
         self.reverse_sync();
         Ok(out_buffer)
@@ -646,9 +657,7 @@ impl Key {
     /// ```
     pub fn sub_next_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        if self.needs_sync {
-            self.sync();
-        }
+        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
@@ -708,9 +717,7 @@ impl Key {
     /// ```
     pub fn sub_prev_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        if self.needs_sync {
-            self.sync();
-        }
+        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
@@ -771,9 +778,7 @@ impl Key {
     /// ```
     pub fn sub_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        if self.needs_sync {
-            self.sync();
-        }
+        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
         let mut last_self_buffer = {
@@ -792,7 +797,11 @@ impl Key {
                 subscripts, &mut last_self_buffer)
         };
         if status == YDB_ERR_INVSTRLEN {
-            self.buffers.last_mut().unwrap().resize_with(last_self_buffer.len_used as usize, Default::default);
+            let t = self.buffers.last_mut().unwrap();
+            // New size should be size needed + (current size - len used)
+            let new_size = (last_self_buffer.len_used - last_self_buffer.len_alloc) as usize;
+            let new_size = new_size + (t.capacity() - t.len());
+            t.reserve(new_size);
             self.needs_sync = true;
             return self.sub_next_self_st(tptoken, out_buffer);
         }
@@ -846,9 +855,7 @@ impl Key {
     /// ```
     pub fn sub_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        if self.needs_sync {
-            self.sync();
-        }
+        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
         let mut last_self_buffer = {
@@ -867,7 +874,11 @@ impl Key {
                 subscripts, &mut last_self_buffer)
         };
         if status == YDB_ERR_INVSTRLEN {
-            self.buffers.last_mut().unwrap().resize_with(last_self_buffer.len_used as usize, Default::default);
+            let t = self.buffers.last_mut().unwrap();
+            // New size should be size needed + (current size - len used)
+            let new_size = (last_self_buffer.len_used - last_self_buffer.len_alloc) as usize;
+            let new_size = new_size + (t.capacity() - t.len());
+            t.reserve(new_size);
             self.needs_sync = true;
             return self.sub_prev_self_st(tptoken, out_buffer);
         }
@@ -908,7 +919,7 @@ impl Key {
     }
 
     fn sync(&mut self) {
-        self.buffer_structs.resize_with(self.buffers.len(), Default::default);
+        self.buffer_structs.resize_with(self.buffers.capacity(), Default::default);
         for (i, buff) in self.buffers.iter_mut().enumerate() {
             // Ensure that a buffer is allocated, as a null pointer is no fun
             if buff.capacity() == 0 {
@@ -968,7 +979,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
     let vec = unsafe {
         Vec::from_raw_parts((*errstr).buf_addr as *mut u8, (*errstr).len_alloc as usize, (*errstr).len_used as usize) 
     };
-    let retval = match (callback_struct.cb)(tptoken, vec) {
+    match (callback_struct.cb)(tptoken, vec) {
         Ok(vec) => {
             mem::forget(vec);
             YDB_OK as i32
@@ -984,13 +995,11 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
                 },
                 Err(x) => {
                     callback_struct.retval = Some(Err(x));
-                    YDB_OK as i32
+                    YDB_TP_ROLLBACK as i32
                 },
             }
         },
-    };
-    mem::forget(callback_struct);
-    retval
+    }
 }
 
 pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
@@ -1018,7 +1027,7 @@ pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
         ydb_tp_st(tptoken, &mut out_buffer_t, Some(fn_callback), arg, c_str.as_ptr(),
             locals.len() as i32, locals_ptr)
     };
-    if status != YDB_OK as i32 {
+    if status != YDB_OK as i32 && status != YDB_TP_ROLLBACK as i32 {
         unsafe {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
         }
@@ -1141,7 +1150,10 @@ mod tests {
         result = key.set_st(0, result, &value).unwrap();
         key[2] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
-        key.truncate(2);
+        //key.truncate(2);
+        unsafe {
+            key.set_len(2);
+        }
         key.node_next_self_st(0, result).unwrap();
     }
 
