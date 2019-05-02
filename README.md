@@ -1,3 +1,5 @@
+[![pipeline status](https://gitlab.com/YottaDB/Lang/YDBRust/badges/master/pipeline.svg)](https://gitlab.com/YottaDB/Lang/YDBRust/commits/master)
+
 
 # YDBRust - Rust Bindings for YottaDB
 
