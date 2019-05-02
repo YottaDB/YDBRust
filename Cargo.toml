@@ -4,6 +4,11 @@ version = "0.0.1"
 authors = ["Charles Hathaway <charles@yottadb.com>"]
 edition = "2018"
 
+description = "Rust wrappers for the NoSQL database YottaDB"
+license = "AGPL-3.0-only"
+repository = "https://gitlab.com/YottaDB/Lang/YDBRust"
+homepage = "https://yottadb.com/"
+
 [dependencies]
 
 [build-dependencies]
