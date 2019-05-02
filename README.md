@@ -17,8 +17,7 @@ Include YDBRust in your Cargo.toml:
 
 ```
 [dependencies]
-yottadb = { git = "https://gitlab.com/YottaDB/Lang/YDBRust.git" }
-
+yottadb = "0.0.1"
 ```
 
 Add this into your project:
