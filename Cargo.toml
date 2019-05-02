@@ -1,6 +1,6 @@
 [package]
 name = "yottadb"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Charles Hathaway <charles@yottadb.com>"]
 edition = "2018"
 
@@ -9,6 +9,3 @@ edition = "2018"
 [build-dependencies]
 bindgen = "0.42.2"
 pkg-config = "0.3.14"
-
-[profile.release]
-lto = true
