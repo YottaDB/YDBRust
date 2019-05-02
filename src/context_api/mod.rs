@@ -72,7 +72,7 @@ macro_rules! gen_iter_proto {
     ($(#[$meta:meta])*
      $name:ident, $return_type:tt) => {
         $(#[$meta])*
-            pub fn $name<'a>(&'a mut self) -> $return_type<'a> {
+            pub fn $name(&mut self) -> $return_type {
                 $return_type {
                     key: self,
                 }
@@ -120,6 +120,12 @@ struct ContextInternal {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Context {
     context: Rc<RefCell<ContextInternal>>,
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -224,8 +230,10 @@ impl KeyContext {
     pub fn get(&mut self) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = Vec::with_capacity(1024);
-        match self.context.borrow().multithreaded {
-            _ => self.key.get_st(tptoken, out_buffer)
+        if self.context.borrow().multithreaded {
+            self.key.get_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!")
         }
     }
 
@@ -253,11 +261,13 @@ impl KeyContext {
     ///     Ok(())
     /// }
     /// ```
-    pub fn set(&mut self, new_val: &Vec<u8>) -> YDBResult<()> {
+    pub fn set(&mut self, new_val: &[u8]) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.set_st(tptoken, out_buffer, &new_val)
+        let result = if self.context.borrow().multithreaded {
+            self.key.set_st(tptoken, out_buffer, &new_val)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -303,8 +313,10 @@ impl KeyContext {
     pub fn data(&mut self) -> YDBResult<DataReturn> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.data_st(tptoken, out_buffer)
+        let result = if self.context.borrow().multithreaded {
+            self.key.data_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok((y, x)) => {
@@ -349,8 +361,10 @@ impl KeyContext {
     pub fn delete(&mut self, delete_type: DeleteType) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.delete_st(tptoken, out_buffer, delete_type)
+        let result = if self.context.borrow().multithreaded {
+            self.key.delete_st(tptoken, out_buffer, delete_type)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -395,8 +409,10 @@ impl KeyContext {
     pub fn increment(&mut self, increment: Option<&Vec<u8>>) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = Vec::with_capacity(1024);
-        match self.context.borrow().multithreaded {
-            _ => self.key.incr_st(tptoken, out_buffer, increment)
+        if self.context.borrow().multithreaded {
+            self.key.incr_st(tptoken, out_buffer, increment)
+        } else {
+            panic!("Not supported!");
         }
     }
 
@@ -433,8 +449,10 @@ impl KeyContext {
     pub fn next_sub_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.sub_next_self_st(tptoken, out_buffer)
+        let result = if self.context.borrow().multithreaded {
+            self.key.sub_next_self_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -480,8 +498,10 @@ impl KeyContext {
     pub fn prev_sub_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.sub_prev_self_st(tptoken, out_buffer)
+        let result = if self.context.borrow().multithreaded {
+            self.key.sub_prev_self_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -601,8 +621,10 @@ impl KeyContext {
     pub fn next_node_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.node_next_self_st(tptoken, out_buffer)
+        let result = if self.context.borrow().multithreaded {
+            self.key.node_next_self_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -652,8 +674,10 @@ impl KeyContext {
     pub fn prev_node_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = match self.context.borrow().multithreaded {
-            _ => self.key.node_prev_self_st(tptoken, out_buffer)
+        let result = if self.context.borrow().multithreaded {
+            self.key.node_prev_self_st(tptoken, out_buffer)
+        } else {
+            panic!("Not supported!");
         };
         match result {
             Ok(x) => {
@@ -722,7 +746,7 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello", "0", "0");
+    ///     let mut key = make_ckey!(ctx, "^helloPrevNode", "0", "0");
     ///
     ///     key.set(&Vec::from("Hello world!"))?;
     ///     // Forget the second subscript
@@ -918,6 +942,23 @@ mod tests {
         key.increment(None).unwrap();
     }
 
+    #[test]
+    fn simple_prev_node() {
+        let ctx = Context::new();
+        let mut key = make_ckey!(ctx, "^hello", "0", "0");
+
+        key.set(&Vec::from("Hello world!")).unwrap();
+        // Forget the second subscript
+        unsafe {
+            key.set_len(2);
+        }
+        // Go to the next node, then walk backward
+        key[1] = Vec::from("1");
+        let k2 = key.prev_node().unwrap();
+
+        assert_eq!(String::from_utf8_lossy(&k2[2]), "0");
+    }
+
     // Macro to test ordered expressions
     macro_rules! make_loop_test {
         ($testname:ident, $func:ident, $transform:expr,
@@ -942,7 +983,7 @@ mod tests {
                     assert_eq!(x, match i {
                         $( $pat => $val ),*,
                         _ => panic!("Unexpected value: <{:#?}>", x),
-                    }, "Values don't matter on {}th iteration", i);
+                    }, "Values don't match on {}th iteration", i);
                 }
             }
         }
