@@ -15,3 +15,12 @@ readme = "README.md"
 [build-dependencies]
 bindgen = "0.42.2"
 pkg-config = "0.3.14"
+
+[dev-dependencies]
+threadpool = "1.7.1"
+rand = "0.6.5"
+num_cpus = "1.10.0"
+
+[dev-dependencies.sdl2]
+version = "0.32.2"
+features = ["gfx", "ttf"]

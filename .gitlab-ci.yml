@@ -3,7 +3,7 @@ stages:
   - docs
 
 before_script:
-  - apt-get update -qq && apt-get install -y -qq curl libclang-common-6.0-dev clang
+  - apt-get update -qq && apt-get install -y -qq curl libclang-common-6.0-dev clang libsdl2-dev libsdl2-gfx-dev libsdl2-doc libsdl2-ttf-dev
   - curl https://sh.rustup.rs -sSf | sh -s -- -y
   - source /opt/yottadb/current/ydb_env_set
   - source $HOME/.cargo/env 
