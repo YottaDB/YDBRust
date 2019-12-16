@@ -15,32 +15,30 @@ Homepage: https://gitlab.com/YottaDB/Lang/YDBRust
 
 Include YDBRust in your Cargo.toml:
 
-```
+```toml
 [dependencies]
 yottadb = "0.0.1"
 ```
 
 Add this into your project:
 
-```
+```rust
 extern crate yottadb;
 
 use yottadb::simple_api::Key;
-
 ```
 
 Before building or using a project which depends on YottaDB, you need to ensure that YottaDB is set up and configured.
 
-```
+```sh
 source $(pkg-config --variable=prefix yottadb)/ydb_env_set
-
 ```
 
 ## Development Setup
 
 Fork the YDBRust repository on Gitlab, clone it to your machine, and then use it for development.
 
-```
+```sh
 git clone https://gitlab.com/YottaDB/Lang/YDBRust.git
 
 cd YDBRust
@@ -50,5 +48,4 @@ source $(pkg-config --variable=prefix yottadb)/ydb_env_set
 cargo test
 
 cargo doc --open
-
 ```
