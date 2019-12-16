@@ -60,7 +60,7 @@ Alternatively, you can use the provided dockerfile:
 docker build --tag ydbrust .
 docker run --volume "${PWD}":/opt/ydbrust -it ydbrust bash
 source $(pkg-config --variable=prefix yottadb)/ydb_env_set
-cargo test --lib
+cargo test
 cargo doc
 ```
 
