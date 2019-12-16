@@ -9,7 +9,7 @@
 //!
 //! A basic database operation (set a value, retrieve it, and delete it)
 //!
-//! ```no_run
+//! ```
 //! # #[macro_use] extern crate yottadb;
 //! use yottadb::craw::YDB_NOTTP;
 //! use yottadb::context_api::Context;

@@ -11,7 +11,7 @@
 //!
 //! A basic database operation (set a value, retrieve it, then delete it):
 //!
-//! ```no_run
+//! ```
 //! # #[macro_use] extern crate yottadb;
 //! use yottadb::craw::YDB_NOTTP;
 //! use yottadb::simple_api::{Key, DeleteType, YDBResult};
@@ -82,7 +82,7 @@ pub enum DeleteType {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```
 /// # #[macro_use] extern crate yottadb;
 /// use yottadb::simple_api::Key;
 /// let mut my_key: Key = make_key!("^MyTimeSeriesData", "5");
