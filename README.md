@@ -60,6 +60,9 @@ Alternatively, you can use the provided dockerfile:
 docker build --tag ydbrust .
 docker run --volume "${PWD}":/opt/ydbrust -it ydbrust bash
 source $(pkg-config --variable=prefix yottadb)/ydb_env_set
-cargo test
-cargo doc --open
+cargo test --lib
+cargo doc
 ```
+
+The documentation will be available locally at
+`file:///path/to/ydbrust/target/doc/yottadb/index.html`.
