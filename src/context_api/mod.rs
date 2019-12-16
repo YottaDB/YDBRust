@@ -152,8 +152,8 @@ impl Context {
         }
     }
 
-    pub fn tp(&mut self, f: &mut FnMut(&mut Context) -> Result<(), Box<Error>>, trans_id: &str,
-    locals_to_reset: &[Vec<u8>]) -> Result<(), Box<Error>> {
+    pub fn tp(&mut self, f: &mut dyn FnMut(&mut Context) -> Result<(), Box<dyn Error>>, trans_id: &str,
+    locals_to_reset: &[Vec<u8>]) -> Result<(), Box<dyn Error>> {
 
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();

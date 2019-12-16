@@ -60,7 +60,7 @@ impl<'a> Circle<'a> {
         Ok(())
     }
 
-    fn save(&self, ctx: &Context) -> Result<(), Box<Error>> {
+    fn save(&self, ctx: &Context) -> Result<(), Box<dyn Error>> {
         let mut key = make_ckey!(ctx, "^balls", self.id.to_string(), "x");
         key.set(&Vec::from(self.x.to_string()))?;
         key[2] = Vec::from("y");

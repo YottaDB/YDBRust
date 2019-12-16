@@ -57,12 +57,12 @@ impl fmt::Display for YDBError {
 }
 
 impl error::Error for YDBError {
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         Some(self)
     }
 }
 
-pub type YDBResult<T> = Result<T, Box<Error>>;
+pub type YDBResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum DataReturn {
@@ -968,8 +968,8 @@ impl Clone for Key {
 
 /// Passes the callback function as a structure to the callback
 struct CallBackStruct<'a> {
-    cb: &'a mut FnMut(u64, Vec<u8>) -> Result<Vec<u8>, Box<Error>>,
-    retval: Option<Result<Vec<u8>, Box<Error>>>,
+    cb: &'a mut dyn FnMut(u64, Vec<u8>) -> Result<Vec<u8>, Box<dyn Error>>,
+    retval: Option<Result<Vec<u8>, Box<dyn Error>>>,
 }
 
 extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
@@ -1003,9 +1003,9 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
 }
 
 pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
-             f: &mut FnMut(u64, Vec<u8>) -> Result<Vec<u8>, Box<Error>>,
+             f: &mut dyn FnMut(u64, Vec<u8>) -> Result<Vec<u8>, Box<dyn Error>>,
              trans_id: &str,
-             locals_to_reset: &[Vec<u8>]) -> Result<Vec<u8>, Box<Error>> {
+             locals_to_reset: &[Vec<u8>]) -> Result<Vec<u8>, Box<dyn Error>> {
     let mut out_buffer = out_buffer;
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
     let mut locals = Vec::with_capacity(locals_to_reset.len());

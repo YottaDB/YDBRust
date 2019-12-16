@@ -7,7 +7,7 @@ use std::error::Error;
 use yottadb::simple_api::{DeleteType};
 use yottadb::context_api::Context;
 
-fn main() -> Result<(), Box<Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     // Clean out old values
     let ctx = Context::new();
     let mut del_key = make_ckey!(ctx, "^words");

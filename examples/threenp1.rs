@@ -12,7 +12,7 @@ use yottadb::craw::{YDB_ERR_GVUNDEF};
 use yottadb::context_api::Context; 
 use yottadb::simple_api::{DeleteType, DataReturn, YDBError};
 
-fn main() -> Result<(), Box<Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let ctx = Context::new();
 
     // Clear out old values
@@ -145,7 +145,7 @@ fn main() -> Result<(), Box<Error>> {
     Ok(())
 }
 
-fn doblk(index: usize) -> Result<(), Box<Error>> {
+fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
     let mut index = index;
     let mut ctx = Context::new();
     let mut reads = make_ckey!(ctx, "^reads");
