@@ -411,8 +411,7 @@ impl Key {
         // We have to duplicate some code here to ensure that increment_t won't drop
         // out of scope after we unwrap increment (i.e., if we used a match)
         // This only showed up in release testing.
-        if increment.is_some() {
-            let increment_v = increment.unwrap();
+        if let Some(increment_v) = increment {
             let increment_t = &mut ydb_buffer_t {
                 buf_addr: increment_v.as_ptr() as *const _ as *mut _,
                 len_alloc: increment_v.capacity() as u32,
