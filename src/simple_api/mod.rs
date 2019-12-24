@@ -36,10 +36,12 @@ use std::os::raw::c_void;
 use std::cmp::min;
 use std::fmt;
 use std::error;
-use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st,
+use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t,
     ydb_incr_st, ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
-    ydb_tp_st, YDB_OK,
+    ydb_tp_st, YDB_OK, YDB_NOTTP,
     YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE, YDB_TP_ROLLBACK};
+
+const DEFAULT_CAPACITY: usize = 1024;
 
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct YDBError (pub Vec<u8>, pub i32);
@@ -52,7 +54,25 @@ impl fmt::Debug for YDBError {
 
 impl fmt::Display for YDBError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "YDB Error ({}): {}", self.1, String::from_utf8_lossy(&self.0))
+        dbg!(self);
+        let mut out_buffer = Vec::with_capacity(DEFAULT_CAPACITY);
+        let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
+        // TODO: remove this clone
+        // TODO: email bhaskar to see if ydb_message_t mutates err_str
+        let mut cloned = self.0.clone();
+        let mut err_str = Key::make_out_buffer_t(&mut cloned);
+        eprintln!("before FFI call");
+        let ret_code = unsafe {
+            // TODO: This is wrong, YDBError should have an associated tptoken
+            ydb_message_t(YDB_NOTTP, &mut err_str, self.1, &mut out_buffer_t)
+        };
+        eprintln!("before FFI call");
+        let message = if ret_code != YDB_OK as i32 {
+            std::borrow::Cow::from("<error retrieving error message>")
+        } else {
+            String::from_utf8_lossy(&out_buffer)
+        };
+        write!(f, "YDB Error ({}): {}", message, String::from_utf8_lossy(&self.0))
     }
 }
 
@@ -1233,5 +1253,20 @@ mod tests {
         tp_st(0, result, &mut |_tptoken: u64, out: Vec<u8>| {
             Ok(out)
         }, "BATCH", &Vec::new()).unwrap();
+    }
+
+    #[test]
+    fn ydb_message_t() {
+        let err = YDBError(Vec::new(), 0);
+        println!("{}", err);
+    }
+    #[test]
+    fn use_after_free() {
+        let mut buffer = Vec::with_capacity(super::DEFAULT_CAPACITY);
+        buffer.push(1);
+        let buf_t = Key::make_out_buffer_t(&mut buffer);
+        println!("use before free: {}", unsafe { *buf_t.buf_addr });
+        std::mem::drop(buffer);
+        println!("use after free: {}", unsafe { *buf_t.buf_addr });
     }
 }
