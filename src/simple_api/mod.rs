@@ -54,21 +54,27 @@ impl fmt::Debug for YDBError {
 
 impl fmt::Display for YDBError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        dbg!(self);
         let mut out_buffer = Vec::with_capacity(DEFAULT_CAPACITY);
         let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
-        // TODO: remove this clone
-        // TODO: email bhaskar to see if ydb_message_t mutates err_str
-        let mut cloned = self.0.clone();
-        let mut err_str = Key::make_out_buffer_t(&mut cloned);
-        eprintln!("before FFI call");
+        let mut err_str = out_buffer_t;
         let ret_code = unsafe {
             // TODO: This is wrong, YDBError should have an associated tptoken
             ydb_message_t(YDB_NOTTP, &mut err_str, self.1, &mut out_buffer_t)
         };
-        eprintln!("before FFI call");
+        // Resize the vec with the buffer to we can see the value
+        // We could end up with a buffer of a larger size if we couldn't fit the error string
+        // into the out_buffer, so make sure to pick the smaller size
+        if ret_code != YDB_OK as i32 {
+            unsafe {
+                out_buffer.set_len(min(err_str.len_used, out_buffer_t.len_alloc) as usize);
+            }
+        } else {
+            unsafe {
+                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            }
+        }
         let message = if ret_code != YDB_OK as i32 {
-            std::borrow::Cow::from("<error retrieving error message>")
+            std::borrow::Cow::from(format!("<error retrieving error message: {}>", ret_code))
         } else {
             String::from_utf8_lossy(&out_buffer)
         };
@@ -1257,16 +1263,10 @@ mod tests {
 
     #[test]
     fn ydb_message_t() {
-        let err = YDBError(Vec::new(), 0);
-        println!("{}", err);
-    }
-    #[test]
-    fn use_after_free() {
-        let mut buffer = Vec::with_capacity(super::DEFAULT_CAPACITY);
-        buffer.push(1);
-        let buf_t = Key::make_out_buffer_t(&mut buffer);
-        println!("use before free: {}", unsafe { *buf_t.buf_addr });
-        std::mem::drop(buffer);
-        println!("use after free: {}", unsafe { *buf_t.buf_addr });
+        use crate::craw;
+        let err = YDBError(Vec::new(), craw::YDB_ERR_GVUNDEF);
+        assert!(err.to_string().contains("%YDB-E-GVUNDEF, Global variable undefined"));
+        let err = YDBError(Vec::new(), 10001);
+        assert!(err.to_string().contains("%SYSTEM-E-ENO10001, Unknown error 10001"));
     }
 }
