@@ -27,9 +27,9 @@
 //!     Ok(())
 //! }
 //! ```
+use std::error::Error;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
-use std::error::Error;
 use std::mem;
 use std::ffi::CString;
 use std::os::raw::c_void;
@@ -62,7 +62,7 @@ impl error::Error for YDBError {
     }
 }
 
-pub type YDBResult<T> = Result<T, Box<dyn Error>>;
+pub type YDBResult<T> = Result<T, YDBError>;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum DataReturn {
@@ -168,7 +168,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(err_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err(Box::new(YDBError(out_buffer,  status)));
+            return Err(YDBError(out_buffer,  status));
         }
         unsafe {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
@@ -230,7 +230,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err(Box::new(YDBError(out_buffer,  status)));
+            return Err(YDBError(out_buffer,  status));
         }
         Ok(out_buffer)
     }
@@ -287,7 +287,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err(Box::new(YDBError(out_buffer, status)));
+            return Err(YDBError(out_buffer, status));
         }
         Ok((match retval {
             0 => DataReturn::NoData,
@@ -357,7 +357,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err(Box::new(YDBError(out_buffer,  status)));
+            return Err(YDBError(out_buffer,  status));
         }
         Ok(out_buffer)
     }
@@ -446,7 +446,7 @@ impl Key {
             }
             // We could end up with a buffer of a larger size if we couldn't fit the error string
             // into the out_buffer, so make sure to pick the smaller size
-            return Err(Box::new(YDBError(out_buffer,  status)));
+            return Err(YDBError(out_buffer,  status));
         }
         let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
         unsafe {
@@ -529,7 +529,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(new_buffer_size);
             }
-            return Err(Box::new(YDBError(out_buffer,  status)));
+            return Err(YDBError(out_buffer,  status));
         }
         unsafe {
             self.buffers.set_len((ret_subs_used + 1) as usize);
@@ -611,7 +611,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(new_buffer_size);
             }
-            return Err(Box::new(YDBError(out_buffer,  status)));
+            return Err(YDBError(out_buffer,  status));
         }
         unsafe {
             println!("ret_subs_used: {}", ret_subs_used);
@@ -678,7 +678,7 @@ impl Key {
             out_buffer.set_len(new_buffer_size);
         }
         if status != YDB_OK as i32 {
-            return Err(Box::new(YDBError(out_buffer,  status)));
+            return Err(YDBError(out_buffer,  status));
         }
         Ok(out_buffer)
     }
@@ -738,7 +738,7 @@ impl Key {
             out_buffer.set_len(new_buffer_size);
         }
         if status != YDB_OK as i32 {
-            return Err(Box::new(YDBError(out_buffer,  status)));
+            return Err(YDBError(out_buffer,  status));
         }
         Ok(out_buffer)
     }
@@ -811,7 +811,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
             }
-            return Err(Box::new(YDBError(out_buffer,  status)));
+            return Err(YDBError(out_buffer,  status));
         }
         unsafe {
             self.buffers.last_mut().unwrap()
@@ -888,7 +888,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
             }
-            return Err(Box::new(YDBError(out_buffer,  status)));
+            return Err(YDBError(out_buffer,  status));
         }
         unsafe {
             self.buffers.last_mut().unwrap()
@@ -1032,8 +1032,8 @@ pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
         }
         return Err(Box::new(YDBError(out_buffer, status)));
     }
-    if callback_struct.retval.is_some() {
-        return callback_struct.retval.unwrap();
+    if let Some(val) = callback_struct.retval {
+        return val;
     }
     Ok(out_buffer)
 }

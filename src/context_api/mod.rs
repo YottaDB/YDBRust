@@ -28,9 +28,9 @@
 //! ```
 //!
 use std::cell::RefCell;
+use std::error::Error;
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
-use std::error::Error;
 
 use crate::craw::{YDB_NOTTP, YDB_ERR_NODEEND};
 use crate::simple_api::{tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType};
@@ -50,18 +50,8 @@ macro_rules! implement_iterator {
                     Ok(_) => {
                         $next(self)
                     },
-                    Err(x) => {
-                        let x = x.downcast::<YDBError>();
-                        match x {
-                            Ok(x) => {
-                                match x.1 {
-                                    YDB_ERR_NODEEND => None,
-                                    _ => Some(Err(x)),
-                                }
-                            }
-                            Err(z) => Some(Err(z))
-                        }
-                    }
+                    Err(YDBError(_, YDB_ERR_NODEEND)) => None,
+                    Err(x) => Some(Err(x)),
                 }
             }
         }
@@ -1093,7 +1083,8 @@ mod tests {
         ctx.tp(&mut |ctx: &mut Context| {
             let mut key = ctx.new_key();
             key.push(Vec::from("^hello"));
-            key.set(&Vec::from("Hello world!"))
+            key.set(&Vec::from("Hello world!"))?;
+            Ok(())
         }, "BATCH", &Vec::new()).unwrap();
     }
 

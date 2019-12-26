@@ -245,13 +245,8 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
                 ctx.tp(&mut |_ctx: &mut Context| {
                     let result_v = match result.get() {
                         Ok(x) => x,
-                        Err(e) => {
-                            let ee = e.downcast::<YDBError>()?;
-                            match ee.1 {
-                                YDB_ERR_GVUNDEF => Vec::from("0"),
-                                _ => return Err(Box::new(ee)),
-                            }
-                        },
+                        Err(YDBError(_, YDB_ERR_GVUNDEF)) => Vec::from("0"),
+                        Err(x) => return Err(Box::new(x)),
                     };
                     let result_v = String::from_utf8_lossy(&result_v);
                     let result_v = result_v.parse::<u64>()?;
@@ -279,13 +274,8 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
         updates.increment(Some(&updates_l.get()?))?;
         let high = match highest.get() {
             Ok(x) => x,
-            Err(e) => {
-                let ee = e.downcast::<YDBError>()?;
-                match ee.1 {
-                    YDB_ERR_GVUNDEF => Vec::from("0"),
-                    _ => return Err(Box::new(ee)),
-                }
-            },
+            Err(YDBError(_, YDB_ERR_GVUNDEF)) => Vec::from("0"),
+            Err(x) => return Err(Box::new(x)),
         };
         let high = String::from_utf8_lossy(&high);
         let high = high.parse::<u64>()?;
