@@ -50,7 +50,7 @@ macro_rules! implement_iterator {
                     Ok(_) => {
                         $next(self)
                     },
-                    Err(YDBError(_, YDB_ERR_NODEEND)) => None,
+                    Err(YDBError { status: YDB_ERR_NODEEND, .. }) => None,
                     Err(x) => Some(Err(x)),
                 }
             }

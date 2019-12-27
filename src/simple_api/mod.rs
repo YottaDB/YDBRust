@@ -38,17 +38,21 @@ use std::fmt;
 use std::error;
 use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t,
     ydb_incr_st, ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
-    ydb_tp_st, YDB_OK, YDB_NOTTP,
+    ydb_tp_st, YDB_OK,
     YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE, YDB_TP_ROLLBACK};
 
 const DEFAULT_CAPACITY: usize = 1024;
 
 #[derive(Clone, Hash, Eq, PartialEq)]
-pub struct YDBError (pub Vec<u8>, pub i32);
+pub struct YDBError {
+    pub message: Vec<u8>,
+    pub status: i32,
+    pub tptoken: u64
+}
 
 impl fmt::Debug for YDBError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "YDB Error ({}): {}", self.1, String::from_utf8_lossy(&self.0))
+        write!(f, "YDB Error ({}): {}", self.status, String::from_utf8_lossy(&self.message))
     }
 }
 
@@ -58,8 +62,7 @@ impl fmt::Display for YDBError {
         let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
         let mut err_str = out_buffer_t;
         let ret_code = unsafe {
-            // TODO: This is wrong, YDBError should have an associated tptoken
-            ydb_message_t(YDB_NOTTP, &mut err_str, self.1, &mut out_buffer_t)
+            ydb_message_t(self.tptoken, &mut err_str, self.status, &mut out_buffer_t)
         };
         // Resize the vec with the buffer to we can see the value
         // We could end up with a buffer of a larger size if we couldn't fit the error string
@@ -78,7 +81,7 @@ impl fmt::Display for YDBError {
         } else {
             String::from_utf8_lossy(&out_buffer)
         };
-        write!(f, "YDB Error ({}): {}", message, String::from_utf8_lossy(&self.0))
+        write!(f, "YDB Error ({}): {}", message, String::from_utf8_lossy(&self.message))
     }
 }
 
@@ -194,7 +197,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(err_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err(YDBError(out_buffer,  status));
+            return Err(YDBError { message: out_buffer, status, tptoken });
         }
         unsafe {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
@@ -256,7 +259,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err(YDBError(out_buffer,  status));
+            return Err(YDBError { message: out_buffer, status, tptoken });
         }
         Ok(out_buffer)
     }
@@ -313,7 +316,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err(YDBError(out_buffer, status));
+            return Err(YDBError { message: out_buffer, status, tptoken });
         }
         Ok((match retval {
             0 => DataReturn::NoData,
@@ -383,7 +386,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
             }
-            return Err(YDBError(out_buffer,  status));
+            return Err(YDBError { message: out_buffer, status, tptoken });
         }
         Ok(out_buffer)
     }
@@ -472,7 +475,7 @@ impl Key {
             }
             // We could end up with a buffer of a larger size if we couldn't fit the error string
             // into the out_buffer, so make sure to pick the smaller size
-            return Err(YDBError(out_buffer,  status));
+            return Err(YDBError { message: out_buffer, status, tptoken });
         }
         let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
         unsafe {
@@ -555,7 +558,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(new_buffer_size);
             }
-            return Err(YDBError(out_buffer,  status));
+            return Err(YDBError { message: out_buffer, status, tptoken });
         }
         unsafe {
             self.buffers.set_len((ret_subs_used + 1) as usize);
@@ -637,7 +640,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(new_buffer_size);
             }
-            return Err(YDBError(out_buffer,  status));
+            return Err(YDBError { message: out_buffer, status, tptoken });
         }
         unsafe {
             println!("ret_subs_used: {}", ret_subs_used);
@@ -704,7 +707,7 @@ impl Key {
             out_buffer.set_len(new_buffer_size);
         }
         if status != YDB_OK as i32 {
-            return Err(YDBError(out_buffer,  status));
+            return Err(YDBError { message: out_buffer, status, tptoken });
         }
         Ok(out_buffer)
     }
@@ -764,7 +767,7 @@ impl Key {
             out_buffer.set_len(new_buffer_size);
         }
         if status != YDB_OK as i32 {
-            return Err(YDBError(out_buffer,  status));
+            return Err(YDBError { message: out_buffer, status, tptoken });
         }
         Ok(out_buffer)
     }
@@ -837,7 +840,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
             }
-            return Err(YDBError(out_buffer,  status));
+            return Err(YDBError { message: out_buffer, status, tptoken });
         }
         unsafe {
             self.buffers.last_mut().unwrap()
@@ -914,7 +917,7 @@ impl Key {
             unsafe {
                 out_buffer.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
             }
-            return Err(YDBError(out_buffer,  status));
+            return Err(YDBError { message: out_buffer, status, tptoken });
         }
         unsafe {
             self.buffers.last_mut().unwrap()
@@ -1015,8 +1018,8 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
             let ydberr = x.downcast::<YDBError>();
             match ydberr {
                 Ok(x) => {
-                    mem::forget(x.0);
-                    x.1
+                    mem::forget(x.message);
+                    x.status
                 },
                 Err(x) => {
                     callback_struct.retval = Some(Err(x));
@@ -1056,7 +1059,7 @@ pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
         unsafe {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
         }
-        return Err(Box::new(YDBError(out_buffer, status)));
+        return Err(Box::new(YDBError { message: out_buffer, status, tptoken, }));
     }
     if let Some(val) = callback_struct.retval {
         return val;
@@ -1256,17 +1259,27 @@ mod tests {
     #[test]
     fn ydb_tp_st() {
         let result = Vec::with_capacity(1);
-        tp_st(0, result, &mut |_tptoken: u64, out: Vec<u8>| {
+        let result = tp_st(0, result, &mut |_tptoken: u64, out: Vec<u8>| {
             Ok(out)
         }, "BATCH", &Vec::new()).unwrap();
+        let err = tp_st(0, result, &mut |_, _| {
+            Err("oops!".into())
+        }, "BATCH", &[]).unwrap_err();
+        assert_eq!(err.to_string(), "oops!");
+        let err = tp_st(0, Vec::with_capacity(10), &mut |tptoken, out| {
+            let mut key = make_key!("hello");
+            key.get_st(tptoken, out)?;
+            unreachable!();
+        }, "BATCH", &[]).unwrap_err();
+        println!("{}", err);
     }
 
     #[test]
     fn ydb_message_t() {
         use crate::craw;
-        let err = YDBError(Vec::new(), craw::YDB_ERR_GVUNDEF);
+        let mut err = YDBError { message: Vec::new(), status: craw::YDB_ERR_GVUNDEF, tptoken: craw::YDB_NOTTP };
         assert!(err.to_string().contains("%YDB-E-GVUNDEF, Global variable undefined"));
-        let err = YDBError(Vec::new(), 10001);
+        err.status = 10001;
         assert!(err.to_string().contains("%SYSTEM-E-ENO10001, Unknown error 10001"));
     }
 }
