@@ -1266,12 +1266,6 @@ mod tests {
             Err("oops!".into())
         }, "BATCH", &[]).unwrap_err();
         assert_eq!(err.to_string(), "oops!");
-        let err = tp_st(0, Vec::with_capacity(10), &mut |tptoken, out| {
-            let mut key = make_key!("hello");
-            key.get_st(tptoken, out)?;
-            unreachable!();
-        }, "BATCH", &[]).unwrap_err();
-        println!("{}", err);
     }
 
     #[test]
