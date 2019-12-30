@@ -146,19 +146,10 @@ impl Context {
     locals_to_reset: &[Vec<u8>]) -> Result<(), Box<dyn Error>> {
 
         let tptoken = self.context.borrow().tptoken;
-        let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = tp_st(tptoken, out_buffer, &mut |tptoken: u64, new_buffer: Vec<u8>| {
+        // allocate a new buffer for errors, since we need context.buffer to pass `self` to f
+        let result = tp_st(tptoken, Vec::with_capacity(1024), &mut |tptoken: u64, _| {
             self.context.borrow_mut().tptoken = tptoken;
-            self.context.borrow_mut().buffer = Some(new_buffer);
-            match f(self) {
-                Ok(()) => {
-                    let buff = self.context.borrow_mut().buffer.take().unwrap();
-                    Ok(buff)
-                },
-                Err(x) => {
-                    Err(x)
-                }
-            }
+            f(self)
         }, trans_id, locals_to_reset);
         self.context.borrow_mut().tptoken = tptoken;
         match result {

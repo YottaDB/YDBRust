@@ -57,7 +57,6 @@
 use std::error::Error;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
-use std::mem;
 use std::ffi::CString;
 use std::os::raw::c_void;
 use std::cmp::min;
@@ -1022,37 +1021,38 @@ impl Clone for Key {
     }
 }
 
+type UserResult = Result<(), Box<dyn Error>>;
+
 /// Passes the callback function as a structure to the callback
 struct CallBackStruct<'a> {
-    cb: &'a mut dyn FnMut(u64, Vec<u8>) -> Result<Vec<u8>, Box<dyn Error>>,
-    retval: Option<Result<Vec<u8>, Box<dyn Error>>>,
+    cb: &'a mut dyn FnMut(u64, &mut [u8]) -> UserResult,
+    /// Application error (not a YDBError)
+    error: Option<Box<dyn Error>>,
 }
 
 extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
                           tpfnparm: *mut c_void) -> i32 {
+    assert!(!tpfnparm.is_null());
+    assert!(!errstr.is_null());
     let callback_struct: &mut CallBackStruct =
         unsafe { &mut *(tpfnparm as *mut CallBackStruct) };
-    let vec = unsafe {
-        Vec::from_raw_parts((*errstr).buf_addr as *mut u8, (*errstr).len_alloc as usize, (*errstr).len_used as usize) 
+    let slice = unsafe {
+        std::slice::from_raw_parts_mut(
+            (*errstr).buf_addr as *mut u8,
+            (*errstr).len_used as usize,
+        )
     };
-    match (callback_struct.cb)(tptoken, vec) {
-        Ok(vec) => {
-            mem::forget(vec);
-            YDB_OK as i32
-        },
+    match (callback_struct.cb)(tptoken, slice) {
+        Ok(_) => YDB_OK as i32,
         Err(x) => {
             // Try to cast into YDBError; if we can do that, return the error code
-            // Else, return YDB_OK with the vec
-            let ydberr = x.downcast::<YDBError>();
-            match ydberr {
-                Ok(x) => {
-                    mem::forget(x.message);
-                    x.status
-                },
-                Err(x) => {
-                    callback_struct.retval = Some(Err(x));
+            // Else, rollback the transaction
+            match x.downcast::<YDBError>() {
+                Ok(err) => err.status,
+                Err(application_err) => {
+                    callback_struct.error = Some(application_err);
                     YDB_TP_ROLLBACK as i32
-                },
+                }
             }
         },
     }
@@ -1071,12 +1071,12 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
 /// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
 ///
 /// [intrinsics]: index.html#intrinsic-variables
-pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
-             f: &mut dyn FnMut(u64, Vec<u8>) -> Result<Vec<u8>, Box<dyn Error>>,
+pub fn tp_st(tptoken: u64, mut out_buffer: Vec<u8>,
+             f: &mut dyn FnMut(u64, &mut [u8]) -> UserResult,
              trans_id: &str,
              locals_to_reset: &[Vec<u8>]) -> Result<Vec<u8>, Box<dyn Error>> {
-    let mut out_buffer = out_buffer;
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
+
     let mut locals = Vec::with_capacity(locals_to_reset.len());
     for local in locals_to_reset.iter() {
         locals.push(ydb_buffer_t {
@@ -1090,22 +1090,24 @@ pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
         _ => locals.as_mut_ptr(),
     };
     let c_str = CString::new(trans_id).unwrap();
-    let mut callback_struct = CallBackStruct { cb: f, retval: None };
+    let mut callback_struct = CallBackStruct { cb: f, error: None };
     let arg = &mut callback_struct as *mut _ as *mut c_void;
     let status = unsafe {
         ydb_tp_st(tptoken, &mut out_buffer_t, Some(fn_callback), arg, c_str.as_ptr(),
             locals.len() as i32, locals_ptr)
     };
-    if status != YDB_OK as i32 && status != YDB_TP_ROLLBACK as i32 {
+    if status as u32 == YDB_OK {
+        Ok(out_buffer)
+    } else if let Some(user_err) = callback_struct.error {
+        // an application error occurred; we _could_ return out_buffer if the types didn't conflict below
+        Err(user_err)
+    } else {
+        // a YDB error occurred; reuse out_buffer to return an error
         unsafe {
             out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
         }
-        return Err(Box::new(YDBError { message: out_buffer, status, tptoken, }));
+        Err(Box::new(YDBError { message: out_buffer, status: status as i32, tptoken, }))
     }
-    if let Some(val) = callback_struct.retval {
-        return val;
-    }
-    Ok(out_buffer)
 }
 
 #[cfg(test)]
@@ -1299,14 +1301,28 @@ mod tests {
 
     #[test]
     fn ydb_tp_st() {
+        use crate::craw;
+
+        // success
         let result = Vec::with_capacity(1);
-        let result = tp_st(0, result, &mut |_tptoken: u64, out: Vec<u8>| {
-            Ok(out)
+        let result = tp_st(0, result, &mut |_, _| {
+            Ok(())
         }, "BATCH", &Vec::new()).unwrap();
+
+        // user error
         let err = tp_st(0, result, &mut |_, _| {
             Err("oops!".into())
         }, "BATCH", &[]).unwrap_err();
         assert_eq!(err.to_string(), "oops!");
+
+        // ydb error
+        let vec = Vec::with_capacity(10);
+        let err = tp_st(0, vec, &mut |tptoken, _| {
+            let mut key = make_key!("hello");
+            key.get_st(tptoken, Vec::with_capacity(1024))?;
+            unreachable!();
+        }, "BATCH", &Vec::new()).unwrap_err();
+        assert!(err.downcast::<YDBError>().unwrap().status == craw::YDB_ERR_LVUNDEF);
     }
 
     #[test]
