@@ -142,8 +142,9 @@ impl Context {
         }
     }
 
-    pub fn tp(&mut self, f: &mut dyn FnMut(&mut Context) -> Result<(), Box<dyn Error>>, trans_id: &str,
-    locals_to_reset: &[Vec<u8>]) -> Result<(), Box<dyn Error>> {
+    pub fn tp<'a, F>(&'a self, mut f: F, trans_id: &str, locals_to_reset: &[Vec<u8>])
+            -> Result<(), Box<dyn Error>>
+            where F: FnMut(&'a Self) -> Result<(), Box<dyn Error>> {
 
         let tptoken = self.context.borrow().tptoken;
         // allocate a new buffer for errors, since we need context.buffer to pass `self` to f
@@ -1062,8 +1063,8 @@ mod tests {
 
     #[test]
     fn test_simple_tp() {
-        let mut ctx = Context::new();
-        ctx.tp(&mut |ctx: &mut Context| {
+        let ctx = Context::new();
+        ctx.tp(|ctx| {
             let mut key = ctx.new_key();
             key.push(Vec::from("^hello"));
             key.set(&Vec::from("Hello world!"))?;
@@ -1073,12 +1074,13 @@ mod tests {
 
     #[test]
     fn test_tp_returning_non_ydb_error() {
-        let mut ctx = Context::new();
-        let result = ctx.tp(&mut |_ctx: &mut Context| {
+        let ctx = Context::new();
+        let f = |_| {
             // We expect this to have an error
             String::from("Hello world!").parse::<u64>()?;
             Ok(())
-        }, "BATCH", &Vec::new());
+        };
+        let result = ctx.tp(f, "BATCH", &[]);
         assert!(result.is_err());
         assert!(result.err().unwrap().is::<ParseIntError>());
     }

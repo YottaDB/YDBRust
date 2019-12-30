@@ -147,7 +147,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
     let mut index = index;
-    let mut ctx = Context::new();
+    let ctx = Context::new();
     let mut reads = make_ckey!(ctx, "^reads");
     let mut updates = make_ckey!(ctx, "^updates");
     let mut highest = make_ckey!(ctx, "^highest");
@@ -242,7 +242,7 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
                     let add_steps = add_steps.parse::<u64>()?;
                     i += add_steps;
                 }
-                ctx.tp(&mut |_ctx: &mut Context| {
+                ctx.tp(|_ctx| {
                     let result_v = match result.get() {
                         Ok(x) => x,
                         Err(YDBError { status: YDB_ERR_GVUNDEF, .. }) => Vec::from("0"),
@@ -269,7 +269,7 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
     }
 
     // Update values for total reads, total writes, and highest
-    ctx.tp(&mut |_ctx: &mut Context| {
+    ctx.tp(|_ctx| {
         reads.increment(Some(&reads_l.get()?))?;
         updates.increment(Some(&updates_l.get()?))?;
         let high = match highest.get() {
