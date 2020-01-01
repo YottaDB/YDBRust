@@ -1097,6 +1097,13 @@ pub fn tp_st(tptoken: u64, mut out_buffer: Vec<u8>,
             locals.len() as i32, locals_ptr)
     };
     if status as u32 == YDB_OK {
+        // from Steve:
+        // > there may be a possibility for an error to occur that gets caught
+        // > and handled which appear to use the buffer even though none was
+        // > returned at a high level.
+        unsafe {
+            out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+        }
         Ok(out_buffer)
     } else if let Some(user_err) = callback_struct.error {
         // an application error occurred; we _could_ return out_buffer if the types didn't conflict below
