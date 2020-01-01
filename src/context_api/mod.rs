@@ -147,7 +147,7 @@ impl Context {
 
         let tptoken = self.context.borrow().tptoken;
         // allocate a new buffer for errors, since we need context.buffer to pass `self` to f
-        let result = tp_st(tptoken, Vec::with_capacity(1024), &mut |tptoken: u64, _| {
+        let result = tp_st(tptoken, Vec::with_capacity(1024), &mut |tptoken: u64| {
             self.context.borrow_mut().tptoken = tptoken;
             f(self)
         }, trans_id, locals_to_reset);

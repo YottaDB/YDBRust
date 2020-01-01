@@ -1025,7 +1025,7 @@ type UserResult = Result<(), Box<dyn Error>>;
 
 /// Passes the callback function as a structure to the callback
 struct CallBackStruct<'a> {
-    cb: &'a mut dyn FnMut(u64, &mut [u8]) -> UserResult,
+    cb: &'a mut dyn FnMut(u64) -> UserResult,
     /// Application error (not a YDBError)
     error: Option<Box<dyn Error>>,
 }
@@ -1036,13 +1036,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
     assert!(!errstr.is_null());
     let callback_struct: &mut CallBackStruct =
         unsafe { &mut *(tpfnparm as *mut CallBackStruct) };
-    let slice = unsafe {
-        std::slice::from_raw_parts_mut(
-            (*errstr).buf_addr as *mut u8,
-            (*errstr).len_used as usize,
-        )
-    };
-    match (callback_struct.cb)(tptoken, slice) {
+    match (callback_struct.cb)(tptoken) {
         Ok(_) => YDB_OK as i32,
         Err(x) => {
             // Try to cast into YDBError; if we can do that, return the error code
@@ -1060,6 +1054,8 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
 
 /// Start a new transaction, where `f` is the transaction to execute.
 ///
+/// The parameter passed to `f` is a `tptoken`.
+///
 /// `f` must be `FnMut`, not `FnOnce`, since the YottaDB engine may
 /// call f many times if necessary to ensure ACID properties.
 /// This may affect your application logic; if you need to know how many
@@ -1072,7 +1068,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
 ///
 /// [intrinsics]: index.html#intrinsic-variables
 pub fn tp_st(tptoken: u64, mut out_buffer: Vec<u8>,
-             f: &mut dyn FnMut(u64, &mut [u8]) -> UserResult,
+             f: &mut dyn FnMut(u64) -> UserResult,
              trans_id: &str,
              locals_to_reset: &[Vec<u8>]) -> Result<Vec<u8>, Box<dyn Error>> {
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
@@ -1312,19 +1308,19 @@ mod tests {
 
         // success
         let result = Vec::with_capacity(1);
-        let result = tp_st(0, result, &mut |_, _| {
+        let result = tp_st(0, result, &mut |_| {
             Ok(())
         }, "BATCH", &Vec::new()).unwrap();
 
         // user error
-        let err = tp_st(0, result, &mut |_, _| {
+        let err = tp_st(0, result, &mut |_| {
             Err("oops!".into())
         }, "BATCH", &[]).unwrap_err();
         assert_eq!(err.to_string(), "oops!");
 
         // ydb error
         let vec = Vec::with_capacity(10);
-        let err = tp_st(0, vec, &mut |tptoken, _| {
+        let err = tp_st(0, vec, &mut |tptoken| {
             let mut key = make_key!("hello");
             key.get_st(tptoken, Vec::with_capacity(1024))?;
             unreachable!();
