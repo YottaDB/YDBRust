@@ -1,11 +1,16 @@
 //! Provides a more-friendly Rust-interface to the YottaDB API than the
 //! raw C API (craw).
 //!
-//! Most operations are encapsulated in methods on the Key struct, and generally
+//! Most operations are encapsulated in methods on the [`Key`][key] struct, and generally
 //! consume a Vec<u8> and return ``Result<Vec<u8>>``. The return Vec<u8> will either contain
 //! the data fetched from the database or an error.
 //!
 //! The Vec<u8> may be resized as part of the call.
+//!
+//! # Intrinsic Variables
+//!
+//! YottaDB has several intrinsic variables which are documented [online][intrinsics].
+//! To get the value of these variables, call `get_st` on a `Key` with the name of the variable.
 //!
 //! # Examples
 //!
@@ -27,6 +32,28 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! Get the instrinsic variable [`$tlevel`][tlevel], which gives the current transaction level.
+//!
+//! ```
+//! # #[macro_use] extern crate yottadb;
+//! use yottadb::craw::YDB_NOTTP;
+//! use yottadb::simple_api::YDBResult;
+//!
+//! fn main() -> YDBResult<()> {
+//!     let mut key = make_key!("$tlevel");
+//!     let buffer = Vec::with_capacity(10);
+//!     let buffer = key.get_st(YDB_NOTTP, buffer)?;
+//!     let tlevel: usize = String::from_utf8_lossy(&buffer).parse()
+//!         .expect("$tlevel should be an integer");
+//!     assert_eq!(tlevel, 0_usize);
+//!     Ok(())
+//! }
+//! ```
+//!
+//! [key]: struct.Key.html
+//! [intrinsics]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
+//! [tlevel]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#tlevel
 use std::error::Error;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
@@ -107,7 +134,7 @@ pub enum DeleteType {
     DelTree,
 }
 
-/// Provides a Key object for the given subscripts.
+/// Provides a [`Key`][key] object for the given subscripts.
 ///
 /// # Examples
 ///
@@ -115,6 +142,8 @@ pub enum DeleteType {
 /// # #[macro_use] extern crate yottadb;
 /// let my_key = make_key!("^MyTimeSeriesData", "5");
 /// ```
+/// 
+/// [key]: simple_api/struct.Key.html
 #[macro_export]
 macro_rules! make_key {
     ( $($x: expr),* ) => (
@@ -1029,6 +1058,19 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
     }
 }
 
+/// Start a new transaction, where `f` is the transaction to execute.
+///
+/// `f` must be `FnMut`, not `FnOnce`, since the YottaDB engine may
+/// call f many times if necessary to ensure ACID properties.
+/// This may affect your application logic; if you need to know how many
+/// times the callback has been executed, get the [intrinsic variable][intrinsics]
+/// [`$trestart`](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#trestart)
+///
+/// # See Also
+/// - [More details about the underlying FFI call](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st)
+/// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
+///
+/// [intrinsics]: index.html#intrinsic-variables
 pub fn tp_st(tptoken: u64, out_buffer: Vec<u8>,
              f: &mut dyn FnMut(u64, Vec<u8>) -> Result<Vec<u8>, Box<dyn Error>>,
              trans_id: &str,
