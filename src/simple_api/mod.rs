@@ -113,14 +113,13 @@ pub enum DeleteType {
 ///
 /// ```
 /// # #[macro_use] extern crate yottadb;
-/// use yottadb::simple_api::Key;
-/// let mut my_key: Key = make_key!("^MyTimeSeriesData", "5");
+/// let my_key = make_key!("^MyTimeSeriesData", "5");
 /// ```
 #[macro_export]
 macro_rules! make_key {
     ( $($x: expr),* ) => (
         {
-            let mut key = Key::with_capacity(10);
+            let mut key = $crate::simple_api::Key::with_capacity(10);
             $(
                 key.push(Vec::from($x));
             )*
