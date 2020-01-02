@@ -1083,10 +1083,9 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
 /// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
 ///
 /// [intrinsics]: index.html#intrinsic-variables
-pub fn tp_st(tptoken: u64, mut out_buffer: Vec<u8>,
-             f: &mut dyn FnMut(u64) -> UserResult,
-             trans_id: &str,
-             locals_to_reset: &[Vec<u8>]) -> Result<Vec<u8>, Box<dyn Error>> {
+pub fn tp_st<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut f: F, trans_id: &str,
+             locals_to_reset: &[Vec<u8>]) -> Result<Vec<u8>, Box<dyn Error>>
+        where F: FnMut(u64) -> UserResult {
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
 
     let mut locals = Vec::with_capacity(locals_to_reset.len());
@@ -1102,7 +1101,7 @@ pub fn tp_st(tptoken: u64, mut out_buffer: Vec<u8>,
         _ => locals.as_mut_ptr(),
     };
     let c_str = CString::new(trans_id).unwrap();
-    let mut callback_struct = CallBackStruct { cb: f, error: None };
+    let mut callback_struct = CallBackStruct { cb: &mut f, error: None };
     let arg = &mut callback_struct as *mut _ as *mut c_void;
     let status = unsafe {
         ydb_tp_st(tptoken, &mut out_buffer_t, Some(fn_callback), arg, c_str.as_ptr(),
@@ -1328,19 +1327,19 @@ mod tests {
 
         // success
         let result = Vec::with_capacity(1);
-        let result = tp_st(0, result, &mut |_| {
+        let result = tp_st(0, result, |_| {
             Ok(())
         }, "BATCH", &Vec::new()).unwrap();
 
         // user error
-        let err = tp_st(0, result, &mut |_| {
+        let err = tp_st(0, result, |_| {
             Err("oops!".into())
         }, "BATCH", &[]).unwrap_err();
         assert_eq!(err.to_string(), "oops!");
 
         // ydb error
         let vec = Vec::with_capacity(10);
-        let err = tp_st(0, vec, &mut |tptoken| {
+        let err = tp_st(0, vec, |tptoken| {
             let mut key = make_key!("hello");
             key.get_st(tptoken, Vec::with_capacity(1024))?;
             unreachable!();
@@ -1351,7 +1350,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn panic_in_cb() {
-        tp_st(0, Vec::with_capacity(10), &mut |_| panic!("oh no!"), "BATCH", &[]).unwrap_err();
+        tp_st(0, Vec::with_capacity(10), |_| panic!("oh no!"), "BATCH", &[]).unwrap_err();
     }
 
     #[test]
