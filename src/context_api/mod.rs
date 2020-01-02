@@ -174,6 +174,19 @@ impl DerefMut for KeyContext {
 }
 
 impl KeyContext {
+    fn recover_buffer(&mut self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
+        match result {
+            Ok(x) => {
+                self.context.borrow_mut().buffer = Some(x);
+                Ok(())
+            },
+            Err(x) => {
+                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
+                Err(x)
+            },
+        }
+
+    }
     /// Gets the value of this key from the database and returns the value.
     ///
     /// # Errors
@@ -239,20 +252,11 @@ impl KeyContext {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
         let result = if self.context.borrow().multithreaded {
-            self.key.set_st(tptoken, out_buffer, &new_val)
+            self.key.set_st(tptoken, out_buffer, new_val)
         } else {
             panic!("Not supported!");
         };
-        match result {
-            Ok(x) => {
-                self.context.borrow_mut().buffer = Some(x);
-                Ok(())
-            },
-            Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
-                Err(x)
-            },
-        }
+        self.recover_buffer(result)
     }
 
     /// Retuns the following information in DataReturn about a local or global variable node:
@@ -340,16 +344,7 @@ impl KeyContext {
         } else {
             panic!("Not supported!");
         };
-        match result {
-            Ok(x) => {
-                self.context.borrow_mut().buffer = Some(x);
-                Ok(())
-            },
-            Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
-                Err(x)
-            },
-        }
+        self.recover_buffer(result)
     }
 
     /// Converts the value to a [number](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#canonical-numbers) and increments it based on the value specifed by Option. It defaults to 1 if the value is NULL.
@@ -428,16 +423,7 @@ impl KeyContext {
         } else {
             panic!("Not supported!");
         };
-        match result {
-            Ok(x) => {
-                self.context.borrow_mut().buffer = Some(x);
-                Ok(())
-            },
-            Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
-                Err(x)
-            },
-        }
+        self.recover_buffer(result)
     }
     /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript, and passes itself in as the output parameter.
     ///
@@ -477,16 +463,7 @@ impl KeyContext {
         } else {
             panic!("Not supported!");
         };
-        match result {
-            Ok(x) => {
-                self.context.borrow_mut().buffer = Some(x);
-                Ok(())
-            },
-            Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
-                Err(x)
-            },
-        }
+        self.recover_buffer(result)
     }
 
     /// Implements breadth-first traversal of a tree by searching for the next subscript.
@@ -600,16 +577,7 @@ impl KeyContext {
         } else {
             panic!("Not supported!");
         };
-        match result {
-            Ok(x) => {
-                self.context.borrow_mut().buffer = Some(x);
-                Ok(())
-            },
-            Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
-                Err(x)
-            },
-        }
+        self.recover_buffer(result)
     }
 
     /// Facilitates reverse depth-first traversal of a local or global variable tree and reports the predecessor node, passing itself in as the output parameter.
@@ -653,16 +621,7 @@ impl KeyContext {
         } else {
             panic!("Not supported!");
         };
-        match result {
-            Ok(x) => {
-                self.context.borrow_mut().buffer = Some(x);
-                Ok(())
-            },
-            Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
-                Err(x)
-            },
-        }
+        self.recover_buffer(result)
     }
 
     /// Facilitate depth-first traversal of a local or global variable tree.
