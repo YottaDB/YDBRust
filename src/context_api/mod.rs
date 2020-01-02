@@ -152,16 +152,8 @@ impl Context {
             f(self)
         }, trans_id, locals_to_reset);
         self.context.borrow_mut().tptoken = tptoken;
-        match result {
-            Ok(x) => {
-                self.context.borrow_mut().buffer = Some(x);
-                Ok(())
-            },
-            Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
-                Err(x)
-            }
-        }
+        // discard the new buffer
+        result.map(|_| {})
     }
 }
 
