@@ -62,6 +62,7 @@ use std::os::raw::c_void;
 use std::cmp::min;
 use std::fmt;
 use std::error;
+use std::panic;
 use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t,
     ydb_incr_st, ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
     ydb_tp_st, YDB_OK,
@@ -1023,28 +1024,43 @@ impl Clone for Key {
 
 type UserResult = Result<(), Box<dyn Error>>;
 
+enum CallBackError {
+    // the callback returned an error
+    ApplicationError(Box<dyn Error>),
+    // the callback panicked; this is the value `panic!` was called with
+    Panic(Box<dyn std::any::Any + Send + 'static>),
+}
 /// Passes the callback function as a structure to the callback
 struct CallBackStruct<'a> {
     cb: &'a mut dyn FnMut(u64) -> UserResult,
     /// Application error (not a YDBError)
-    error: Option<Box<dyn Error>>,
+    error: Option<CallBackError>,
 }
 
 extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
                           tpfnparm: *mut c_void) -> i32 {
     assert!(!tpfnparm.is_null());
     assert!(!errstr.is_null());
-    let callback_struct: &mut CallBackStruct =
-        unsafe { &mut *(tpfnparm as *mut CallBackStruct) };
-    match (callback_struct.cb)(tptoken) {
+    let callback_struct = unsafe { &mut *(tpfnparm as *mut CallBackStruct) };
+
+    let mut cb = panic::AssertUnwindSafe(&mut callback_struct.cb);
+    // this deref_mut() is because Rust is having trouble with type inferrence
+    let retval = match panic::catch_unwind(move || cb.deref_mut()(tptoken)) {
+        Ok(val) => val,
+        Err(payload) => {
+            callback_struct.error = Some(CallBackError::Panic(payload));
+            return YDB_TP_ROLLBACK as i32;
+        }
+    };
+    match retval {
         Ok(_) => YDB_OK as i32,
         Err(x) => {
             // Try to cast into YDBError; if we can do that, return the error code
             // Else, rollback the transaction
             match x.downcast::<YDBError>() {
                 Ok(err) => err.status,
-                Err(application_err) => {
-                    callback_struct.error = Some(application_err);
+                Err(err) => {
+                    callback_struct.error = Some(CallBackError::ApplicationError(err));
                     YDB_TP_ROLLBACK as i32
                 }
             }
@@ -1102,8 +1118,12 @@ pub fn tp_st(tptoken: u64, mut out_buffer: Vec<u8>,
         }
         Ok(out_buffer)
     } else if let Some(user_err) = callback_struct.error {
-        // an application error occurred; we _could_ return out_buffer if the types didn't conflict below
-        Err(user_err)
+        match user_err {
+            // an application error occurred; we _could_ return out_buffer if the types didn't conflict below
+            CallBackError::ApplicationError(err) => Err(err),
+            // reraise the panic now that we're past the FFI barrier
+            CallBackError::Panic(payload) => panic::resume_unwind(payload),
+        }
     } else {
         // a YDB error occurred; reuse out_buffer to return an error
         unsafe {
@@ -1326,6 +1346,12 @@ mod tests {
             unreachable!();
         }, "BATCH", &Vec::new()).unwrap_err();
         assert!(err.downcast::<YDBError>().unwrap().status == craw::YDB_ERR_LVUNDEF);
+    }
+
+    #[test]
+    #[should_panic]
+    fn panic_in_cb() {
+        tp_st(0, Vec::with_capacity(10), &mut |_| panic!("oh no!"), "BATCH", &[]).unwrap_err();
     }
 
     #[test]
