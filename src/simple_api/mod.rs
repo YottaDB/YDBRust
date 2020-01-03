@@ -136,17 +136,27 @@ pub enum DeleteType {
 
 /// Provides a [`Key`][key] object for the given subscripts.
 ///
+/// See [the YottaDB documentation][nodes-and-variables] for more information
+/// about how YottaDB handles keys.
+///
 /// # Examples
 ///
+/// Make a simple key:
 /// ```
 /// # #[macro_use] extern crate yottadb;
 /// let my_key = make_key!("^MyTimeSeriesData", "5");
 /// ```
-/// 
+///
+/// Keys must have at least one variable:
+/// ```compile_fail
+/// let mut key = make_key!();
+/// ```
+///
 /// [key]: simple_api/struct.Key.html
+/// [nodes-and-variables]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts
 #[macro_export]
 macro_rules! make_key {
-    ( $($x: expr),* ) => (
+    ( $($x: expr),+ ) => (
         {
             let mut key = $crate::simple_api::Key::with_capacity(10);
             $(
