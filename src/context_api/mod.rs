@@ -106,6 +106,22 @@ struct ContextInternal {
     multithreaded: bool,
 }
 
+/// `Context` is _not_ thread-safe, async-safe, or re-entrant.
+///
+/// Example:
+///
+/// ```compile_fail
+/// # #[macro_use] extern crate yottadb;
+/// extern crate tokio;
+/// use yottadb::context_api::Context;
+///
+/// let ctx = Context::new();
+/// let mut key1 = make_ckey!(ctx, "key1");
+/// let mut key2 = make_ckey!(ctx, "key2");
+/// tokio::spawn(async {
+///     ctx.tp(|_| Ok(()), "BATCH", &[])
+/// });
+/// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Context {
     context: Rc<RefCell<ContextInternal>>,
