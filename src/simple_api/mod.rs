@@ -174,11 +174,50 @@ pub struct Key {
 }
 
 impl Key {
-    /// Create a new key, returning an error if passed an invalid variable.
+    /// Create a new key.
     ///
+    /// Note that not all variables are valid.
     /// See the [upstream documentation][vars] for information on valid variables.
+    /// `Key::new()` will not currently give an error for invalid variables,
+    /// but any operation using them will return a YDBError(%YDB-E-INVVARNAME).
+    ///
+    /// # Examples
+    ///
+    /// Creating a variable from string subscripts is simple:
+    ///
+    /// ```rust
+    /// use yottadb::simple_api::Key;
+    /// Key::new("hello", &["good morning", "good evening"]);
+    /// ```
+    ///
+    /// Creating a variable with no subscripts is a little more complicated.
+    /// Consider using `Key::variable` instead.
+    ///
+    /// ```
+    /// # use yottadb::simple_api::Key;
+    /// Key::new::<_, Vec<_>>("hello", &[]);
+    /// ```
+    ///
+    /// For implementation reasons, creating a new key with bytestrings is
+    /// syntactically tricky.
+    ///
+    /// ```compile_fail
+    /// # use yottadb::simple_api::Key;
+    /// // does not work: `From<[u8; 2]> is not implemented for Vec<u8>`
+    /// Key::new("hello", &[b"hi"]);
+    /// ```
+    ///
+    /// Here is the proper syntax:
+    ///
+    /// ```
+    /// # use yottadb::simple_api::Key;
+    /// Key::new("hello", &[&b"hi"[..]]);
+    /// ```
+    ///
+    /// This is being [tracked upstream][from-arr-issue] and will hopefully be fixed soon.
     ///
     /// [vars]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values
+    /// [from-arr-issue]: https://github.com/rust-lang/rust/issues/67963
     pub fn new<V, S>(variable: V, subscripts: &[S]) -> Key
             where V: Into<String>,
                   S: Into<Vec<u8>> + Clone, {
