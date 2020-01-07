@@ -136,7 +136,7 @@ impl Context {
     }
 
     pub fn new_key(&self, key: Key) -> KeyContext {
-        KeyContext::new(self, key)
+        KeyContext::with_key(self, key)
     }
 
     pub fn tp<'a, F>(&'a self, mut f: F, trans_id: &str, locals_to_reset: &[Vec<u8>])
@@ -172,12 +172,23 @@ impl DerefMut for KeyContext {
 
 impl From<(&Context, Key)> for KeyContext {
     fn from((ctx, key): (&Context, Key)) -> Self {
-        KeyContext::new(ctx, key)
+        KeyContext::with_key(ctx, key)
     }
 }
 
 impl KeyContext {
-    pub fn new(ctx: &Context, key: Key) -> Self {
+    // this should be kept in sync with `Key::new`
+    pub fn new<V, S>(ctx: &Context, variable: V, subscripts: &[S]) -> KeyContext
+            where V: Into<String>,
+                  S: Into<Vec<u8>> + Clone, {
+        Self::with_key(ctx, Key::new(variable, subscripts))
+    }
+    /// Shortcut for creating a key with no subscripts.
+    // this should be kept in sync with `Key::variable`
+    pub fn variable<V: Into<String>>(ctx: &Context, var: V) -> KeyContext {
+        Self::with_key(ctx, Key::variable(var))
+    }
+    pub fn with_key(ctx: &Context, key: Key) -> Self {
         Self {
             context: ctx.context.clone(),
             key,
