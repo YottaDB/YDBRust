@@ -136,10 +136,7 @@ impl Context {
     }
 
     pub fn new_key(&self, key: Key) -> KeyContext {
-        KeyContext {
-            context: self.context.clone(),
-            key,
-        }
+        KeyContext::new(self, key)
     }
 
     pub fn tp<'a, F>(&'a self, mut f: F, trans_id: &str, locals_to_reset: &[Vec<u8>])
@@ -173,7 +170,19 @@ impl DerefMut for KeyContext {
     }
 }
 
+impl From<(&Context, Key)> for KeyContext {
+    fn from((ctx, key): (&Context, Key)) -> Self {
+        KeyContext::new(ctx, key)
+    }
+}
+
 impl KeyContext {
+    pub fn new(ctx: &Context, key: Key) -> Self {
+        Self {
+            context: ctx.context.clone(),
+            key,
+        }
+    }
     fn recover_buffer(&mut self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
         match result {
             Ok(x) => {
