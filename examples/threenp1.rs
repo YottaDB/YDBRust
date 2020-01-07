@@ -163,7 +163,7 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
     reads_l.set(&Vec::from("0"))?;
     let mut highest_l = make_ckey!(ctx, "highest", index_s.clone());
     highest_l.set(&Vec::from("0"))?;
-    let mut currpath_l = make_ckey!(ctx, "currpath", index_s.clone(), "");
+    let mut currpath_l = make_ckey!(ctx, "currpath", index_s.as_str(), "");
 
     loop {
         index += 1;

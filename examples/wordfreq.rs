@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let (k, v) = k?;
         let v = String::from_utf8_lossy(&v);
         let word = k;
-        let mut key = make_ckey!(ctx, "^index", v.into_owned(), word);
+        let mut key = make_ckey!(ctx, "^index", v.into_owned().into_bytes(), word);
         key.set(&Vec::from(""))?;
     }
 

@@ -90,14 +90,14 @@ macro_rules! gen_iter_proto {
 /// ```
 #[macro_export]
 macro_rules! make_ckey {
-    ( $ctx:expr, $gbl:expr $(, $x:expr)* ) => ({
-        let mut key = $ctx.new_key();
-        key.push(Vec::from($gbl));
-        $(
-            key.push(Vec::from($x));
-         )*
-            key
-    })
+    ( $ctx:expr, $var:expr $(,)?) => (
+        $ctx.new_key($crate::simple_api::Key::variable($var))
+    );
+    ( $ctx:expr, $gbl:expr $(, $x:expr)+ ) => (
+        $ctx.new_key(
+            $crate::make_key!( $gbl, $($x),+ )
+        )
+    );
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -135,10 +135,10 @@ impl Context {
         }
     }
 
-    pub fn new_key(&self) -> KeyContext {
+    pub fn new_key(&self, key: Key) -> KeyContext {
         KeyContext {
             context: self.context.clone(),
-            key: Key::with_capacity(32),
+            key,
         }
     }
 
@@ -836,33 +836,29 @@ mod tests {
     #[test]
     fn simple_get() {
         let ctx = Context::new();
-        let mut key = ctx.new_key();
-        key.push(Vec::from("^hello"));
-        key.set(&Vec::from("Hello world!")).unwrap();
-        key.get().unwrap();
+        let mut key = ctx.new_key(Key::variable("^hello"));
+        key.set(b"Hello world!").unwrap();
+        assert_eq!(key.get().unwrap(), b"Hello world!");
     }
 
     #[test]
     fn simple_set() {
         let ctx = Context::new();
-        let mut key = ctx.new_key();
-        key.push(Vec::from("^hello"));
-        key.set(&Vec::from("Hello world!")).unwrap();
+        let mut key = ctx.new_key(Key::variable("^hello"));
+        key.set(b"Hello world!").unwrap();
     }
 
     #[test]
     fn simple_data() {
         let ctx = Context::new();
-        let mut key = ctx.new_key();
-        key.push(Vec::from("^hello"));
+        let mut key = ctx.new_key(Key::variable("^hello"));
         key.data().unwrap();
     }
 
     #[test]
     fn simple_delete() {
         let ctx = Context::new();
-        let mut key = ctx.new_key();
-        key.push(Vec::from("^helloDeleteMe"));
+        let mut key = ctx.new_key(Key::variable("^helloDeleteMe"));
         key.set(&Vec::from("Hello world!")).unwrap();
         key.delete(DeleteType::DelNode).unwrap();
     }
@@ -870,8 +866,7 @@ mod tests {
     #[test]
     fn simple_increment() {
         let ctx = Context::new();
-        let mut key = ctx.new_key();
-        key.push(Vec::from("^helloIncrementMe"));
+        let mut key = ctx.new_key(Key::variable("^helloIncrementMe"));
         key.increment(None).unwrap();
     }
 
@@ -899,9 +894,7 @@ mod tests {
             #[test]
             fn $testname() {
                 let ctx = Context::new();
-                let mut key = ctx.new_key();
-                key.push(Vec::from("^helloSubLoop"));
-                key.push(Vec::from("shire"));
+                let mut key = ctx.new_key(Key::new("^helloSubLoop", &["shire"]));
                 key.set(&Vec::from("Tolkien")).unwrap();
                 key[1] = Vec::from("mundus");
                 key.set(&Vec::from("Elder Scrolls")).unwrap();
@@ -1024,8 +1017,7 @@ mod tests {
     fn test_simple_tp() {
         let ctx = Context::new();
         ctx.tp(|ctx| {
-            let mut key = ctx.new_key();
-            key.push(Vec::from("^hello"));
+            let mut key = ctx.new_key(Key::variable("^hello"));
             key.set(&Vec::from("Hello world!"))?;
             Ok(())
         }, "BATCH", &Vec::new()).unwrap();

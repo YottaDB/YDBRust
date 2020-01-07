@@ -156,15 +156,14 @@ pub enum DeleteType {
 /// [nodes-and-variables]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts
 #[macro_export]
 macro_rules! make_key {
-    ( $($x: expr),+ ) => (
-        {
-            let mut key = $crate::simple_api::Key::with_capacity(10);
-            $(
-                key.push(Vec::from($x));
-            )*
-            key
-        }
-    )
+    ( $var:expr $(,)? ) => (
+        $crate::simple_api::Key::variable($var)
+    );
+    ( $var: expr $( , $subscript: expr)+ $(,)? ) => (
+        $crate::simple_api::Key::new($var, &[
+            $($subscript),*
+        ])
+    );
 }
 
 #[derive(Debug, Hash, Eq, PartialEq)]
@@ -175,15 +174,30 @@ pub struct Key {
 }
 
 impl Key {
-    pub fn with_capacity(num_subscripts: usize) -> Key {
-        let empty_struct = ydb_buffer_t{buf_addr: ptr::null_mut(), len_used: 0, len_alloc: 0};
-        // We allocate one additional buffer to handle return values
-        let mut buffer_structs = Vec::with_capacity(num_subscripts);
-        buffer_structs.resize(num_subscripts, empty_struct);
-        let buffers = Vec::with_capacity(num_subscripts);
-        Key{buffer_structs, buffers, needs_sync: true}
+    /// Create a new key, returning an error if passed an invalid variable.
+    ///
+    /// See the [upstream documentation][vars] for information on valid variables.
+    ///
+    /// [vars]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values
+    pub fn new<V, S>(variable: V, subscripts: &[S]) -> Key
+            where V: Into<String>,
+                  S: Into<Vec<u8>> + Clone, {
+        // TODO: check if the variable is valid
+        let variable = variable.into();
+        Key {
+            buffer_structs: Vec::with_capacity(subscripts.len() + 1),
+            // NOTE: we cannot remove this copy because `node_next_st` mutates subscripts
+            // and `node_subscript_st` mutates the variable
+            buffers: std::iter::once(variable.into_bytes())
+                .chain(subscripts.iter().cloned().map(|slice| slice.into()))
+                .collect(),
+            needs_sync: true,
+        }
     }
-
+    /// Shortcut for creating a key with no subscripts.
+    pub fn variable<V: Into<String>>(var: V) -> Key {
+        Key::new::<V, Vec<u8>>(var, &[])
+    }
     /// Gets the value of this key from the database and returns the value.
     ///
     /// # Errors
@@ -524,6 +538,9 @@ impl Key {
 
     /// Facilitates depth-first traversal of a local or global variable tree, and passes itself in as the output parameter.
     ///
+    /// For more information on variable trees, see the [overview of YottaDB][how-it-works]
+    /// as well as the section on [variables and nodes][vars-nodes].
+    ///
     /// # Errors
     ///
     /// Possible errors for this function include:
@@ -556,6 +573,9 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
+    ///
+    /// [how-it-works]: https://yottadb.com/product/how-it-works/
+    /// [vars-nodes]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts
     pub fn node_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         self.sync();
@@ -1148,25 +1168,18 @@ mod tests {
 
     #[test]
     fn can_make_key() {
-        Key::with_capacity(32);
+        Key::variable("key");
     }
 
     #[test]
-    fn can_access_key() {
-        // Alloc an array of 2 ydb_buffer_t
-        let mut key = Key::with_capacity(2);
-        // Set the global and subscripts; each of these ends up not doing any
-        // additional copying
-        key.push(Vec::from("^hello"));
-        let sub = Vec::from("world");
-        key.push(sub);
+    fn can_make_key_with_subscripts() {
+        Key::new("^hello", &["world"]);
     }
 
     #[test]
     fn basic_set_and_get_st() {
         let mut result = Vec::with_capacity(1);
-        let mut key = Key::with_capacity(1);
-        key.push(Vec::from("^hello"));
+        let mut key = Key::variable("^hello");
 
         // Try setting a value
         result = key.set_st(0, result, &Vec::from("Hello world!")).unwrap();
@@ -1183,8 +1196,7 @@ mod tests {
     #[test]
     fn ydb_get_st_error() {
         let result = Vec::with_capacity(1);
-        let mut key = Key::with_capacity(1);
-        key.push(Vec::from("^helloDoesntExist"));
+        let mut key = Key::variable("^helloDoesntExists");
         match key.get_st(0, result) {
             Ok(x) => {
                 assert!(false, "Expected error return from key.get_st");
@@ -1199,8 +1211,7 @@ mod tests {
     #[test]
     fn ydb_data_st() {
         let result = Vec::with_capacity(1);
-        let mut key = Key::with_capacity(1);
-        key.push(Vec::from("^helloDoesNotExist"));
+        let mut key = Key::variable("^helloDoesNotExists");
 
         let (retval, _) = key.data_st(0, result).unwrap();
         assert_eq!(retval, DataReturn::NoData);
@@ -1209,8 +1220,7 @@ mod tests {
     #[test]
     fn ydb_delete_st() {
         let mut result = Vec::with_capacity(1);
-        let mut key = Key::with_capacity(1);
-        key.push(Vec::from("^helloDeleteMe"));
+        let mut key = Key::variable("^helloDeleteMe");
 
         // Try setting a value
         result = key.set_st(0, result, &Vec::from("Hello world!")).unwrap();
@@ -1227,9 +1237,7 @@ mod tests {
     #[test]
     fn ydb_incr_st() {
         let result = Vec::with_capacity(1);
-        let mut key = Key::with_capacity(1);
-        key.push(Vec::from("^helloIncrementMe"));
-
+        let mut key = Key::variable("^helloIncrementMe");
         key.incr_st(0, result, None).unwrap();
     }
 

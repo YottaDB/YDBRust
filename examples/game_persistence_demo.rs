@@ -42,7 +42,7 @@ impl<'a> Circle<'a> {
 
     fn new_random(ctx: &Context, id: usize, tc: &'a TextureCreator<WindowContext>) -> Result<Circle<'a>, String> {
         let (r, g, b) = (rand::random::<u8>() % 255, rand::random::<u8>() % 255, rand::random::<u8>() % 255);
-        let mut key = make_ckey!(ctx, "^balls", id.to_string(), "color", "r");
+        let mut key = make_ckey!(ctx, "^balls", id.to_string().as_str(), "color", "r");
         key.set(&Vec::from(r.to_string())).unwrap();
         key[3] = Vec::from(String::from("g"));
         key.set(&Vec::from(g.to_string())).unwrap();
@@ -61,7 +61,7 @@ impl<'a> Circle<'a> {
     }
 
     fn save(&self, ctx: &Context) -> Result<(), Box<dyn Error>> {
-        let mut key = make_ckey!(ctx, "^balls", self.id.to_string(), "x");
+        let mut key = make_ckey!(ctx, "^balls", self.id.to_string().as_str(), "x");
         key.set(&Vec::from(self.x.to_string()))?;
         key[2] = Vec::from("y");
         key.set(&Vec::from(self.y.to_string()))?;
