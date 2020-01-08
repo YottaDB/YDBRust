@@ -320,8 +320,9 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn set_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, new_val: &[u8]) -> YDBResult<Vec<u8>> {
-        let mut out_buffer = out_buffer;
+    pub fn set_st<U>(&mut self, tptoken: u64, mut out_buffer: Vec<u8>, new_val: U) -> YDBResult<Vec<u8>>
+            where U: AsRef<[u8]> {
+        let new_val = new_val.as_ref();
         self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);

@@ -268,11 +268,11 @@ impl KeyContext {
     ///     Ok(())
     /// }
     /// ```
-    pub fn set(&mut self, new_val: &[u8]) -> YDBResult<()> {
+    pub fn set<U: AsRef<[u8]>>(&mut self, new_val: U) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
         let result = if self.context.borrow().multithreaded {
-            self.key.set_st(tptoken, out_buffer, new_val)
+            self.key.set_st(tptoken, out_buffer, new_val.as_ref())
         } else {
             panic!("Not supported!");
         };
@@ -866,6 +866,9 @@ mod tests {
         let ctx = Context::new();
         let mut key = ctx.new_key(Key::variable("^hello"));
         key.set(b"Hello world!").unwrap();
+        key.set("Hello str!").unwrap();
+        key.set(String::from("Hello String!")).unwrap();
+        key.delete(DeleteType::DelNode).unwrap();
     }
 
     #[test]
