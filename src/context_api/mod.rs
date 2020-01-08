@@ -135,7 +135,7 @@ impl Context {
         }
     }
 
-    pub fn new_key(&self, key: Key) -> KeyContext {
+    pub fn new_key<K: Into<Key>>(&self, key: K) -> KeyContext {
         KeyContext::with_key(self, key)
     }
 
@@ -185,13 +185,13 @@ impl KeyContext {
     }
     /// Shortcut for creating a key with no subscripts.
     // this should be kept in sync with `Key::variable`
-    pub fn variable<V: Into<String>>(ctx: &Context, var: V) -> KeyContext {
-        Self::with_key(ctx, Key::variable(var))
+    pub fn variable<V: Into<String>>(ctx: &Context, var: V) -> Self {
+        Self::with_key(ctx, var)
     }
-    pub fn with_key(ctx: &Context, key: Key) -> Self {
+    pub fn with_key<K: Into<Key>>(ctx: &Context, key: K) -> Self {
         Self {
             context: ctx.context.clone(),
-            key,
+            key: key.into(),
         }
     }
     fn recover_buffer(&mut self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
@@ -852,6 +852,14 @@ implement_iterator!(ReverseKeyNodeIterator, prev_node_self, KeyContext, |me: &mu
 mod tests {
     use super::*;
     use std::num::ParseIntError;
+    #[test]
+    fn create() {
+        let ctx = Context::new();
+        let _ = ctx.new_key("^hello");
+        let _ = KeyContext::from((&ctx, "^hello".into()));
+        let _ = KeyContext::with_key(&ctx, "^hello");
+        let _ = KeyContext::variable(&ctx, "^hi".to_owned());
+    }
 
     #[test]
     fn simple_get() {
@@ -859,6 +867,7 @@ mod tests {
         let mut key = ctx.new_key(Key::variable("^hello"));
         key.set(b"Hello world!").unwrap();
         assert_eq!(key.get().unwrap(), b"Hello world!");
+        key.delete(DeleteType::DelNode).unwrap();
     }
 
     #[test]

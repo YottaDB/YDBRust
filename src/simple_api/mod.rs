@@ -1092,6 +1092,12 @@ impl Clone for Key {
     }
 }
 
+impl<S: Into<String>> From<S> for Key {
+    fn from(s: S) -> Key {
+        Key::variable(s)
+    }
+}
+
 type UserResult = Result<(), Box<dyn Error>>;
 
 enum CallBackError {
