@@ -272,7 +272,7 @@ impl KeyContext {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
         let result = if self.context.borrow().multithreaded {
-            self.key.set_st(tptoken, out_buffer, new_val.as_ref())
+            self.key.set_st(tptoken, out_buffer, new_val)
         } else {
             panic!("Not supported!");
         };
