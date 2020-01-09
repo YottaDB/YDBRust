@@ -18,10 +18,10 @@
 //! fn main() -> YDBResult<()> {
 //!     let ctx = Context::new();
 //!     let mut key = make_ckey!(ctx, "^MyGlobal", "SubscriptA", "42");
-//!     let value = Vec::from("This is a persistent message");
-//!     key.set(&value)?;
+//!     let value = "This is a persistent message";
+//!     key.set(value)?;
 //!     let buffer = key.get()?;
-//!     assert_eq!("This is a persistent message", String::from_utf8_lossy(&buffer));
+//!     assert_eq!(&buffer, b"This is a persistent message");
 //!     key.delete(DeleteType::DelNode)?;
 //!     Ok(())
 //! }
@@ -226,10 +226,10 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     let output_buffer = key.get()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(output_buffer, b"Hello world!");
     ///
     ///     Ok(())
     /// }
@@ -263,7 +263,7 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///
     ///     Ok(())
     /// }
@@ -348,7 +348,7 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^helloDeleteMe");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     key.delete(DeleteType::DelTree)?;
     ///
     ///     assert_eq!(key.data()?, DataReturn::NoData);
@@ -386,11 +386,11 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^helloIncrementMe");
     ///
-    ///     key.set(&Vec::from("0"))?;
+    ///     key.set("0")?;
     ///     key.increment(None)?;
     ///     let output_buffer = key.get()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "1");
+    ///     assert_eq!(output_buffer, b"1");
     ///
     ///     Ok(())
     /// }
@@ -424,13 +424,13 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     key[1] = Vec::from("1");
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     key[1] = Vec::from("0");
     ///     key.next_sub_self()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "1");
+    ///     assert_eq!(key[1], b"1");
     ///
     ///     Ok(())
     /// }
@@ -464,13 +464,13 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     key[1] = Vec::from("1");
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     key[1] = Vec::from("1");
     ///     key.prev_sub_self()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "0");
+    ///     assert_eq!(key[1], b"0");
     ///
     ///     Ok(())
     /// }
@@ -505,13 +505,13 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     key[1] = Vec::from("1");
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     key[1] = Vec::from("0");
     ///     let k2 = key.next_sub()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&k2[1]), "1");
+    ///     assert_eq!(&k2[1], b"1");
     ///
     ///     Ok(())
     /// }
@@ -541,13 +541,13 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set(b"Hello world!")?;
     ///     key[1] = Vec::from("1");
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     key[1] = Vec::from("1");
     ///     let k2 = key.prev_sub()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&k2[1]), "0");
+    ///     assert_eq!(&k2[1], b"0");
     ///
     ///     Ok(())
     /// }
@@ -577,14 +577,14 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0", "0");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
     ///     unsafe {
     ///         key.set_len(2);
     ///     }
     ///     key.next_node_self()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&key[2]), "0");
+    ///     assert_eq!(key[2], b"0");
     ///
     ///     Ok(())
     /// }
@@ -619,7 +619,7 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0", "0");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
     ///     unsafe {
     ///         key.set_len(2);
@@ -628,7 +628,7 @@ impl KeyContext {
     ///     key[1] = Vec::from("1");
     ///     key.prev_node_self()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&key[2]), "0");
+    ///     assert_eq!(key[2], b"0");
     ///
     ///     Ok(())
     /// }
@@ -663,14 +663,14 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0", "0");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
     ///     unsafe {
     ///         key.set_len(2);
     ///     }
     ///     let k2 = key.next_node()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&k2[2]), "0");
+    ///     assert_eq!(k2[2], b"0");
     ///
     ///     Ok(())
     /// }
@@ -701,7 +701,7 @@ impl KeyContext {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^helloPrevNode", "0", "0");
     ///
-    ///     key.set(&Vec::from("Hello world!"))?;
+    ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
     ///     unsafe {
     ///         key.set_len(2);
@@ -710,7 +710,7 @@ impl KeyContext {
     ///     key[1] = Vec::from("1");
     ///     let k2 = key.prev_node()?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&k2[2]), "0");
+    ///     assert_eq!(k2[2], b"0");
     ///
     ///     Ok(())
     /// }
@@ -916,7 +916,7 @@ mod tests {
         key[1] = Vec::from("1");
         let k2 = key.prev_node().unwrap();
 
-        assert_eq!(String::from_utf8_lossy(&k2[2]), "0");
+        assert_eq!(k2[2], b"0");
     }
 
     // Macro to test ordered expressions
@@ -1049,10 +1049,10 @@ mod tests {
     fn test_simple_tp() {
         let ctx = Context::new();
         ctx.tp(|ctx| {
-            let mut key = ctx.new_key(Key::variable("^hello"));
-            key.set(&Vec::from("Hello world!"))?;
+            let mut key = ctx.new_key("^hello");
+            key.set("Hello world!")?;
             Ok(())
-        }, "BATCH", &Vec::new()).unwrap();
+        }, "BATCH", &[]).unwrap();
     }
 
     #[test]

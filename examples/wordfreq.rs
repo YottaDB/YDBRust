@@ -31,10 +31,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     word_key[1] = Vec::from("");
     for k in word_key.clone().iter_subs_values() {
         let (k, v) = k?;
-        let v = String::from_utf8_lossy(&v);
         let word = k;
-        let mut key = make_ckey!(ctx, "^index", v.into_owned().into_bytes(), word);
-        key.set(&Vec::from(""))?;
+        let mut key = make_ckey!(ctx, "^index", v, word);
+        key.set(b"")?;
     }
 
     // Iterate through the index and output things

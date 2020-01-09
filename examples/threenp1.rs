@@ -132,10 +132,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("");
 
         // Reset globals
-        highest.set(&Vec::from("0"))?;
-        reads.set(&Vec::from("0"))?;
-        result.set(&Vec::from("0"))?;
-        updates.set(&Vec::from("0"))?;
+        highest.set(b"0")?;
+        reads.set(b"0")?;
+        result.set(b"0")?;
+        updates.set(b"0")?;
         unsafe {
             step.set_len(1);
         }
@@ -158,11 +158,11 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
     // Local to prevent collisions until engine is fully multithreaded
     let index_s = index.to_string();
     let mut updates_l = make_ckey!(ctx, "updates", index_s.clone());
-    updates_l.set(&Vec::from("0"))?;
+    updates_l.set(b"0")?;
     let mut reads_l = make_ckey!(ctx, "reads", index_s.clone());
-    reads_l.set(&Vec::from("0"))?;
+    reads_l.set(b"0")?;
     let mut highest_l = make_ckey!(ctx, "highest", index_s.clone());
-    highest_l.set(&Vec::from("0"))?;
+    highest_l.set(b"0")?;
     let mut currpath_l = make_ckey!(ctx, "currpath", index_s.as_str(), "");
 
     loop {

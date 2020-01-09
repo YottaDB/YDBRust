@@ -24,10 +24,10 @@
 //! fn main() -> YDBResult<()> {
 //!     let mut key = make_key!("^MyGlobal", "SubscriptA", "42");
 //!     let mut buffer = Vec::with_capacity(1024);
-//!     let value = Vec::from("This is a persistent message");
-//!     buffer = key.set_st(YDB_NOTTP, buffer, &value)?;
+//!     let value = "This is a persistent message";
+//!     buffer = key.set_st(YDB_NOTTP, buffer, value)?;
 //!     buffer = key.get_st(YDB_NOTTP, buffer)?;
-//!     assert_eq!("This is a persistent message", String::from_utf8_lossy(&buffer));
+//!     assert_eq!(&buffer, b"This is a persistent message");
 //!     key.delete_st(YDB_NOTTP, buffer, DeleteType::DelNode).unwrap();
 //!     Ok(())
 //! }
@@ -256,10 +256,10 @@ impl Key {
     ///     let mut key = make_key!("^hello");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello world!"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello world!")?;
     ///     output_buffer = key.get_st(YDB_NOTTP, output_buffer)?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "Hello world!");
+    ///     assert_eq!(&output_buffer, b"Hello world!");
     ///
     ///     Ok(())
     /// }
@@ -315,7 +315,7 @@ impl Key {
     ///     let mut key = make_key!("^hello");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello world!"))?;
+    ///     key.set_st(YDB_NOTTP, output_buffer, b"Hello world!")?;
     ///
     ///     Ok(())
     /// }
@@ -504,7 +504,7 @@ impl Key {
     ///     let mut key = make_key!("^helloIncrementDocTest");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("0"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "0")?;
     ///     output_buffer = key.get_st(YDB_NOTTP, output_buffer)?;
     ///     let before: i32 = String::from_utf8_lossy(&output_buffer).parse()?;
     ///     output_buffer = key.incr_st(YDB_NOTTP, output_buffer, None)?;
@@ -599,16 +599,16 @@ impl Key {
     ///     let mut key = make_key!("^helloNodeNextSelf", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
     ///     key[1] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
     ///     // Lose the subscript, or pretend we are starting at ""
     ///     unsafe {
     ///         key[1].set_len(0);
     ///     }
     ///     output_buffer = key.node_next_self_st(YDB_NOTTP, output_buffer)?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "a");
+    ///     assert_eq!(&key[1], b"a");
     ///
     ///     Ok(())
     /// }
@@ -686,14 +686,14 @@ impl Key {
     ///     let mut key = make_key!("^helloNodePrevSelf", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
     ///     key[1] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
     ///     // We need to start at node beyond the node we are looking for; just add some Z's
     ///     key[1] = Vec::from("z");
     ///     output_buffer = key.node_prev_self_st(YDB_NOTTP, output_buffer)?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "b");
+    ///     assert_eq!(key[1], b"b");
     ///
     ///     Ok(())
     /// }
@@ -769,14 +769,14 @@ impl Key {
     ///     let mut key = make_key!("^helloSubNext", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     key[1] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     // Start at a, next subscript will be b
     ///     key[1] = Vec::from("a");
     ///     output_buffer = key.sub_next_st(YDB_NOTTP, output_buffer)?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "b");
+    ///     assert_eq!(&output_buffer, b"b");
     ///
     ///     Ok(())
     /// }
@@ -830,13 +830,13 @@ impl Key {
     ///     let mut key = make_key!("^helloSubPrev", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     key[1] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     // Starting at b, the previous subscript should be a
     ///     output_buffer = key.sub_prev_st(YDB_NOTTP, output_buffer)?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&output_buffer), "a");
+    ///     assert_eq!(&output_buffer, b"a");
     ///
     ///     Ok(())
     /// }
@@ -890,14 +890,14 @@ impl Key {
     ///     let mut key = make_key!("^helloSubNextSelf", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     key[1] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     // Starting at a, the next sub should be b
     ///     key[1] = Vec::from("a");
     ///     output_buffer = key.sub_next_self_st(YDB_NOTTP, output_buffer)?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "b");
+    ///     assert_eq!(&key[1], b"b");
     ///
     ///     Ok(())
     /// }
@@ -968,13 +968,13 @@ impl Key {
     ///     let mut key = make_key!("^helloSubPrevSelf", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     key[1] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, &Vec::from("Hello"))?;
+    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     // Starting at b, previous should be a
     ///     output_buffer = key.sub_prev_self_st(YDB_NOTTP, output_buffer)?;
     ///
-    ///     assert_eq!(String::from_utf8_lossy(&key[1]), "a");
+    ///     assert_eq!(&key[1], b"a");
     ///
     ///     Ok(())
     /// }

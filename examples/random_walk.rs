@@ -35,7 +35,7 @@ fn random_walk() {
     match rng.gen_range(0, 6) {
         0 => key.delete(DeleteType::DelNode).unwrap(),
         1 => match key.get() { _ => (), }, // we don't unwrap this because failures are fine
-        2 => key.set(&Vec::from("Hello world!")).unwrap(),
+        2 => key.set(b"Hello world!").unwrap(),
         3 => {
             key.increment(None).unwrap();
             ()
