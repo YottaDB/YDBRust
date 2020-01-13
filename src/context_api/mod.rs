@@ -1129,4 +1129,15 @@ mod tests {
         assert!(result.is_err());
         assert!(result.err().unwrap().is::<ParseIntError>());
     }
+
+    #[test]
+    fn get_and_parse() {
+        let ctx = Context::new();
+        let mut key = ctx.new_key("hello");
+        key.set(1.651e12.to_string()).unwrap();
+        let _: f64 = key.get_and_parse().unwrap();
+        key.set("127.0.0.1").unwrap();
+        let _: std::net::IpAddr = key.get_and_parse().unwrap();
+        key.delete(DeleteType::DelNode).unwrap();
+    }
 }
