@@ -30,6 +30,7 @@
 use std::cell::RefCell;
 use std::error::Error;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::ops::{Deref, DerefMut};
 
 use crate::craw::{YDB_NOTTP, YDB_ERR_NODEEND};
@@ -176,6 +177,23 @@ impl From<(&Context, Key)> for KeyContext {
     }
 }
 
+/// The error type returned by `KeyContext::get_and_parse()`
+#[derive(Debug)]
+pub enum ParseError<T> {
+    /// There was an error retrieving the value from the database
+    YDB(YDBError),
+    /// Retrieving the value succeeded, but it was not a valid `String`
+    ///
+    /// The bytes of the value are still available using `.into_bytes()`.
+    Utf8(std::string::FromUtf8Error),
+    /// A valid `String` was retrieved but did not parse successfully.
+    ///
+    /// The `String` is still available.
+    ///
+    /// The `T` is the type of `FromStr::Err` for the value being parsed.
+    Parse(T, String),
+}
+
 impl KeyContext {
     // this should be kept in sync with `Key::new`
     pub fn new<V, S>(ctx: &Context, variable: V, subscripts: &[S]) -> KeyContext
@@ -244,6 +262,31 @@ impl KeyContext {
         }
     }
 
+    /// Retrieve a value from the database and parse it into a Rust data structure.
+    ///
+    /// This is a shorthand for `String::from_utf8(key.get()).parse()`
+    /// that collects the errors into a single struct.
+    ///
+    /// # Examples
+    /// Set and retrieve an integer.
+    /// ```
+    /// use yottadb::context_api::Context;
+    /// use yottadb::context_api::ParseError;
+    /// let ctx = Context::new();
+    /// let mut key = ctx.new_key("weekday");
+    /// key.set(5.to_string())?;
+    /// let day: u8 = match key.get_and_parse() {
+    ///     Ok(day) => day,
+    ///     Err(ParseError::YDB(err)) => return Err(err),
+    ///     Err(other) => panic!("should have parsed 5"),
+    /// };
+    /// Ok(())
+    /// ```
+    pub fn get_and_parse<T: FromStr>(&mut self) -> Result<T, ParseError<T::Err>> {
+        self.get().map_err(ParseError::YDB)
+            .and_then(|bytes| String::from_utf8(bytes).map_err(ParseError::Utf8))
+            .and_then(|s| s.parse().map_err(|err| ParseError::Parse(err, s)))
+    }
     /// Sets the value of a key in the database.
     ///
     /// # Errors
