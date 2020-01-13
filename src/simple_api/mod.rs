@@ -55,7 +55,7 @@
 //! [intrinsics]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
 //! [tlevel]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#tlevel
 use std::error::Error;
-use std::ops::{Deref, DerefMut};
+use std::ops::{DerefMut, Index};
 use std::ptr;
 use std::ffi::CString;
 use std::os::raw::{c_void, c_int};
@@ -1043,6 +1043,15 @@ impl Key {
     }
 }
 
+impl Index<usize> for Key {
+    type Output = Vec<u8>;
+
+    fn index(&self, i: usize) -> &Self::Output {
+        &self.buffers[i]
+    }
+}
+
+/*
 impl Deref for Key {
     type Target = Vec<Vec<u8>>;
 
@@ -1057,6 +1066,7 @@ impl DerefMut for Key {
         &mut self.buffers
     }
 }
+*/
 
 impl Clone for Key {
     fn clone(&self) -> Self {
