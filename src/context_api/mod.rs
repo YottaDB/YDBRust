@@ -180,9 +180,9 @@ impl From<(&Context, Key)> for KeyContext {
 /// The error type returned by `KeyContext::get_and_parse()`
 #[derive(Debug)]
 pub enum ParseError<T> {
-    /// There was an error retrieving the value from the database
+    /// There was an error retrieving the value from the database.
     YDB(YDBError),
-    /// Retrieving the value succeeded, but it was not a valid `String`
+    /// Retrieving the value succeeded, but it was not a valid `String`.
     ///
     /// The bytes of the value are still available using `.into_bytes()`.
     Utf8(std::string::FromUtf8Error),
@@ -268,7 +268,7 @@ impl KeyContext {
     /// that collects the errors into a single struct.
     ///
     /// # Examples
-    /// Set and retrieve an integer.
+    /// Set and retrieve an integer, with error handling.
     /// ```
     /// use yottadb::context_api::Context;
     /// use yottadb::context_api::ParseError;
@@ -278,9 +278,28 @@ impl KeyContext {
     /// let day: u8 = match key.get_and_parse() {
     ///     Ok(day) => day,
     ///     Err(ParseError::YDB(err)) => return Err(err),
-    ///     Err(other) => panic!("should have parsed 5"),
+    ///     Err(ParseError::Utf8(err)) => {
+    ///         eprintln!("warning: had an invalid string");
+    ///         String::from_utf8_lossy(&err.as_bytes()).parse().unwrap()
+    ///     }
+    ///     Err(ParseError::Parse(err, original)) => {
+    ///         panic!("{} is not a valid string: {}", original, err);
+    ///     }
     /// };
     /// Ok(())
+    /// ```
+    ///
+    /// Set and retrieve an integer, without error handling.
+    /// ```
+    /// # use yottadb::simple_api::YDBResult;
+    /// # fn main() -> YDBResult<()> {
+    /// use yottadb::context_api::Context;
+    /// let ctx = Context::new();
+    /// let mut key = ctx.new_key("weekday");
+    /// key.set(5.to_string())?;
+    /// let day: u8 = key.get_and_parse().unwrap();
+    /// Ok(())
+    /// # }
     /// ```
     pub fn get_and_parse<T: FromStr>(&mut self) -> Result<T, ParseError<T::Err>> {
         self.get().map_err(ParseError::YDB)
