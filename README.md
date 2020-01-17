@@ -54,6 +54,12 @@ cargo test
 cargo doc --open
 ```
 
+You may want to also set up pre-commit hooks:
+
+`ln -s ../../test.sh .git/hooks/pre-commit`
+
+### Developing with Docker
+
 Alternatively, you can use the provided dockerfile:
 
 ```sh
