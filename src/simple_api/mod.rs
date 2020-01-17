@@ -336,6 +336,9 @@ impl Key {
         let (varname, subscripts) = self.get_varname_and_subscripts();
         // Do the call
         let status = unsafe {
+            // this requires &mut in the latest published version of YDB,
+            // I don't want to change it until YDB releases 1.29
+            #[allow(clippy::unnecessary_mut_passed)]
             ydb_set_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
                 subscripts, &mut new_val_t)
         };
