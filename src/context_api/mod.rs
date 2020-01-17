@@ -187,7 +187,6 @@ pub enum ParseError<T> {
     /// The bytes of the value are still available using `.into_bytes()`.
     Utf8(std::string::FromUtf8Error),
     /// A valid `String` was retrieved but did not parse successfully.
-    ///
     /// The `String` is still available.
     ///
     /// The `T` is the type of `FromStr::Err` for the value being parsed.
@@ -265,7 +264,7 @@ impl KeyContext {
     /// Retrieve a value from the database and parse it into a Rust data structure.
     ///
     /// This is a shorthand for `String::from_utf8(key.get()).parse()`
-    /// that collects the errors into a single struct.
+    /// that collects the errors into a single enum.
     ///
     /// # Examples
     /// Set and retrieve an integer, with error handling.
