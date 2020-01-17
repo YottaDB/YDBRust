@@ -1,7 +1,7 @@
 [package]
 name = "yottadb"
-version = "0.1.0"
-authors = ["Charles Hathaway <charles@yottadb.com>", "Joshua Nelson <joshua@yottadb.com"]
+version = "0.1.1"
+authors = ["Charles Hathaway <charles@yottadb.com>", "Joshua Nelson <joshua@yottadb.com>"]
 edition = "2018"
 
 description = "Rust wrappers for the NoSQL database YottaDB"
