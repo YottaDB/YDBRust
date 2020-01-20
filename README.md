@@ -10,6 +10,7 @@ file of which identifies its copyright holders. The software is made available
 to you under the terms of a license. Refer to the LICENSE file for details.
 
 Homepage: https://gitlab.com/YottaDB/Lang/YDBRust
+Documentation: https://yottadb.gitlab.io/Lang/YDBRust/yottadb/
 
 ## Using YDBRust in your project
 

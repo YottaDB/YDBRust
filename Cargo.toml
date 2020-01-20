@@ -8,6 +8,7 @@ description = "Rust wrappers for the NoSQL database YottaDB"
 license = "AGPL-3.0-only"
 repository = "https://gitlab.com/YottaDB/Lang/YDBRust"
 homepage = "https://yottadb.com/"
+documentation = "https://yottadb.gitlab.io/Lang/YDBRust/yottadb/"
 readme = "README.md"
 
 [dependencies]
