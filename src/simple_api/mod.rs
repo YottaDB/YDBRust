@@ -721,46 +721,33 @@ impl Key {
                 ydb_node_previous_st(tptoken, &mut out_buffer_t, varname, len,
                     subscripts, &mut ret_subs_used as *mut _, subscripts)
             };
+            let ret_subs_used = (ret_subs_used + 1) as usize;
             // Handle resizing the buffer, if needed
             if status == YDB_ERR_INVSTRLEN {
-                let last_sub_index = (ret_subs_used + 1) as usize;
+                let last_sub_index = ret_subs_used;
                 assert!(last_sub_index < self.buffers.len());
-                /*
-                println!("old size: {}, new_size: {}", self.buffers.len(), last_sub_index + 1);
-                self.buffers.resize_with(last_sub_index + 1, || Vec::with_capacity(10));
-                self.needs_sync = true;
-                self.sync();
-                */
-                //self.buffers.resize_with(last_sub_index + 1, Default::default);
-                //self.buffer_structs.resize_with(last_sub_index + 1, Default::default);
+
                 let t = &mut self.buffers[last_sub_index];
-                // New size should be size needed + (current size - len used)
-                //let new_size = (self.buffer_structs[last_sub_index].len_used - self.buffer_structs[last_sub_index].len_alloc) as usize;
-                //let new_size = new_size + (t.capacity() - t.len());
                 let needed_size = self.buffer_structs[last_sub_index].len_used as usize;
-                println!("insufficient len (had {}, needed {})", t.len(), needed_size);
                 t.reserve(needed_size - t.len());
                 assert_ne!(t.as_ptr(), std::ptr::null());
+
                 self.needs_sync = true;
                 self.sync();
                 continue;
             }
             if status == YDB_ERR_INSUFFSUBS {
-                let ret_subs_used = (ret_subs_used + 1) as usize;
-                println!("insufficient subs (had {}, needed {})", self.buffers.len(), ret_subs_used);
-                self.buffers.resize_with(ret_subs_used, || Vec::with_capacity(10));
+                self.buffers.resize_with(ret_subs_used, Default::default);
                 self.needs_sync = true;
                 self.sync();
-                //self.buffer_structs.resize_with(ret_subs_used, Default::default);
                 continue;
             }
             if status == crate::craw::YDB_ERR_PARAMINVALID {
-                let i = (ret_subs_used + 1) as usize;
-                panic!("buffer_structs[{}] was null: {:?}", i, self.buffer_structs[i]);
+                let i = ret_subs_used;
+                panic!("internal error in node_prev_st: buffer_structs[{}] was null: {:?}", i, self.buffer_structs[i]);
             }
             // Set length of the vec containing the buffer to we can see the value
             if status != YDB_OK as i32 {
-                dbg!(&self.buffers);
                 // We could end up with a buffer of a larger size if we couldn't fit the error string
                 // into the out_buffer buffer, so make sure to pick the smaller size
                 let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
@@ -769,10 +756,9 @@ impl Key {
                 }
                 return Err(YDBError { message: out_buffer, status, tptoken });
             }
-            break (ret_subs_used + 1) as usize;
+            break ret_subs_used;
         };
-        assert!(ret_subs_used <= self.buffer_structs.len());
-        println!("ret_subs_used: {} -> {}", self.buffer_structs.len(), ret_subs_used);
+        assert!(ret_subs_used <= self.buffer_structs.len(), "growing the buffer should be handled in YDB_ERR_INSUFFSUBS");
         self.buffer_structs.truncate(ret_subs_used);
         self.buffers.truncate(ret_subs_used);
         self.reverse_sync();
