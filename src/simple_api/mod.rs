@@ -344,7 +344,6 @@ impl Key {
         };
         // Handle resizing the buffer, if needed
         if status == YDB_ERR_INVSTRLEN {
-            println!("resizing out_buffer ({} -> {})", out_buffer.len(), out_buffer_t.len_used);
             out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
             return self.set_st(tptoken, out_buffer, &new_val);
         }
@@ -1021,7 +1020,6 @@ impl Key {
 
     fn sync(&mut self) {
         self.buffer_structs.resize_with(self.buffers.len(), Default::default);
-        //self.buffers.resize_with(self.buffers.capacity(), Default::default);
         for (i, buff) in self.buffers.iter_mut().enumerate() {
             // Ensure that a buffer is allocated, as a null pointer is no fun
             if buff.capacity() == 0 {
@@ -1038,11 +1036,8 @@ impl Key {
     fn reverse_sync(&mut self) {
         for (i, buff) in self.buffers.iter_mut().enumerate() {
             let actual = self.buffer_structs[i].len_used as usize;
-            if actual != buff.len() {
-                println!("reverse_sync: set_len buffers[{}] (buf: {:?}) {} -> {}", i, buff.as_ptr(), buff.len(), actual);
-                unsafe {
-                    buff.set_len(actual);
-                }
+            unsafe {
+                buff.set_len(actual);
             }
         }
     }
@@ -1314,7 +1309,6 @@ mod tests {
         result = key.set_st(0, result, &value).unwrap();
         key[2] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
-        // TODO: why does this break things?
         key.truncate(2);
         key[1] = Vec::from("z");
         key.node_prev_self_st(0, result).unwrap();
