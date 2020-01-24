@@ -682,9 +682,12 @@ impl KeyContext {
     ///
     ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
+    ///     /*
     ///     unsafe {
     ///         key.set_len(2);
     ///     }
+    ///     */
+    ///     key.truncate(2);
     ///     // Go to the next node, then walk backward
     ///     key[1] = Vec::from("1");
     ///     key.prev_node_self()?;
@@ -1138,5 +1141,27 @@ mod tests {
         key.set("127.0.0.1").unwrap();
         let _: std::net::IpAddr = key.get_and_parse().unwrap();
         key.delete(DeleteType::DelNode).unwrap();
+    }
+    #[test]
+    fn prev_node_self() -> Result<(), Box<dyn Error>> {
+        let ctx = Context::new();
+        let mut key = make_ckey!(ctx, "^hello", "0", "0");
+
+        key.set("Hello world!")?;
+        // Forget the second subscript
+        /*
+        unsafe {
+            key.set_len(2);
+        }
+        */
+        key.truncate(2);
+        // Go to the next node, then walk backward
+        key[1] = Vec::from("1");
+        key.prev_node_self()?;
+
+        dbg!(&key);
+        assert_eq!(key[2], b"0");
+
+        Ok(())
     }
 }

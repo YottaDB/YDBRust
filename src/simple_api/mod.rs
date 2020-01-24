@@ -344,6 +344,7 @@ impl Key {
         };
         // Handle resizing the buffer, if needed
         if status == YDB_ERR_INVSTRLEN {
+            println!("resizing out_buffer ({} -> {})", out_buffer.len(), out_buffer_t.len_used);
             out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
             return self.set_st(tptoken, out_buffer, &new_val);
         }
@@ -662,9 +663,9 @@ impl Key {
             return Err(YDBError { message: out_buffer, status, tptoken });
         }
         unsafe {
-            self.buffers.set_len((ret_subs_used + 1) as usize);
             self.buffer_structs.set_len((ret_subs_used + 1) as usize);
         }
+        self.buffers.resize_with((ret_subs_used + 1) as usize, Default::default);
         self.reverse_sync();
         Ok(out_buffer)
     }
@@ -703,51 +704,77 @@ impl Key {
     /// ```
     pub fn node_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
+        let len = (self.buffers.len() - 1) as i32;
         self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
-        // Get pointers to the varname and to the first subscript
-        let (varname, subscripts) = self.get_varname_and_subscripts();
-        let mut ret_subs_used = (self.buffers.capacity() - 1) as i32;
-        // Do the call
-        let status = unsafe {
-            ydb_node_previous_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
-                subscripts, &mut ret_subs_used as *mut _, subscripts)
-        };
-        // Handle resizing the buffer, if needed
-        if status == YDB_ERR_INVSTRLEN {
-            let ret_subs_used = (ret_subs_used + 1) as usize;
-            let t = &mut self.buffers[ret_subs_used];
-            // New size should be size needed + (current size - len used)
-            let new_size = (self.buffer_structs[ret_subs_used].len_used - self.buffer_structs[ret_subs_used].len_alloc) as usize;
-            let new_size = new_size + (t.capacity() - t.len());
-            t.reserve(new_size);
-            self.needs_sync = true;
-            return self.node_prev_self_st(tptoken, out_buffer);
-        }
-        if status == YDB_ERR_INSUFFSUBS {
-            let ret_subs_used = (ret_subs_used + 1) as usize;
-            self.buffers.resize_with(ret_subs_used, Default::default);
-            self.buffer_structs.resize_with(ret_subs_used, Default::default);
-            self.needs_sync = true;
-            return self.node_prev_self_st(tptoken, out_buffer);
-        }
-        // Set length of the vec containing the buffer to we can see the value
-        if status != YDB_OK as i32 {
-            // We could end up with a buffer of a larger size if we couldn't fit the error string
-            // into the out_buffer, so make sure to pick the smaller size
-            let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
-            unsafe {
-                out_buffer.set_len(new_buffer_size);
+        let ret_subs_used = loop {
+            // Get pointers to the varname and to the first subscript
+            let (varname, subscripts) = self.get_varname_and_subscripts();
+            assert_ne!(subscripts, std::ptr::null_mut());
+            assert_eq!(self.buffer_structs.len(), self.buffers.len());
+            let mut ret_subs_used = (self.buffers.len() - 1) as i32;
+
+            // Do the call
+            let status = unsafe {
+                ydb_node_previous_st(tptoken, &mut out_buffer_t, varname, len,
+                    subscripts, &mut ret_subs_used as *mut _, subscripts)
+            };
+            // Handle resizing the buffer, if needed
+            if status == YDB_ERR_INVSTRLEN {
+                let last_sub_index = (ret_subs_used + 1) as usize;
+                assert!(last_sub_index < self.buffers.len());
+                /*
+                println!("old size: {}, new_size: {}", self.buffers.len(), last_sub_index + 1);
+                self.buffers.resize_with(last_sub_index + 1, || Vec::with_capacity(10));
+                self.needs_sync = true;
+                self.sync();
+                */
+                //self.buffers.resize_with(last_sub_index + 1, Default::default);
+                //self.buffer_structs.resize_with(last_sub_index + 1, Default::default);
+                let t = &mut self.buffers[last_sub_index];
+                // New size should be size needed + (current size - len used)
+                //let new_size = (self.buffer_structs[last_sub_index].len_used - self.buffer_structs[last_sub_index].len_alloc) as usize;
+                //let new_size = new_size + (t.capacity() - t.len());
+                let needed_size = self.buffer_structs[last_sub_index].len_used as usize;
+                println!("insufficient len (had {}, needed {})", t.len(), needed_size);
+                t.reserve(needed_size - t.len());
+                assert_ne!(t.as_ptr(), std::ptr::null());
+                self.needs_sync = true;
+                self.sync();
+                continue;
             }
-            return Err(YDBError { message: out_buffer, status, tptoken });
-        }
-        unsafe {
-            println!("ret_subs_used: {}", ret_subs_used);
-            self.buffers.set_len((ret_subs_used + 1) as usize);
-            self.buffer_structs.set_len((ret_subs_used + 1) as usize);
-        }
+            if status == YDB_ERR_INSUFFSUBS {
+                let ret_subs_used = (ret_subs_used + 1) as usize;
+                println!("insufficient subs (had {}, needed {})", self.buffers.len(), ret_subs_used);
+                self.buffers.resize_with(ret_subs_used, || Vec::with_capacity(10));
+                self.needs_sync = true;
+                self.sync();
+                //self.buffer_structs.resize_with(ret_subs_used, Default::default);
+                continue;
+            }
+            if status == crate::craw::YDB_ERR_PARAMINVALID {
+                let i = (ret_subs_used + 1) as usize;
+                panic!("buffer_structs[{}] was null: {:?}", i, self.buffer_structs[i]);
+            }
+            // Set length of the vec containing the buffer to we can see the value
+            if status != YDB_OK as i32 {
+                dbg!(&self.buffers);
+                // We could end up with a buffer of a larger size if we couldn't fit the error string
+                // into the out_buffer buffer, so make sure to pick the smaller size
+                let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
+                unsafe {
+                    out_buffer.set_len(new_buffer_size);
+                }
+                return Err(YDBError { message: out_buffer, status, tptoken });
+            }
+            break (ret_subs_used + 1) as usize;
+        };
+        assert!(ret_subs_used <= self.buffer_structs.len());
+        println!("ret_subs_used: {} -> {}", self.buffer_structs.len(), ret_subs_used);
+        self.buffer_structs.truncate(ret_subs_used);
+        self.buffers.truncate(ret_subs_used);
         self.reverse_sync();
         Ok(out_buffer)
     }
@@ -1048,12 +1075,14 @@ impl Key {
     }
 
     fn sync(&mut self) {
-        self.buffer_structs.resize_with(self.buffers.capacity(), Default::default);
+        self.buffer_structs.resize_with(self.buffers.len(), Default::default);
+        //self.buffers.resize_with(self.buffers.capacity(), Default::default);
         for (i, buff) in self.buffers.iter_mut().enumerate() {
             // Ensure that a buffer is allocated, as a null pointer is no fun
             if buff.capacity() == 0 {
                 buff.reserve(10);
             }
+            assert_ne!(buff.as_ptr(), std::ptr::null());
             self.buffer_structs[i].buf_addr = buff.as_mut_ptr() as *mut _;
             self.buffer_structs[i].len_alloc = buff.capacity() as u32;
             self.buffer_structs[i].len_used = buff.len() as u32;
@@ -1063,8 +1092,12 @@ impl Key {
 
     fn reverse_sync(&mut self) {
         for (i, buff) in self.buffers.iter_mut().enumerate() {
-            unsafe {
-                buff.set_len(self.buffer_structs[i].len_used as usize);
+            let actual = self.buffer_structs[i].len_used as usize;
+            if actual != buff.len() {
+                println!("reverse_sync: set_len buffers[{}] (buf: {:?}) {} -> {}", i, buff.as_ptr(), buff.len(), actual);
+                unsafe {
+                    buff.set_len(actual);
+                }
             }
         }
     }
@@ -1326,7 +1359,9 @@ mod tests {
         key[1] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
         key[1] = Vec::from("z");
-        key.node_prev_self_st(0, result).unwrap();
+        if let Err(err) = key.node_prev_self_st(0, result) {
+            panic!("{}", err);
+        }
     }
 
     #[test]
@@ -1338,7 +1373,7 @@ mod tests {
         key[2] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
         // TODO: why does this break things?
-        //key.truncate(2);
+        key.truncate(2);
         key[1] = Vec::from("z");
         key.node_prev_self_st(0, result).unwrap();
     }
