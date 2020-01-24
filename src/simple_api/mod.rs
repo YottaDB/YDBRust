@@ -58,7 +58,7 @@ use std::error::Error;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::ffi::CString;
-use std::os::raw::c_void;
+use std::os::raw::{c_void, c_int};
 use std::cmp::min;
 use std::fmt;
 use std::error;
@@ -621,53 +621,7 @@ impl Key {
     /// [how-it-works]: https://yottadb.com/product/how-it-works/
     /// [vars-nodes]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts
     pub fn node_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
-        let mut out_buffer = out_buffer;
-        self.sync();
-        // Safe to unwrap because there will never be a buffer_structs with size less than 1
-        let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-
-        // Get pointers to the varname and to the first subscript
-        let (varname, subscripts) = self.get_varname_and_subscripts();
-        let mut ret_subs_used = (self.buffers.capacity() - 1) as i32;
-        // Do the call
-        let status = unsafe {
-            ydb_node_next_st(tptoken, &mut out_buffer_t, varname, (self.buffers.len() - 1) as i32,
-                subscripts, &mut ret_subs_used as *mut _, subscripts)
-        };
-        // Handle resizing the buffer, if needed
-        if status == YDB_ERR_INVSTRLEN {
-            let ret_subs_used = (ret_subs_used + 1) as usize;
-            let t = &mut self.buffers[ret_subs_used];
-            // New size should be size needed + (current size - len used)
-            let new_size = (self.buffer_structs[ret_subs_used].len_used - self.buffer_structs[ret_subs_used].len_alloc) as usize;
-            let new_size = new_size + (t.capacity() - t.len());
-            t.reserve(new_size);
-            self.needs_sync = true;
-            return self.node_next_self_st(tptoken, out_buffer);
-        }
-        if status == YDB_ERR_INSUFFSUBS {
-            let ret_subs_used = (ret_subs_used + 1) as usize;
-            self.buffers.resize_with(ret_subs_used, Default::default);
-            self.buffer_structs.resize_with(ret_subs_used, Default::default);
-            self.needs_sync = true;
-            return self.node_next_self_st(tptoken, out_buffer);
-        }
-        // Set length of the vec containing the buffer to we can see the value
-        if status != YDB_OK as i32 {
-            // We could end up with a buffer of a larger size if we couldn't fit the error string
-            // into the out_buffer, so make sure to pick the smaller size
-            let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
-            unsafe {
-                out_buffer.set_len(new_buffer_size);
-            }
-            return Err(YDBError { message: out_buffer, status, tptoken });
-        }
-        unsafe {
-            self.buffer_structs.set_len((ret_subs_used + 1) as usize);
-        }
-        self.buffers.resize_with((ret_subs_used + 1) as usize, Default::default);
-        self.reverse_sync();
-        Ok(out_buffer)
+        self.growing_shrinking_call(tptoken, out_buffer, ydb_node_next_st)
     }
 
     /// Facilitates reverse depth-first traversal of a local or global variable tree and reports the predecessor node, passing itself in as the output parameter.
@@ -703,7 +657,11 @@ impl Key {
     /// }
     /// ```
     pub fn node_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
-        let mut out_buffer = out_buffer;
+        self.growing_shrinking_call(tptoken, out_buffer, ydb_node_previous_st)
+    }
+    fn growing_shrinking_call(&mut self, tptoken: u64, mut out_buffer: Vec<u8>,
+        c_func: unsafe extern fn(u64, *mut ydb_buffer_t, *const ydb_buffer_t, c_int, *const ydb_buffer_t, *mut c_int, *mut ydb_buffer_t) -> c_int
+    ) -> YDBResult<Vec<u8>> {
         let len = (self.buffers.len() - 1) as i32;
         self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
@@ -718,7 +676,7 @@ impl Key {
 
             // Do the call
             let status = unsafe {
-                ydb_node_previous_st(tptoken, &mut out_buffer_t, varname, len,
+                c_func(tptoken, &mut out_buffer_t, varname, len,
                     subscripts, &mut ret_subs_used as *mut _, subscripts)
             };
             let ret_subs_used = (ret_subs_used + 1) as usize;
