@@ -660,13 +660,14 @@ impl Key {
         self.growing_shrinking_call(tptoken, out_buffer, ydb_node_previous_st)
     }
     fn growing_shrinking_call(&mut self, tptoken: u64, mut out_buffer: Vec<u8>,
-        c_func: unsafe extern fn(u64, *mut ydb_buffer_t, *const ydb_buffer_t, c_int, *const ydb_buffer_t, *mut c_int, *mut ydb_buffer_t) -> c_int
+        c_func: unsafe extern "C" fn(u64, *mut ydb_buffer_t, *const ydb_buffer_t, c_int, *const ydb_buffer_t, *mut c_int, *mut ydb_buffer_t) -> c_int
     ) -> YDBResult<Vec<u8>> {
         let len = (self.buffers.len() - 1) as i32;
         self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
+        // this is a loop instead of a recursive call so we can keep the original `len`
         let ret_subs_used = loop {
             // Get pointers to the varname and to the first subscript
             let (varname, subscripts) = self.get_varname_and_subscripts();
@@ -1287,10 +1288,7 @@ mod tests {
         result = key.set_st(0, result, &value).unwrap();
         key[2] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
-        //key.truncate(2);
-        unsafe {
-            key.set_len(2);
-        }
+        key.truncate(2);
         key.node_next_self_st(0, result).unwrap();
     }
 

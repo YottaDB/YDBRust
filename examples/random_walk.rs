@@ -28,9 +28,7 @@ fn random_walk() {
     let mut key = make_ckey!(ctx, get_global(), get_global(), get_global(), get_global(), get_global());
     // Randomly select between 0 and 4 subscripts
     let mut rng = rand::thread_rng();
-    unsafe {
-        key.set_len(rng.gen_range(1, 5));
-    };
+    key.truncate(rng.gen_range(1, 5));
     // Select a random operation
     match rng.gen_range(0, 6) {
         0 => key.delete(DeleteType::DelNode).unwrap(),
@@ -47,10 +45,6 @@ fn random_walk() {
             ()
         },
         _ => panic!("out of range"),
-    }
-    // We have to restory the size of the vec before things are dropped or we leak memory
-    unsafe {
-        key.set_len(5);
     }
 }
 

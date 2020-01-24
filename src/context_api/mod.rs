@@ -640,9 +640,7 @@ impl KeyContext {
     ///
     ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
-    ///     unsafe {
-    ///         key.set_len(2);
-    ///     }
+    ///     key.truncate(2);
     ///     key.next_node_self()?;
     ///
     ///     assert_eq!(key[2], b"0");
@@ -682,11 +680,6 @@ impl KeyContext {
     ///
     ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
-    ///     /*
-    ///     unsafe {
-    ///         key.set_len(2);
-    ///     }
-    ///     */
     ///     key.truncate(2);
     ///     // Go to the next node, then walk backward
     ///     key[1] = Vec::from("1");
@@ -729,9 +722,7 @@ impl KeyContext {
     ///
     ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
-    ///     unsafe {
-    ///         key.set_len(2);
-    ///     }
+    ///     key.truncate(2);
     ///     let k2 = key.next_node()?;
     ///
     ///     assert_eq!(k2[2], b"0");
@@ -767,9 +758,7 @@ impl KeyContext {
     ///
     ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
-    ///     unsafe {
-    ///         key.set_len(2);
-    ///     }
+    ///     key.truncate(2);
     ///     // Go to the next node, then walk backward
     ///     key[1] = Vec::from("1");
     ///     let k2 = key.prev_node()?;
@@ -973,9 +962,7 @@ mod tests {
 
         key.set(&Vec::from("Hello world!")).unwrap();
         // Forget the second subscript
-        unsafe {
-            key.set_len(2);
-        }
+        key.truncate(2);
         // Go to the next node, then walk backward
         key[1] = Vec::from("1");
         let k2 = key.prev_node().unwrap();
@@ -996,9 +983,7 @@ mod tests {
                 key.set(&Vec::from("Elder Scrolls")).unwrap();
                 key[1] = Vec::from("high garden");
                 key.set(&Vec::from("Song of Ice and Fire")).unwrap();
-                unsafe {
-                    key[1].set_len(0);
-                }
+                key[1].clear();
                 for (i, x) in key.$func().enumerate() {
                     let x = x.unwrap();
                     let x = $transform(x.clone());
@@ -1149,11 +1134,6 @@ mod tests {
 
         key.set("Hello world!")?;
         // Forget the second subscript
-        /*
-        unsafe {
-            key.set_len(2);
-        }
-        */
         key.truncate(2);
         // Go to the next node, then walk backward
         key[1] = Vec::from("1");

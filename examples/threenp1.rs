@@ -55,11 +55,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             blk = maxblk;
         }
         // Kill all limits again for this run
-        unsafe {
-            limits.set_len(1);
-        }
+        limits.truncate(1);
         limits.delete(DeleteType::DelTree)?;
-        limits.push(Vec::from(""));
+        limits.push(Vec::new());
 
         // Set limits for each block to be computed, letting each thread grab
         // a ^limits(i) when it starts or finishes a block
@@ -136,9 +134,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         reads.set(b"0")?;
         result.set(b"0")?;
         updates.set(b"0")?;
-        unsafe {
-            step.set_len(1);
-        }
+        step.truncate(1);
         step.delete(DeleteType::DelTree)?;
     }
 
@@ -167,27 +163,20 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
 
     loop {
         index += 1;
-        unsafe {
-            limits.set_len(2);
-        }
+        limits.truncate(2);
         limits[1] = Vec::from(index.to_string());
         // If there are no more elements left in limits, we are done
         let data = limits.data()?;
         if data == DataReturn::NoData {
             break;
         }
-        unsafe {
-            limits.set_len(3);
-        }
-        limits[2] = Vec::from("1");
+        limits.push(Vec::from("1"));
         let val = limits.increment(None)?;
         // If we didn't get a value of 1, someone else has this block to work on
         if val != Vec::from("1") {
             continue;
         }
-        unsafe {
-            limits.set_len(2);
-        }
+        limits.truncate(2);
         let val = limits.get()?;
         let blkend = String::from_utf8_lossy(&val);
         let blkend = blkend.parse::<u64>()?;
@@ -203,13 +192,9 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
         // Logic from dostep in other versions here; not sure why it's a function at this point
         for current in blkstart..(blkend+1) {
             let mut n = current;
-            unsafe {
-                currpath_l.set_len(2);
-            }
+            currpath_l.truncate(2);
             currpath_l.delete(DeleteType::DelTree)?;
-            unsafe {
-                currpath_l.set_len(3);
-            }
+            currpath_l.push(Vec::new());
             let mut i = 0;
             loop {
                 reads_l.increment(None)?;
