@@ -262,7 +262,6 @@ impl Key {
     /// ```
     pub fn get_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
         let mut err_buffer_t = out_buffer_t;
@@ -319,7 +318,6 @@ impl Key {
     pub fn set_st<U>(&mut self, tptoken: u64, mut out_buffer: Vec<u8>, new_val: U) -> YDBResult<Vec<u8>>
             where U: AsRef<[u8]> {
         let new_val = new_val.as_ref();
-        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
         let new_val_t = ydb_buffer_t {
@@ -385,7 +383,6 @@ impl Key {
     /// ```
     pub fn data_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<(DataReturn, Vec<u8>)> {
         let mut out_buffer = out_buffer;
-        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
@@ -448,7 +445,6 @@ impl Key {
     pub fn delete_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, delete_type: DeleteType)
             -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
@@ -518,7 +514,6 @@ impl Key {
     pub fn incr_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, increment: Option<&Vec<u8>>)
             -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
         let mut err_buffer_t = out_buffer_t;
@@ -655,7 +650,6 @@ impl Key {
         c_func: unsafe extern "C" fn(u64, *mut ydb_buffer_t, *const ydb_buffer_t, c_int, *const ydb_buffer_t, *mut c_int, *mut ydb_buffer_t) -> c_int
     ) -> YDBResult<Vec<u8>> {
         let len = (self.buffers.len() - 1) as i32;
-        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
@@ -683,12 +677,10 @@ impl Key {
                 t.reserve(needed_size - t.len());
                 assert_ne!(t.as_ptr(), std::ptr::null());
 
-                self.sync();
                 continue;
             }
             if status == YDB_ERR_INSUFFSUBS {
-                self.buffers.resize_with(ret_subs_used, Default::default);
-                self.sync();
+                self.buffers.resize_with(ret_subs_used, || Vec::with_capacity(10));
                 continue;
             }
             if status == crate::craw::YDB_ERR_PARAMINVALID {
@@ -750,7 +742,6 @@ impl Key {
     /// ```
     pub fn sub_next_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
@@ -810,7 +801,6 @@ impl Key {
     /// ```
     pub fn sub_prev_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
@@ -871,7 +861,6 @@ impl Key {
     /// ```
     pub fn sub_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
         let mut last_self_buffer = {
@@ -946,7 +935,6 @@ impl Key {
     /// ```
     pub fn sub_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
-        self.sync();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
         let mut last_self_buffer = {
@@ -1002,17 +990,6 @@ impl Key {
         let var = Self::make_out_buffer_t(iter.next().unwrap());
         let subscripts = iter.map(Self::make_out_buffer_t).collect();
         (var, subscripts)
-    }
-
-    // TODO: remove this function
-    fn sync(&mut self) {
-        for buff in self.buffers.iter_mut() {
-            // Ensure that a buffer is allocated, as a null pointer is no fun
-            if buff.capacity() == 0 {
-                buff.reserve(10);
-            }
-            assert_ne!(buff.as_ptr(), std::ptr::null());
-        }
     }
 
     fn reverse_sync(&mut self,  buffer_structs: &[ydb_buffer_t]) {
