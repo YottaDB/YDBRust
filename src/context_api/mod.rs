@@ -31,7 +31,7 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::rc::Rc;
 use std::str::FromStr;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, Index, IndexMut};
 
 use crate::craw::{YDB_NOTTP, YDB_ERR_NODEEND};
 use crate::simple_api::{tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType};
@@ -156,18 +156,39 @@ impl Context {
     }
 }
 
+/// Allow Key to mostly be treated as a `Vec<Vec<u8>>`,
+/// but without `shrink_to_fit`, `drain`, or other methods that aren't relevant
+impl KeyContext {
+    pub fn truncate(&mut self, i: usize) {
+        self.key.truncate(i)
+    }
+    pub fn push(&mut self, subscript: Vec<u8>) {
+        self.key.push(subscript)
+    }
+    pub fn pop(&mut self) -> Option<Vec<u8>> {
+        self.key.pop()
+    }
+}
+
 impl Deref for KeyContext {
     type Target = Vec<Vec<u8>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.key.buffers
+        self.key.deref()
     }
 }
 
-impl DerefMut for KeyContext {
-    fn deref_mut(&mut self) -> &mut Vec<Vec<u8>> {
-        self.key.needs_sync = true;
-        &mut self.key.buffers
+impl Index<usize> for KeyContext {
+    type Output = Vec<u8>;
+
+    fn index(&self, i: usize) -> &Self::Output {
+        self.key.index(i)
+    }
+}
+
+impl IndexMut<usize> for KeyContext {
+    fn index_mut(&mut self, i: usize) -> &mut Vec<u8> {
+        self.key.index_mut(i)
     }
 }
 

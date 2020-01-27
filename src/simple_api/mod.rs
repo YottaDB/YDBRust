@@ -55,7 +55,7 @@
 //! [intrinsics]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
 //! [tlevel]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#tlevel
 use std::error::Error;
-use std::ops::{DerefMut, Index};
+use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr;
 use std::ffi::CString;
 use std::os::raw::{c_void, c_int};
@@ -1043,15 +1043,23 @@ impl Key {
     }
 }
 
-impl Index<usize> for Key {
-    type Output = Vec<u8>;
-
-    fn index(&self, i: usize) -> &Self::Output {
-        &self.buffers[i]
+/// Allow Key to mostly be treated as a `Vec<Vec<u8>>`,
+/// but without `shrink_to_fit`, `drain`, or other methods that aren't relevant
+impl Key {
+    pub fn truncate(&mut self, i: usize) {
+        self.needs_sync = true;
+        self.buffers.truncate(i)
+    }
+    pub fn push(&mut self, subscript: Vec<u8>) {
+        self.needs_sync = true;
+        self.buffers.push(subscript)
+    }
+    pub fn pop(&mut self) -> Option<Vec<u8>> {
+        self.needs_sync = true;
+        self.buffers.pop()
     }
 }
 
-/*
 impl Deref for Key {
     type Target = Vec<Vec<u8>>;
 
@@ -1060,13 +1068,20 @@ impl Deref for Key {
     }
 }
 
-impl DerefMut for Key {
-    fn deref_mut(&mut self) -> &mut Vec<Vec<u8>> {
-        self.needs_sync = true;
-        &mut self.buffers
+impl Index<usize> for Key {
+    type Output = Vec<u8>;
+
+    fn index(&self, i: usize) -> &Self::Output {
+        &self.buffers[i]
     }
 }
-*/
+
+impl IndexMut<usize> for Key {
+    fn index_mut(&mut self, i: usize) -> &mut Vec<u8> {
+        self.needs_sync = true;
+        &mut self.buffers[i]
+    }
+}
 
 impl Clone for Key {
     fn clone(&self) -> Self {
