@@ -13,7 +13,7 @@ use rand::Rng;
 use yottadb::context_api::{Context, KeyContext};
 use yottadb::simple_api::{DeleteType, Key, YDBError};
 
-static kill_switches: [AtomicBool; 5] = [
+static KILL_SWITCHES: [AtomicBool; 5] = [
     AtomicBool::new(false),
     AtomicBool::new(false),
     AtomicBool::new(false),
@@ -32,7 +32,7 @@ fn main() {
     println!("finished sleep");
     for i in 0..5 {
         // see comment by load below for explanation of ordering
-        kill_switches[i].store(true, Ordering::SeqCst);
+        KILL_SWITCHES[i].store(true, Ordering::SeqCst);
     }
     println!("finished kill");
     for handle in handles {
@@ -70,7 +70,7 @@ fn trans(i: usize) {
         // this could probably use Relaxed but I don't care about the performance
         // and I don't want someone to copy it (since Relaxed only works if this
         // is the _only_ communication between threads).
-        if kill_switches[i].load(Ordering::SeqCst) {
+        if KILL_SWITCHES[i].load(Ordering::SeqCst) {
             return;
         }
 		ctx.tp(|ctx| {
