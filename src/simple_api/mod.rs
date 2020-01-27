@@ -704,7 +704,14 @@ impl Key {
             "growing the buffer should be handled in YDB_ERR_INSUFFSUBS (ydb {} > actual {})",
             ret_subs_used, self.buffers.len());
         self.buffers.truncate(ret_subs_used);
-        self.reverse_sync(&buffer_structs);
+
+        for (i, buff) in self.buffers.iter_mut().enumerate() {
+            let actual = buffer_structs[i].len_used as usize;
+            unsafe {
+                buff.set_len(actual);
+            }
+        }
+
         Ok(out_buffer)
     }
 
@@ -990,15 +997,6 @@ impl Key {
         let var = Self::make_out_buffer_t(iter.next().unwrap());
         let subscripts = iter.map(Self::make_out_buffer_t).collect();
         (var, subscripts)
-    }
-
-    fn reverse_sync(&mut self,  buffer_structs: &[ydb_buffer_t]) {
-        for (i, buff) in self.buffers.iter_mut().enumerate() {
-            let actual = buffer_structs[i].len_used as usize;
-            unsafe {
-                buff.set_len(actual);
-            }
-        }
     }
 }
 
