@@ -166,10 +166,9 @@ macro_rules! make_key {
     );
 }
 
-#[derive(Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Key {
     pub(crate) buffers: Vec<Vec<u8>>,
-    pub(crate) needs_sync: bool,
 }
 
 impl Key {
@@ -228,7 +227,6 @@ impl Key {
             buffers: std::iter::once(variable.into_bytes())
                 .chain(subscripts.iter().cloned().map(|slice| slice.into()))
                 .collect(),
-            needs_sync: true,
         }
     }
     /// Shortcut for creating a key with no subscripts.
@@ -685,13 +683,11 @@ impl Key {
                 t.reserve(needed_size - t.len());
                 assert_ne!(t.as_ptr(), std::ptr::null());
 
-                self.needs_sync = true;
                 self.sync();
                 continue;
             }
             if status == YDB_ERR_INSUFFSUBS {
                 self.buffers.resize_with(ret_subs_used, Default::default);
-                self.needs_sync = true;
                 self.sync();
                 continue;
             }
@@ -899,7 +895,6 @@ impl Key {
             let new_size = (last_self_buffer.len_used - last_self_buffer.len_alloc) as usize;
             let new_size = new_size + (t.capacity() - t.len());
             t.reserve(new_size);
-            self.needs_sync = true;
             return self.sub_next_self_st(tptoken, out_buffer);
         }
         // Resize the vec with the buffer to we can see the value
@@ -975,7 +970,6 @@ impl Key {
             let new_size = (last_self_buffer.len_used - last_self_buffer.len_alloc) as usize;
             let new_size = new_size + (t.capacity() - t.len());
             t.reserve(new_size);
-            self.needs_sync = true;
             return self.sub_prev_self_st(tptoken, out_buffer);
         }
         // Resize the vec with the buffer to we can see the value
@@ -1019,7 +1013,6 @@ impl Key {
             }
             assert_ne!(buff.as_ptr(), std::ptr::null());
         }
-        self.needs_sync = false;
     }
 
     fn reverse_sync(&mut self,  buffer_structs: &[ydb_buffer_t]) {
@@ -1036,15 +1029,12 @@ impl Key {
 /// but without `shrink_to_fit`, `drain`, or other methods that aren't relevant
 impl Key {
     pub fn truncate(&mut self, i: usize) {
-        self.needs_sync = true;
         self.buffers.truncate(i)
     }
     pub fn push(&mut self, subscript: Vec<u8>) {
-        self.needs_sync = true;
         self.buffers.push(subscript)
     }
     pub fn pop(&mut self) -> Option<Vec<u8>> {
-        self.needs_sync = true;
         self.buffers.pop()
     }
 }
@@ -1067,17 +1057,7 @@ impl Index<usize> for Key {
 
 impl IndexMut<usize> for Key {
     fn index_mut(&mut self, i: usize) -> &mut Vec<u8> {
-        self.needs_sync = true;
         &mut self.buffers[i]
-    }
-}
-
-impl Clone for Key {
-    fn clone(&self) -> Self {
-        Key {
-            buffers: self.buffers.clone(),
-            needs_sync: true,
-        }
     }
 }
 
