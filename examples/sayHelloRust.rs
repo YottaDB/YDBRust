@@ -5,7 +5,7 @@ use yottadb::craw::YDB_NOTTP;
 
 fn main() {
 	let err_buffer = Vec::with_capacity(1024);
-	let mut hello = Key::new("hello", &["Rust"]);
+	let hello = Key::new("hello", &["Rust"]);
 	let err_buffer = hello.set_st(YDB_NOTTP, err_buffer, "こんにちは".as_bytes()).unwrap();
 
 	let out_buffer = Vec::with_capacity(100);

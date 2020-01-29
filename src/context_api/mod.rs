@@ -938,7 +938,7 @@ mod tests {
     #[test]
     fn simple_get() {
         let ctx = Context::new();
-        let mut key = ctx.new_key(Key::variable("^hello"));
+        let key = ctx.new_key(Key::variable("^hello"));
         key.set(b"Hello world!").unwrap();
         assert_eq!(key.get().unwrap(), b"Hello world!");
         key.delete(DeleteType::DelNode).unwrap();
@@ -947,7 +947,7 @@ mod tests {
     #[test]
     fn simple_set() {
         let ctx = Context::new();
-        let mut key = ctx.new_key(Key::variable("^hello"));
+        let key = ctx.new_key(Key::variable("^hello"));
         key.set(b"Hello world!").unwrap();
         key.set("Hello str!").unwrap();
         key.set(String::from("Hello String!")).unwrap();
@@ -957,14 +957,14 @@ mod tests {
     #[test]
     fn simple_data() {
         let ctx = Context::new();
-        let mut key = ctx.new_key(Key::variable("^hello"));
+        let key = ctx.new_key(Key::variable("^hello"));
         key.data().unwrap();
     }
 
     #[test]
     fn simple_delete() {
         let ctx = Context::new();
-        let mut key = ctx.new_key(Key::variable("^helloDeleteMe"));
+        let key = ctx.new_key(Key::variable("^helloDeleteMe"));
         key.set(&Vec::from("Hello world!")).unwrap();
         key.delete(DeleteType::DelNode).unwrap();
     }
@@ -972,7 +972,7 @@ mod tests {
     #[test]
     fn simple_increment() {
         let ctx = Context::new();
-        let mut key = ctx.new_key(Key::variable("^helloIncrementMe"));
+        let key = ctx.new_key(Key::variable("^helloIncrementMe"));
         key.increment(None).unwrap();
     }
 
@@ -1119,7 +1119,7 @@ mod tests {
     fn test_simple_tp() {
         let ctx = Context::new();
         ctx.tp(|ctx| {
-            let mut key = ctx.new_key("^hello");
+            let key = ctx.new_key("^hello");
             key.set("Hello world!")?;
             Ok(())
         }, "BATCH", &[]).unwrap();
@@ -1141,7 +1141,7 @@ mod tests {
     #[test]
     fn get_and_parse() {
         let ctx = Context::new();
-        let mut key = ctx.new_key("hello");
+        let key = ctx.new_key("hello");
         key.set(1.651e12.to_string()).unwrap();
         let _: f64 = key.get_and_parse().unwrap();
         key.set("127.0.0.1").unwrap();

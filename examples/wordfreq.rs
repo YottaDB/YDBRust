@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     for k in word_key.iter_subs_values() {
         let (k, v) = k?;
         let word = k;
-        let mut key = make_ckey!(ctx, "^index", v, word);
+        let key = make_ckey!(ctx, "^index", v, word);
         key.set(b"")?;
     }
 

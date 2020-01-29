@@ -1205,7 +1205,7 @@ mod tests {
     #[test]
     fn basic_set_and_get_st() {
         let mut result = Vec::with_capacity(1);
-        let mut key = Key::variable("^hello");
+        let key = Key::variable("^hello");
 
         // Try setting a value
         result = key.set_st(0, result, &Vec::from("Hello world!")).unwrap();
@@ -1229,14 +1229,14 @@ mod tests {
     #[test]
     fn ydb_get_st_error() {
         let result = Vec::with_capacity(1);
-        let mut key = Key::variable("^helloDoesntExists");
+        let key = Key::variable("^helloDoesntExists");
         key.get_st(0, result).unwrap_err();
     }
 
     #[test]
     fn ydb_data_st() {
         let result = Vec::with_capacity(1);
-        let mut key = Key::variable("^helloDoesNotExists");
+        let key = Key::variable("^helloDoesNotExists");
 
         let (retval, _) = key.data_st(0, result).unwrap();
         assert_eq!(retval, DataReturn::NoData);
@@ -1245,7 +1245,7 @@ mod tests {
     #[test]
     fn ydb_delete_st() {
         let mut result = Vec::with_capacity(1);
-        let mut key = Key::variable("^helloDeleteMe");
+        let key = Key::variable("^helloDeleteMe");
 
         // Try setting a value
         result = key.set_st(0, result, &Vec::from("Hello world!")).unwrap();
@@ -1262,7 +1262,7 @@ mod tests {
     #[test]
     fn ydb_incr_st() {
         let result = Vec::with_capacity(1);
-        let mut key = Key::variable("^helloIncrementMe");
+        let key = Key::variable("^helloIncrementMe");
         key.incr_st(0, result, None).unwrap();
     }
 
@@ -1381,7 +1381,7 @@ mod tests {
         // ydb error
         let vec = Vec::with_capacity(10);
         let err = tp_st(0, vec, |tptoken| {
-            let mut key = make_key!("hello");
+            let key = make_key!("hello");
             key.get_st(tptoken, Vec::with_capacity(1024))?;
             unreachable!();
         }, "BATCH", &Vec::new()).unwrap_err();

@@ -18,13 +18,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Clear out old values
     let mut limits = make_ckey!(ctx, "^limits");
     limits.delete(DeleteType::DelTree)?;
-    let mut result = make_ckey!(ctx, "^result");
+    let result = make_ckey!(ctx, "^result");
     result.delete(DeleteType::DelTree)?;
-    let mut highest = make_ckey!(ctx, "^highest");
+    let highest = make_ckey!(ctx, "^highest");
     highest.delete(DeleteType::DelTree)?;
-    let mut updates = make_ckey!(ctx, "^updates");
+    let updates = make_ckey!(ctx, "^updates");
     updates.delete(DeleteType::DelTree)?;
-    let mut reads = make_ckey!(ctx, "^reads");
+    let reads = make_ckey!(ctx, "^reads");
     reads.delete(DeleteType::DelTree)?;
     let mut step = make_ckey!(ctx, "^step");
     step.delete(DeleteType::DelTree)?;
@@ -143,20 +143,20 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
     let mut index = index;
     let ctx = Context::new();
-    let mut reads = make_ckey!(ctx, "^reads");
-    let mut updates = make_ckey!(ctx, "^updates");
-    let mut highest = make_ckey!(ctx, "^highest");
+    let reads = make_ckey!(ctx, "^reads");
+    let updates = make_ckey!(ctx, "^updates");
+    let highest = make_ckey!(ctx, "^highest");
     let mut limits = make_ckey!(ctx, "^limits", "1", "");
     let mut step = make_ckey!(ctx, "^step", "1");
-    let mut result = make_ckey!(ctx, "^result");
+    let result = make_ckey!(ctx, "^result");
 
     // Local to prevent collisions until engine is fully multithreaded
     let index_s = index.to_string();
-    let mut updates_l = make_ckey!(ctx, "updates", index_s.clone());
+    let updates_l = make_ckey!(ctx, "updates", index_s.clone());
     updates_l.set(b"0")?;
-    let mut reads_l = make_ckey!(ctx, "reads", index_s.clone());
+    let reads_l = make_ckey!(ctx, "reads", index_s.clone());
     reads_l.set(b"0")?;
-    let mut highest_l = make_ckey!(ctx, "highest", index_s.clone());
+    let highest_l = make_ckey!(ctx, "highest", index_s.clone());
     highest_l.set(b"0")?;
     let mut currpath_l = make_ckey!(ctx, "currpath", index_s.as_str(), "");
 

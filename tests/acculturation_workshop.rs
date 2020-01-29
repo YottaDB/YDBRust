@@ -44,9 +44,9 @@ fn main() {
 
 fn init() {
     let ctx = Context::new();
-    let mut crab = ctx.new_key("^Crab");
-    let mut delta = ctx.new_key("^Delta");
-    let mut horse = ctx.new_key("^Horse");
+    let crab = ctx.new_key("^Crab");
+    let delta = ctx.new_key("^Delta");
+    let horse = ctx.new_key("^Horse");
 
     // remove existing trees
     crab.delete(DeleteType::DelTree).unwrap();
@@ -54,8 +54,8 @@ fn init() {
     horse.delete(DeleteType::DelTree).unwrap();
 
     // set initial values
-    let mut crab = ctx.new_key(Key::new("^Crab", &["0"]));
-    let mut horse = ctx.new_key(Key::new("^Horse", &["0"]));
+    let crab = ctx.new_key(Key::new("^Crab", &["0"]));
+    let horse = ctx.new_key(Key::new("^Horse", &["0"]));
     crab.set("0").unwrap();
     horse.set("0").unwrap();
 }
@@ -82,12 +82,12 @@ fn trans(i: usize) {
 			let n: i64 = rng.gen::<i32>().into();
 
 			// ^Delta(ms) = n
-			let mut delta = KeyContext::new(&ctx, "^Delta", &[us.as_bytes()]);
+			let delta = KeyContext::new(&ctx, "^Delta", &[us.as_bytes()]);
 			delta.set(n.to_string().as_bytes()).unwrap();
 
 			// ^Crab(ms) = ^Crab(lasttime) - n
 			let mut crab = KeyContext::new(&ctx, "^Crab", &[us.as_bytes()]);
-			let mut last_crab = crab.prev_sub().unwrap();
+			let last_crab = crab.prev_sub().unwrap();
 			let last_crab_val: i64 = String::from_utf8_lossy(&last_crab.get().unwrap())
 				.parse()
 				.unwrap();
@@ -95,7 +95,7 @@ fn trans(i: usize) {
 
 			// ^Horse(ms) = ^Horse(lasttime) + n
 			let mut horse = KeyContext::new(&ctx, "^Horse", &[us]);
-			let mut last_horse = horse.prev_sub().unwrap();
+			let last_horse = horse.prev_sub().unwrap();
 			let last_horse_val: i64 = String::from_utf8_lossy(&last_horse.get().unwrap())
 				.parse()
 				.unwrap();
