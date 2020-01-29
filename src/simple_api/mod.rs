@@ -260,7 +260,7 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn get_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub fn get_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
@@ -315,7 +315,7 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn set_st<U>(&mut self, tptoken: u64, mut out_buffer: Vec<u8>, new_val: U) -> YDBResult<Vec<u8>>
+    pub fn set_st<U>(&self, tptoken: u64, mut out_buffer: Vec<u8>, new_val: U) -> YDBResult<Vec<u8>>
             where U: AsRef<[u8]> {
         let new_val = new_val.as_ref();
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
@@ -381,7 +381,7 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn data_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<(DataReturn, Vec<u8>)> {
+    pub fn data_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<(DataReturn, Vec<u8>)> {
         let mut out_buffer = out_buffer;
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
@@ -442,7 +442,7 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn delete_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, delete_type: DeleteType)
+    pub fn delete_st(&self, tptoken: u64, out_buffer: Vec<u8>, delete_type: DeleteType)
             -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
@@ -511,7 +511,7 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn incr_st(&mut self, tptoken: u64, out_buffer: Vec<u8>, increment: Option<&Vec<u8>>)
+    pub fn incr_st(&self, tptoken: u64, out_buffer: Vec<u8>, increment: Option<&Vec<u8>>)
             -> YDBResult<Vec<u8>> {
         let mut out_buffer = out_buffer;
         // Safe to unwrap because there will never be a buffer_structs with size less than 1

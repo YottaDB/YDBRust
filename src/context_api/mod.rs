@@ -232,7 +232,7 @@ impl KeyContext {
             key: key.into(),
         }
     }
-    fn recover_buffer(&mut self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
+    fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
         match result {
             Ok(x) => {
                 self.context.borrow_mut().buffer = Some(x);
@@ -272,7 +272,7 @@ impl KeyContext {
     ///     Ok(())
     /// }
     /// ```
-    pub fn get(&mut self) -> YDBResult<Vec<u8>> {
+    pub fn get(&self) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = Vec::with_capacity(1024);
         if self.context.borrow().multithreaded {
@@ -321,7 +321,7 @@ impl KeyContext {
     /// Ok(())
     /// # }
     /// ```
-    pub fn get_and_parse<T: FromStr>(&mut self) -> Result<T, ParseError<T::Err>> {
+    pub fn get_and_parse<T: FromStr>(&self) -> Result<T, ParseError<T::Err>> {
         self.get().map_err(ParseError::YDB)
             .and_then(|bytes| String::from_utf8(bytes).map_err(ParseError::Utf8))
             .and_then(|s| s.parse().map_err(|err| ParseError::Parse(err, s)))
@@ -350,7 +350,7 @@ impl KeyContext {
     ///     Ok(())
     /// }
     /// ```
-    pub fn set<U: AsRef<[u8]>>(&mut self, new_val: U) -> YDBResult<()> {
+    pub fn set<U: AsRef<[u8]>>(&self, new_val: U) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
         let result = if self.context.borrow().multithreaded {
@@ -390,7 +390,7 @@ impl KeyContext {
     ///     Ok(())
     /// }
     /// ```
-    pub fn data(&mut self) -> YDBResult<DataReturn> {
+    pub fn data(&self) -> YDBResult<DataReturn> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
         let result = if self.context.borrow().multithreaded {
@@ -438,7 +438,7 @@ impl KeyContext {
     ///     Ok(())
     /// }
     /// ```
-    pub fn delete(&mut self, delete_type: DeleteType) -> YDBResult<()> {
+    pub fn delete(&self, delete_type: DeleteType) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
         let result = if self.context.borrow().multithreaded {
@@ -477,7 +477,7 @@ impl KeyContext {
     ///     Ok(())
     /// }
     /// ```
-    pub fn increment(&mut self, increment: Option<&Vec<u8>>) -> YDBResult<Vec<u8>> {
+    pub fn increment(&self, increment: Option<&Vec<u8>>) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = Vec::with_capacity(1024);
         if self.context.borrow().multithreaded {
