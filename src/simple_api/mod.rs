@@ -168,7 +168,7 @@ macro_rules! make_key {
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Key {
-    pub(crate) buffers: Vec<Vec<u8>>,
+    buffers: Vec<Vec<u8>>,
 }
 
 impl Key {
