@@ -954,10 +954,10 @@ impl Key {
         };
 
         // Get pointers to the varname and to the first subscript
-        let (varname, subscripts) = self.get_varname_and_subscripts();
+        let (varname, subscripts) = self.get_varname_and_subscripts_const();
         let status = unsafe {
-            ydb_subscript_previous_st(tptoken, &mut out_buffer_t, &varname, subscripts.len() as i32,
-                subscripts.as_ptr(), &mut last_self_buffer)
+            ydb_subscript_previous_st(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
+                subscripts.as_ptr() as *const _, &mut last_self_buffer)
         };
         if status == YDB_ERR_INVSTRLEN {
             let t = self.buffers.last_mut().unwrap();
@@ -997,6 +997,42 @@ impl Key {
         let var = Self::make_out_buffer_t(iter.next().unwrap());
         let subscripts = iter.map(Self::make_out_buffer_t).collect();
         (var, subscripts)
+    }
+    /// Same as get_varname_and_subscripts but takes `&self`
+    ///
+    /// NOTE: The pointers returned in the `ConstYDBBuffer`s _must never be modified_.
+    /// Doing so is immediate undefined behavior.
+    /// This is why `ConstYDBBuffer` was created,
+    /// so that modifying the private fields would be an error.
+    fn get_varname_and_subscripts_const(&self) -> (ConstYDBBuffer, Vec<ConstYDBBuffer>) {
+        let make_buffer = |vec: &Vec<_>| ydb_buffer_t {
+            // this cast is what's unsafe
+            buf_addr: vec.as_ptr() as *mut _,
+            len_alloc: vec.capacity() as u32,
+            len_used: vec.len() as u32,
+        }.into();
+        let mut iter = self.buffers.iter();
+        // TODO: make varname its own field instead of part of `self.buffers`
+        let var = make_buffer(iter.next().unwrap());
+        let subscripts = iter.map(make_buffer).collect();
+        (var, subscripts)
+    }
+}
+
+#[repr(transparent)]
+/// Because of this repr(transparent), it is safe to turn a
+/// `*const ConstYDBBuffer` to `*const ydb_buffer_t`
+struct ConstYDBBuffer(ydb_buffer_t);
+
+impl ConstYDBBuffer {
+    fn as_ptr(&self) -> *const ydb_buffer_t {
+        &self.0
+    }
+}
+
+impl From<ydb_buffer_t> for ConstYDBBuffer {
+    fn from(buf: ydb_buffer_t) -> Self {
+        Self(buf)
     }
 }
 
@@ -1181,6 +1217,13 @@ mod tests {
             }
         };
         assert_eq!(result, Vec::from("Hello world!"));
+    }
+
+    #[test]
+    fn empty_subscript() {
+        let mut key = Key::variable("tmp");
+        key.push(Vec::new());
+        key.get_st(0, Vec::with_capacity(1)).unwrap_err();
     }
 
     #[test]
