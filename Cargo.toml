@@ -14,8 +14,12 @@ readme = "README.md"
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.42.2"
 pkg-config = "0.3.14"
+
+[build-dependencies.bindgen]
+version = "0.52"
+default-features = false
+features = ['runtime']
 
 [dev-dependencies]
 threadpool = "1.7.1"

@@ -21,6 +21,9 @@ fn main() {
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
         .clang_arg(include_path)
+        .whitelist_type("ydb_.*")
+        .whitelist_function("ydb_.*")
+        .whitelist_var("YDB_.*")
         .blacklist_item("YDB_NOTTP")
         // Finish the builder and generate the bindings.
         .generate()
