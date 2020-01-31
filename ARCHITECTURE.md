@@ -50,14 +50,13 @@ the (capacity, length, ptr) metadata. This is done with `make_out_buffer_t`.
 
 TODO: write up why `make_out_buffer_t` should return a `ydb_buffer_t` with a bounded lifetime (but doesn't).
 
-Instead of copying the metadata for every variable and subscript on each call,
-there is a separate internal `self.buffer_structs` data structure.
-This is meant to be exactly the same as the `self.buffers` structure,
-but FFI compatible. That means that it has to be kept in sync:
-`buffer_structs` _must_ be updated to the state of `buffers` before any call
-to the C API.
+To avoid having to have different data structures that are kept in sync,
+we copy the metadata for every variable and subscript on each call.
+This ensures that the metadata is up-to-date for a small performance penalty
+(a copy of at most `3*n` machine words), where n is the number of subscripts.
 
-NOTE: this is about to change, see [#12]
+This also has the major advantage of allowing `get()`, `set()`, `data()`,
+and `delete()` to be immutable. See [#12] for more discussion.
 
 There is one more catch: on breadth- and depth-first traversal of the tree,
 the `Key` is updated by the YDB API. In this case, we need to do a
@@ -91,4 +90,4 @@ on what 'all uses that might exist' means, as well as `unsafe` in general.
 [dtolnay-soundness]: https://docs.rs/dtolnay/0.0.7/dtolnay/macro._03__soundness_bugs.html#soundness
 [extra error buffer]: https://gitlab.com/YottaDB/Lang/YDBRust/blob/ca8512d796e31c0bf43b789de10cdc322e0b3a7d/src/context_api/mod.rs#L149
 [`Vec`]: https://doc.rust-lang.org/std/vec/struct.Vec.html
-[#12]: https://gitlab.com/YottaDB/Lang/YDBRust/issues/12#note_277563001
+[#12]: https://gitlab.com/YottaDB/Lang/YDBRust/issues/12
