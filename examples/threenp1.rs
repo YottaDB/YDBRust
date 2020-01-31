@@ -9,7 +9,7 @@ use std::time::{SystemTime};
 
 use threadpool::ThreadPool;
 use yottadb::craw::{YDB_ERR_GVUNDEF};
-use yottadb::context_api::Context; 
+use yottadb::context_api::Context;
 use yottadb::simple_api::{DeleteType, DataReturn, YDBError};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -85,14 +85,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         for i in 0..streams {
             let start_barrier = start_barrier.clone();
             let end_barrier = end_barrier.clone();
-            let i = i.clone();
 
             threadpool.execute(move || {
                 start_barrier.wait();
 
                 // Do work
                 doblk(i).unwrap();
-                
+
                 // Mark ourselves done
                 end_barrier.wait();
             });
@@ -127,7 +126,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         if time > 0.0 {
             print!(" updates/s={} reads/s={}", updatecnt/(time/1000.0), readcnt/(time/1000.0));
         }
-        println!("");
+        println!();
 
         // Reset globals
         highest.set(b"0")?;
@@ -190,7 +189,7 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
         };
 
         // Logic from dostep in other versions here; not sure why it's a function at this point
-        for current in blkstart..(blkend+1) {
+        for current in blkstart..=blkend {
             let mut n = current;
             currpath_l.truncate(2);
             currpath_l.delete(DeleteType::DelTree)?;

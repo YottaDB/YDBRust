@@ -1244,15 +1244,7 @@ mod tests {
     fn ydb_get_st_error() {
         let result = Vec::with_capacity(1);
         let mut key = Key::variable("^helloDoesntExists");
-        match key.get_st(0, result) {
-            Ok(x) => {
-                assert!(false, "Expected error return from key.get_st");
-                x
-            },
-            Err(_) => {
-                Vec::from("")
-            }
-        };
+        key.get_st(0, result).unwrap_err();
     }
 
     #[test]

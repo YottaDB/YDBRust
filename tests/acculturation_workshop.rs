@@ -25,14 +25,14 @@ static KILL_SWITCHES: [AtomicBool; 5] = [
 fn main() {
     use std::thread;
 
-	init();
+    init();
     let handles: Vec<_> = (0..5).map(|i| thread::spawn(move || trans(i))).collect();
     println!("finished spawn");
     thread::sleep(Duration::from_secs(5));
     println!("finished sleep");
-    for i in 0..5 {
+    for switch in &KILL_SWITCHES {
         // see comment by load below for explanation of ordering
-        KILL_SWITCHES[i].store(true, Ordering::SeqCst);
+        switch.store(true, Ordering::SeqCst);
     }
     println!("finished kill");
     for handle in handles {

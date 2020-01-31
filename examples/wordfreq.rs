@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut contents = String::new();
     infile.read_to_string(&mut contents)?;
     let words = contents.replace("\n", " ");
-    let words = words.split(" ");
+    let words = words.split(' ');
     let mut word_key = make_ckey!(ctx, "^words", "");
     for word in words {
         let word = word.to_lowercase();
@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     // Iterate through all words and put them into a global ordered by frequency
     word_key[1] = Vec::from("");
-    for k in word_key.clone().iter_subs_values() {
+    for k in word_key.iter_subs_values() {
         let (k, v) = k?;
         let word = k;
         let mut key = make_ckey!(ctx, "^index", v, word);

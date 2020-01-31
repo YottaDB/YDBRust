@@ -12,6 +12,7 @@ rust-latest:
   stage: build
   image: yottadb/yottadb-base:latest-master
   script:
+    - cargo clippy -- --deny clippy::all
     - cargo build --verbose
     - cargo test --verbose
 

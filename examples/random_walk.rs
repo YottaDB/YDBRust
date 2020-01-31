@@ -36,13 +36,11 @@ fn random_walk() {
         2 => key.set(b"Hello world!").unwrap(),
         3 => {
             key.increment(None).unwrap();
-            ()
         },
         4 => match key.next_sub_self() { _ => (), },
         5 => match key.prev_sub_self() { _ => (), },
         6 => {
             key.data().unwrap();
-            ()
         },
         _ => panic!("out of range"),
     }
