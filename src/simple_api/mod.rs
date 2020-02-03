@@ -17,12 +17,11 @@
 //! A basic database operation (set a value, retrieve it, then delete it):
 //!
 //! ```
-//! # #[macro_use] extern crate yottadb;
-//! use yottadb::craw::YDB_NOTTP;
-//! use yottadb::simple_api::{Key, DeleteType, YDBResult};
+//! use yottadb::{YDB_NOTTP, DeleteType, YDBResult};
+//! use yottadb::simple_api::Key;
 //!
 //! fn main() -> YDBResult<()> {
-//!     let mut key = make_key!("^MyGlobal", "SubscriptA", "42");
+//!     let mut key = yottadb::make_key!("^MyGlobal", "SubscriptA", "42");
 //!     let mut buffer = Vec::with_capacity(1024);
 //!     let value = "This is a persistent message";
 //!     buffer = key.set_st(YDB_NOTTP, buffer, value)?;
@@ -36,12 +35,10 @@
 //! Get the instrinsic variable [`$tlevel`][tlevel], which gives the current transaction level.
 //!
 //! ```
-//! # #[macro_use] extern crate yottadb;
-//! use yottadb::craw::YDB_NOTTP;
-//! use yottadb::simple_api::YDBResult;
+//! use yottadb::{YDB_NOTTP, YDBResult};
 //!
 //! fn main() -> YDBResult<()> {
-//!     let mut key = make_key!("$tlevel");
+//!     let mut key = yottadb::make_key!("$tlevel");
 //!     let buffer = Vec::with_capacity(10);
 //!     let buffer = key.get_st(YDB_NOTTP, buffer)?;
 //!     let tlevel: usize = String::from_utf8_lossy(&buffer).parse()

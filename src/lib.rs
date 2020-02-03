@@ -2,10 +2,5 @@ pub mod craw;
 pub mod simple_api;
 pub mod context_api;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+pub use craw::{YDB_NOTTP, YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
+pub use simple_api::{DataReturn, DeleteType, YDBError, YDBResult};

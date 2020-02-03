@@ -11,9 +11,8 @@
 //!
 //! ```
 //! # #[macro_use] extern crate yottadb;
-//! use yottadb::craw::YDB_NOTTP;
 //! use yottadb::context_api::Context;
-//! use yottadb::simple_api::{DeleteType, YDBResult};
+//! use yottadb::{YDB_NOTTP, DeleteType, YDBResult};
 //!
 //! fn main() -> YDBResult<()> {
 //!     let ctx = Context::new();
@@ -72,18 +71,17 @@ macro_rules! gen_iter_proto {
 }
 
 
-/// Create a KeyContext with the given subscripts, provided a context.
+/// Create a [`KeyContext`](context_api/struct.KeyContext.html) with the given subscripts, provided a context.
 ///
 /// # Examples
 ///
 /// ```
-/// # #[macro_use] extern crate yottadb;
 /// use std::error::Error;
 /// use yottadb::context_api::Context;
 ///
 /// fn main() -> Result<(), Box<Error>> {
 ///     let mut ctx = Context::new();
-///     let mut key = make_ckey!(ctx, "^hello", "world");
+///     let mut key = yottadb::make_ckey!(ctx, "^hello", "world");
 ///     key.data()?;
 ///
 ///     Ok(())

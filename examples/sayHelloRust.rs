@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
-use yottadb::simple_api::{DeleteType, Key};
-use yottadb::craw::YDB_NOTTP;
+use yottadb::simple_api::Key;
+use yottadb::{YDB_NOTTP, DeleteType};
 
 fn main() {
 	let err_buffer = Vec::with_capacity(1024);

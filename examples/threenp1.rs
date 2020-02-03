@@ -8,9 +8,8 @@ use std::sync::{Arc, Barrier};
 use std::time::{SystemTime};
 
 use threadpool::ThreadPool;
-use yottadb::craw::{YDB_ERR_GVUNDEF};
 use yottadb::context_api::Context;
-use yottadb::simple_api::{DeleteType, DataReturn, YDBError};
+use yottadb::{YDB_ERR_GVUNDEF, DeleteType, DataReturn, YDBError};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let ctx = Context::new();

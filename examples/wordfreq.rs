@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::error::Error;
 
-use yottadb::simple_api::{DeleteType};
+use yottadb::DeleteType;
 use yottadb::context_api::Context;
 
 fn main() -> Result<(), Box<dyn Error>> {
