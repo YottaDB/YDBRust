@@ -165,7 +165,7 @@ macro_rules! make_key {
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Key {
-    variable: String,
+    pub variable: String,
     subscripts: Vec<Vec<u8>>,
 }
 
@@ -583,15 +583,13 @@ impl Key {
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
-    ///     key[1] = Vec::from("b");
+    ///     key[0] = Vec::from("b");
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
     ///     // Lose the subscript, or pretend we are starting at ""
-    ///     unsafe {
-    ///         key[1].set_len(0);
-    ///     }
+    ///     key[0].clear();
     ///     output_buffer = key.node_next_self_st(YDB_NOTTP, output_buffer)?;
     ///
-    ///     assert_eq!(&key[1], b"a");
+    ///     assert_eq!(&key[0], b"a");
     ///
     ///     Ok(())
     /// }
@@ -624,13 +622,13 @@ impl Key {
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
-    ///     key[1] = Vec::from("b");
+    ///     key[0] = Vec::from("b");
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
     ///     // We need to start at node beyond the node we are looking for; just add some Z's
-    ///     key[1] = Vec::from("z");
+    ///     key[0] = Vec::from("z");
     ///     output_buffer = key.node_prev_self_st(YDB_NOTTP, output_buffer)?;
     ///
-    ///     assert_eq!(key[1], b"b");
+    ///     assert_eq!(key[0], b"b");
     ///
     ///     Ok(())
     /// }
@@ -696,7 +694,7 @@ impl Key {
             subscripts.insert(0, varname);
             break (ret_subs_used, subscripts);
         };
-        assert!(ret_subs_used < self.subscripts.len(),
+        assert!(ret_subs_used <= self.subscripts.len(),
             "growing the buffer should be handled in YDB_ERR_INSUFFSUBS (ydb {} > actual {})",
             ret_subs_used, self.subscripts.len());
         self.subscripts.truncate(ret_subs_used);
@@ -732,10 +730,10 @@ impl Key {
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
-    ///     key[1] = Vec::from("b");
+    ///     key[0] = Vec::from("b");
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     // Start at a, next subscript will be b
-    ///     key[1] = Vec::from("a");
+    ///     key[0] = Vec::from("a");
     ///     output_buffer = key.sub_next_st(YDB_NOTTP, output_buffer)?;
     ///
     ///     assert_eq!(&output_buffer, b"b");
@@ -791,7 +789,7 @@ impl Key {
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
-    ///     key[1] = Vec::from("b");
+    ///     key[0] = Vec::from("b");
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     // Starting at b, the previous subscript should be a
     ///     output_buffer = key.sub_prev_st(YDB_NOTTP, output_buffer)?;
@@ -849,21 +847,27 @@ impl Key {
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
-    ///     key[1] = Vec::from("b");
+    ///     key[0] = Vec::from("b");
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     // Starting at a, the next sub should be b
-    ///     key[1] = Vec::from("a");
+    ///     key[0] = Vec::from("a");
     ///     output_buffer = key.sub_next_self_st(YDB_NOTTP, output_buffer)?;
     ///
-    ///     assert_eq!(&key[1], b"b");
+    ///     assert_eq!(&key[0], b"b");
     ///
     ///     Ok(())
     /// }
     /// ```
     pub fn sub_next_self_st(&mut self, tptoken: u64, mut out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
+
+        // Get pointers to the varname and to the first subscript
+        let (varname, subscripts) = self.get_buffers();
+
         let (t, mut last_self_buffer) = {
-            let t = self.subscripts.last_mut().unwrap_or(self.variable.as_mut_vec());
+            let t = self.subscripts.last_mut().unwrap_or(unsafe {
+                self.variable.as_mut_vec()
+            });
             let buf = ydb_buffer_t {
                 buf_addr: t.as_mut_ptr() as *mut _,
                 len_alloc: t.capacity() as u32,
@@ -872,8 +876,6 @@ impl Key {
             (t, buf)
         };
 
-        // Get pointers to the varname and to the first subscript
-        let (varname, subscripts) = self.get_buffers();
         let status = unsafe {
             ydb_subscript_next_st(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
                 subscripts.as_ptr() as *const _, &mut last_self_buffer)
@@ -921,12 +923,12 @@ impl Key {
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
-    ///     key[1] = Vec::from("b");
+    ///     key[0] = Vec::from("b");
     ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
     ///     // Starting at b, previous should be a
     ///     output_buffer = key.sub_prev_self_st(YDB_NOTTP, output_buffer)?;
     ///
-    ///     assert_eq!(&key[1], b"a");
+    ///     assert_eq!(&key[0], b"a");
     ///
     ///     Ok(())
     /// }
@@ -934,17 +936,21 @@ impl Key {
     pub fn sub_prev_self_st(&mut self, tptoken: u64, mut out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-        let (t, mut last_self_buffer) = {
-            let t = self.subscripts.last_mut().unwrap_or(self.variable.as_mut_vec());
-            (t, ydb_buffer_t {
-                buf_addr: t.as_mut_ptr() as *mut _,
-                len_alloc: t.capacity() as u32,
-                len_used: t.len() as u32,
-            })
-        };
 
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_buffers();
+        let (t, mut last_self_buffer) = {
+            let t = self.subscripts.last_mut().unwrap_or(unsafe {
+                self.variable.as_mut_vec()
+            });
+            let buf = ydb_buffer_t {
+                buf_addr: t.as_mut_ptr() as *mut _,
+                len_alloc: t.capacity() as u32,
+                len_used: t.len() as u32,
+            };
+            (t, buf)
+        };
+
         let status = unsafe {
             ydb_subscript_previous_st(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
                 subscripts.as_ptr() as *const _, &mut last_self_buffer)
@@ -989,7 +995,7 @@ impl Key {
             len_alloc: self.variable.capacity() as u32,
             len_used: self.variable.len() as u32,
         };
-        let mut iter = self.subscripts.iter_mut();
+        let iter = self.subscripts.iter_mut();
         let subscripts = iter.map(Self::make_out_buffer_t).collect();
         (var, subscripts)
     }
@@ -1207,12 +1213,7 @@ mod tests {
         // Try setting a value
         result = key.set_st(0, result, &Vec::from("Hello world!")).unwrap();
         // Then try getting the value we set
-        result = match key.get_st(0, result) {
-            Ok(x) => x,
-            Err(x) => {
-                panic!("YDB Error: {}", x);
-            }
-        };
+        result = key.get_st(0, result).unwrap();
         assert_eq!(result, Vec::from("Hello world!"));
     }
 
@@ -1269,9 +1270,9 @@ mod tests {
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeNext", "shire");
         result = key.set_st(0, result, &value).unwrap();
-        key[1] = Vec::from("hyrule");
+        key[0] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
-        key[1] = Vec::from("a");
+        key[0] = Vec::from("a");
         key.node_next_self_st(0, result).unwrap();
     }
 
@@ -1281,7 +1282,7 @@ mod tests {
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeNext2", "worlds", "shire");
         result = key.set_st(0, result, &value).unwrap();
-        key[2] = Vec::from("hyrule");
+        key[1] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
         key.truncate(2);
         key.node_next_self_st(0, result).unwrap();
@@ -1293,9 +1294,9 @@ mod tests {
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeprev", "shire");
         result = key.set_st(0, result, &value).unwrap();
-        key[1] = Vec::from("hyrule");
+        key[0] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
-        key[1] = Vec::from("z");
+        key[0] = Vec::from("z");
         if let Err(err) = key.node_prev_self_st(0, result) {
             panic!("{}", err);
         }
@@ -1307,10 +1308,10 @@ mod tests {
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeprev2", "worlds", "shire");
         result = key.set_st(0, result, &value).unwrap();
-        key[2] = Vec::from("hyrule");
+        key[1] = Vec::from("hyrule");
         result = key.set_st(0, result, &value).unwrap();
         key.truncate(2);
-        key[1] = Vec::from("z");
+        key[0] = Vec::from("z");
         key.node_prev_self_st(0, result).unwrap();
     }
 
@@ -1320,7 +1321,7 @@ mod tests {
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubNext", "a");
         result = key.set_st(0, result, &value).unwrap();
-        key[1] = Vec::with_capacity(1);
+        key[0] = Vec::with_capacity(1);
         result = key.sub_next_st(0, result).unwrap();
         assert_eq!(result, Vec::from("a"));
     }
@@ -1331,7 +1332,7 @@ mod tests {
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubprev", "b");
         result = key.set_st(0, result, &value).unwrap();
-        key[1] = Vec::from("z");
+        key[0] = Vec::from("z");
         result = key.sub_prev_st(0, result).unwrap();
         assert_eq!(result, Vec::from("b"));
     }
@@ -1343,9 +1344,9 @@ mod tests {
         let mut key = make_key!("^helloSubNext2", "shire");
         result = key.set_st(0, result, &value).unwrap();
         // TODO: we need a better way to expand these buffers in the _self function
-        key[1] = Vec::with_capacity(1);
+        key[0] = Vec::with_capacity(1);
         key.sub_next_self_st(0, result).unwrap();
-        assert_eq!(key[1], Vec::from("shire"));
+        assert_eq!(key[0], Vec::from("shire"));
     }
 
     #[test]
@@ -1354,9 +1355,9 @@ mod tests {
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubprev2", "shire");
         result = key.set_st(0, result, &value).unwrap();
-        key[1] = Vec::from("z");
+        key[0] = Vec::from("z");
         key.sub_prev_self_st(0, result).unwrap();
-        assert_eq!(key[1], Vec::from("shire"));
+        assert_eq!(key[0], Vec::from("shire"));
     }
 
     #[test]

@@ -136,7 +136,7 @@ impl Default for Context {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct KeyContext {
     context: Rc<RefCell<ContextInternal>>,
-    pub(crate) key: Key,
+    pub key: Key,
 }
 
 impl Context {
@@ -521,12 +521,12 @@ impl KeyContext {
     ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
     ///     key.set("Hello world!")?;
-    ///     key[1] = Vec::from("1");
+    ///     key[0] = Vec::from("1");
     ///     key.set("Hello world!")?;
-    ///     key[1] = Vec::from("0");
+    ///     key[0] = Vec::from("0");
     ///     key.next_sub_self()?;
     ///
-    ///     assert_eq!(key[1], b"1");
+    ///     assert_eq!(key[0], b"1");
     ///
     ///     Ok(())
     /// }
@@ -561,12 +561,12 @@ impl KeyContext {
     ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
     ///     key.set("Hello world!")?;
-    ///     key[1] = Vec::from("1");
+    ///     key[0] = Vec::from("1");
     ///     key.set("Hello world!")?;
-    ///     key[1] = Vec::from("1");
+    ///     key[0] = Vec::from("1");
     ///     key.prev_sub_self()?;
     ///
-    ///     assert_eq!(key[1], b"0");
+    ///     assert_eq!(key[0], b"0");
     ///
     ///     Ok(())
     /// }
@@ -602,9 +602,9 @@ impl KeyContext {
     ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
     ///     key.set("Hello world!")?;
-    ///     key[1] = Vec::from("1");
+    ///     key[0] = Vec::from("1");
     ///     key.set("Hello world!")?;
-    ///     key[1] = Vec::from("0");
+    ///     key[0] = Vec::from("0");
     ///     let k2 = key.next_sub()?;
     ///
     ///     assert_eq!(&k2[1], b"1");
@@ -638,9 +638,9 @@ impl KeyContext {
     ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
     ///     key.set(b"Hello world!")?;
-    ///     key[1] = Vec::from("1");
+    ///     key[0] = Vec::from("1");
     ///     key.set("Hello world!")?;
-    ///     key[1] = Vec::from("1");
+    ///     key[0] = Vec::from("1");
     ///     let k2 = key.prev_sub()?;
     ///
     ///     assert_eq!(&k2[1], b"0");
@@ -675,10 +675,10 @@ impl KeyContext {
     ///
     ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
-    ///     key.truncate(2);
+    ///     key.truncate(1);
     ///     key.next_node_self()?;
     ///
-    ///     assert_eq!(key[2], b"0");
+    ///     assert_eq!(key[1], b"0");
     ///
     ///     Ok(())
     /// }
@@ -715,12 +715,12 @@ impl KeyContext {
     ///
     ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
-    ///     key.truncate(2);
+    ///     key.truncate(1);
     ///     // Go to the next node, then walk backward
-    ///     key[1] = Vec::from("1");
+    ///     key[0] = Vec::from("1");
     ///     key.prev_node_self()?;
     ///
-    ///     assert_eq!(key[2], b"0");
+    ///     assert_eq!(key[1], b"0");
     ///
     ///     Ok(())
     /// }
@@ -757,7 +757,7 @@ impl KeyContext {
     ///
     ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
-    ///     key.truncate(2);
+    ///     key.truncate(1);
     ///     let k2 = key.next_node()?;
     ///
     ///     assert_eq!(k2[2], b"0");
@@ -793,9 +793,9 @@ impl KeyContext {
     ///
     ///     key.set("Hello world!")?;
     ///     // Forget the second subscript
-    ///     key.truncate(2);
+    ///     key.truncate(1);
     ///     // Go to the next node, then walk backward
-    ///     key[1] = Vec::from("1");
+    ///     key[0] = Vec::from("1");
     ///     let k2 = key.prev_node()?;
     ///
     ///     assert_eq!(k2[2], b"0");
@@ -995,14 +995,14 @@ mod tests {
         let ctx = Context::new();
         let mut key = make_ckey!(ctx, "^hello", "0", "0");
 
-        key.set(&Vec::from("Hello world!")).unwrap();
+        key.set(b"Hello world!").unwrap();
         // Forget the second subscript
-        key.truncate(2);
+        key.truncate(1);
         // Go to the next node, then walk backward
-        key[1] = Vec::from("1");
+        key[0] = Vec::from("1");
         let k2 = key.prev_node().unwrap();
 
-        assert_eq!(k2[2], b"0");
+        assert_eq!(k2[1], b"0");
     }
 
     // Macro to test ordered expressions
@@ -1013,14 +1013,16 @@ mod tests {
             fn $testname() {
                 let ctx = Context::new();
                 let mut key = ctx.new_key(Key::new("^helloSubLoop", &["shire"]));
-                key.set(&Vec::from("Tolkien")).unwrap();
-                key[1] = Vec::from("mundus");
-                key.set(&Vec::from("Elder Scrolls")).unwrap();
-                key[1] = Vec::from("high garden");
-                key.set(&Vec::from("Song of Ice and Fire")).unwrap();
-                key[1].clear();
+                key.delete(DeleteType::DelTree).unwrap();
+
+                key.set(b"Tolkien").unwrap();
+                key[0] = Vec::from("mundus");
+                key.set(b"Elder Scrolls").unwrap();
+                key[0] = dbg!(Vec::from("high garden"));
+                key.set(b"Song of Ice and Fire").unwrap();
+                key[0].clear();
                 for (i, x) in key.$func().enumerate() {
-                    let x = x.unwrap();
+                    let x = dbg!(x.unwrap());
                     let x = $transform(x.clone());
                     assert_eq!(x, match i {
                         $( $pat => $val ),*,
@@ -1057,7 +1059,7 @@ mod tests {
     );
 
     make_loop_test!(test_iter_key_subs, iter_key_subs, |x: KeyContext| {
-        (String::from_utf8_lossy(&x[0]).into_owned(), String::from_utf8_lossy(&x[1]).into_owned())
+        (String::from_utf8_lossy(x.key.variable.as_bytes()).into_owned(), String::from_utf8_lossy(&x[0]).into_owned())
     }, 
     0 => (String::from("^helloSubLoop"), String::from("high garden")),
     1 => (String::from("^helloSubLoop"), String::from("mundus")),
@@ -1073,7 +1075,7 @@ mod tests {
     );
 
     make_loop_test!(test_iter_key_nodes, iter_key_nodes, |x: KeyContext| {
-        (String::from_utf8_lossy(&x[0]).into_owned(), String::from_utf8_lossy(&x[1]).into_owned())
+        (String::from_utf8_lossy(x.key.variable.as_bytes()).into_owned(), String::from_utf8_lossy(&x[0]).into_owned())
     }, 
     0 => (String::from("^helloSubLoop"), String::from("high garden")),
     1 => (String::from("^helloSubLoop"), String::from("mundus")),
@@ -1106,7 +1108,7 @@ mod tests {
     );
 
     make_loop_test!(test_iter_key_subs_reverse, iter_key_subs_reverse, |x: KeyContext| {
-        (String::from_utf8_lossy(&x[0]).into_owned(), String::from_utf8_lossy(&x[1]).into_owned())
+        (String::from_utf8_lossy(x.key.variable.as_bytes()).into_owned(), String::from_utf8_lossy(&x[0]).into_owned())
     }, 
     2 => (String::from("^helloSubLoop"), String::from("high garden")),
     1 => (String::from("^helloSubLoop"), String::from("mundus")),
@@ -1122,7 +1124,7 @@ mod tests {
     );
 
     make_loop_test!(test_iter_key_nodes_reverse, iter_key_nodes_reverse, |x: KeyContext| {
-        (String::from_utf8_lossy(&x[0]).into_owned(), String::from_utf8_lossy(&x[1]).into_owned())
+        (String::from_utf8_lossy(x.key.variable.as_bytes()).into_owned(), String::from_utf8_lossy(&x[0]).into_owned())
     }, 
     2 => (String::from("^helloSubLoop"), String::from("high garden")),
     1 => (String::from("^helloSubLoop"), String::from("mundus")),
@@ -1169,13 +1171,13 @@ mod tests {
 
         key.set("Hello world!")?;
         // Forget the second subscript
-        key.truncate(2);
+        key.truncate(1);
         // Go to the next node, then walk backward
-        key[1] = Vec::from("1");
+        key[0] = Vec::from("1");
         key.prev_node_self()?;
 
         dbg!(&key);
-        assert_eq!(key[2], b"0");
+        assert_eq!(key[1], b"0");
 
         Ok(())
     }
