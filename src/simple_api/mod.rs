@@ -165,7 +165,8 @@ macro_rules! make_key {
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Key {
-    buffers: Vec<Vec<u8>>,
+    variable: String,
+    subscripts: Vec<Vec<u8>>,
 }
 
 impl Key {
@@ -216,14 +217,12 @@ impl Key {
     pub fn new<V, S>(variable: V, subscripts: &[S]) -> Key
             where V: Into<String>,
                   S: Into<Vec<u8>> + Clone, {
-        // TODO: check if the variable is valid
-        let variable = variable.into();
         Key {
+            // TODO: check if the variable is valid
+            variable: variable.into(),
             // NOTE: we cannot remove this copy because `node_next_st` mutates subscripts
             // and `node_subscript_st` mutates the variable
-            buffers: std::iter::once(variable.into_bytes())
-                .chain(subscripts.iter().cloned().map(|slice| slice.into()))
-                .collect(),
+            subscripts: subscripts.iter().cloned().map(|slice| slice.into()).collect(),
         }
     }
     /// Shortcut for creating a key with no subscripts.
@@ -265,7 +264,7 @@ impl Key {
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_buffers();
         let status = unsafe {
-            ydb_get_st(tptoken, &mut err_buffer_t, varname.as_ptr(), (self.buffers.len() - 1) as i32,
+            ydb_get_st(tptoken, &mut err_buffer_t, varname.as_ptr(), self.subscripts.len() as i32,
                 subscripts.as_ptr() as *const _, &mut out_buffer_t)
         };
         if status == YDB_ERR_INVSTRLEN {
@@ -386,7 +385,7 @@ impl Key {
         let mut retval: u32 = 0;
         // Do the call
         let status = unsafe {
-            ydb_data_st(tptoken, &mut out_buffer_t, varname.as_ptr(), (self.buffers.len() - 1) as i32,
+            ydb_data_st(tptoken, &mut out_buffer_t, varname.as_ptr(), self.subscripts.len() as i32,
                 subscripts.as_ptr() as *const _, &mut retval as *mut _)
         };
         // Set length of the vec containing the buffer to we can see the value
@@ -642,20 +641,20 @@ impl Key {
     fn growing_shrinking_call(&mut self, tptoken: u64, mut out_buffer: Vec<u8>,
         c_func: unsafe extern "C" fn(u64, *mut ydb_buffer_t, *const ydb_buffer_t, c_int, *const ydb_buffer_t, *mut c_int, *mut ydb_buffer_t) -> c_int
     ) -> YDBResult<Vec<u8>> {
-        let len = (self.buffers.len() - 1) as i32;
+        let len = self.subscripts.len() as i32;
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
         // this is a loop instead of a recursive call so we can keep the original `len`
         let (ret_subs_used, buffer_structs) = loop {
             // Make sure `subscripts` is not a null pointer
-            if self.buffers.len() < 2 {
-                self.buffers.reserve(1);
+            if self.subscripts.is_empty() {
+                self.subscripts.reserve(1);
             }
 
             // Get pointers to the varname and to the first subscript
             let (varname, mut subscripts) = self.get_buffers_mut();
-            assert_eq!(subscripts.len(), self.buffers.len() - 1);
+            assert_eq!(subscripts.len(), self.subscripts.len());
             let mut ret_subs_used = subscripts.len() as i32;
 
             // Do the call
@@ -663,26 +662,26 @@ impl Key {
                 c_func(tptoken, &mut out_buffer_t, &varname, len,
                     subscripts.as_ptr(), &mut ret_subs_used as *mut _, subscripts.as_mut_ptr())
             };
-            let ret_subs_used = (ret_subs_used + 1) as usize;
+            let ret_subs_used = ret_subs_used as usize;
             // Handle resizing the buffer, if needed
             if status == YDB_ERR_INVSTRLEN {
                 let last_sub_index = ret_subs_used;
-                assert!(last_sub_index < self.buffers.len());
+                assert!(last_sub_index < self.subscripts.len());
 
-                let t = &mut self.buffers[last_sub_index];
-                let needed_size = subscripts[last_sub_index - 1].len_used as usize;
+                let t = &mut self.subscripts[last_sub_index];
+                let needed_size = subscripts[last_sub_index].len_used as usize;
                 t.reserve(needed_size - t.len());
                 assert_ne!(t.as_ptr(), std::ptr::null());
 
                 continue;
             }
             if status == YDB_ERR_INSUFFSUBS {
-                self.buffers.resize_with(ret_subs_used, || Vec::with_capacity(10));
+                self.subscripts.resize_with(ret_subs_used, || Vec::with_capacity(10));
                 continue;
             }
             if status == crate::craw::YDB_ERR_PARAMINVALID {
-                let i = ret_subs_used - 1;
-                panic!("internal error in node_prev_st: buffer_structs[{}] was null: {:?}", i, subscripts[i]);
+                let i = ret_subs_used;
+                panic!("internal error in node_prev_st: subscripts[{}] was null: {:?}", i, subscripts[i]);
             }
             // Set length of the vec containing the buffer to we can see the value
             if status != YDB_OK as i32 {
@@ -697,12 +696,12 @@ impl Key {
             subscripts.insert(0, varname);
             break (ret_subs_used, subscripts);
         };
-        assert!(ret_subs_used <= self.buffers.len(),
+        assert!(ret_subs_used < self.subscripts.len(),
             "growing the buffer should be handled in YDB_ERR_INSUFFSUBS (ydb {} > actual {})",
-            ret_subs_used, self.buffers.len());
-        self.buffers.truncate(ret_subs_used);
+            ret_subs_used, self.subscripts.len());
+        self.subscripts.truncate(ret_subs_used);
 
-        for (i, buff) in self.buffers.iter_mut().enumerate() {
+        for (i, buff) in self.subscripts.iter_mut().enumerate() {
             let actual = buffer_structs[i].len_used as usize;
             unsafe {
                 buff.set_len(actual);
@@ -862,15 +861,15 @@ impl Key {
     /// }
     /// ```
     pub fn sub_next_self_st(&mut self, tptoken: u64, mut out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
-        // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-        let mut last_self_buffer = {
-            let t = self.buffers.last_mut().unwrap();
-            ydb_buffer_t {
+        let (t, mut last_self_buffer) = {
+            let t = self.subscripts.last_mut().unwrap_or(self.variable.as_mut_vec());
+            let buf = ydb_buffer_t {
                 buf_addr: t.as_mut_ptr() as *mut _,
                 len_alloc: t.capacity() as u32,
                 len_used: t.len() as u32,
-            }
+            };
+            (t, buf)
         };
 
         // Get pointers to the varname and to the first subscript
@@ -880,7 +879,6 @@ impl Key {
                 subscripts.as_ptr() as *const _, &mut last_self_buffer)
         };
         if status == YDB_ERR_INVSTRLEN {
-            let t = self.buffers.last_mut().unwrap();
             // New size should be size needed + (current size - len used)
             let new_size = (last_self_buffer.len_used - last_self_buffer.len_alloc) as usize;
             let new_size = new_size + (t.capacity() - t.len());
@@ -897,8 +895,7 @@ impl Key {
             return Err(YDBError { message: out_buffer, status, tptoken });
         }
         unsafe {
-            self.buffers.last_mut().unwrap()
-                .set_len(min(last_self_buffer.len_alloc, last_self_buffer.len_used) as usize);
+            t.set_len(min(last_self_buffer.len_alloc, last_self_buffer.len_used) as usize);
         }
         Ok(out_buffer)
     }
@@ -937,13 +934,13 @@ impl Key {
     pub fn sub_prev_self_st(&mut self, tptoken: u64, mut out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-        let mut last_self_buffer = {
-            let t = self.buffers.last_mut().unwrap();
-            ydb_buffer_t {
+        let (t, mut last_self_buffer) = {
+            let t = self.subscripts.last_mut().unwrap_or(self.variable.as_mut_vec());
+            (t, ydb_buffer_t {
                 buf_addr: t.as_mut_ptr() as *mut _,
                 len_alloc: t.capacity() as u32,
                 len_used: t.len() as u32,
-            }
+            })
         };
 
         // Get pointers to the varname and to the first subscript
@@ -953,7 +950,6 @@ impl Key {
                 subscripts.as_ptr() as *const _, &mut last_self_buffer)
         };
         if status == YDB_ERR_INVSTRLEN {
-            let t = self.buffers.last_mut().unwrap();
             // New size should be size needed + (current size - len used)
             let new_size = (last_self_buffer.len_used - last_self_buffer.len_alloc) as usize;
             let new_size = new_size + (t.capacity() - t.len());
@@ -970,8 +966,7 @@ impl Key {
             return Err(YDBError { message: out_buffer, status, tptoken });
         }
         unsafe {
-            self.buffers.last_mut().unwrap()
-                .set_len(min(last_self_buffer.len_alloc, last_self_buffer.len_used) as usize);
+            t.set_len(min(last_self_buffer.len_alloc, last_self_buffer.len_used) as usize);
         }
         Ok(out_buffer)
     }
@@ -989,9 +984,12 @@ impl Key {
     }
 
     fn get_buffers_mut(&mut self) -> (ydb_buffer_t, Vec<ydb_buffer_t>) {
-        let mut iter = self.buffers.iter_mut();
-        // TODO: make varname its own field instead of part of `self.buffers`
-        let var = Self::make_out_buffer_t(iter.next().unwrap());
+        let var = ydb_buffer_t {
+            buf_addr: self.variable.as_mut_ptr() as *mut _,
+            len_alloc: self.variable.capacity() as u32,
+            len_used: self.variable.len() as u32,
+        };
+        let mut iter = self.subscripts.iter_mut();
         let subscripts = iter.map(Self::make_out_buffer_t).collect();
         (var, subscripts)
     }
@@ -1002,16 +1000,18 @@ impl Key {
     /// This is why `ConstYDBBuffer` was created,
     /// so that modifying the private fields would be an error.
     fn get_buffers(&self) -> (ConstYDBBuffer, Vec<ConstYDBBuffer>) {
+        let var = ydb_buffer_t {
+            buf_addr: self.variable.as_ptr() as *mut _,
+            len_alloc: self.variable.capacity() as u32,
+            len_used: self.variable.len() as u32,
+        }.into();
         let make_buffer = |vec: &Vec<_>| ydb_buffer_t {
             // this cast is what's unsafe
             buf_addr: vec.as_ptr() as *mut _,
             len_alloc: vec.capacity() as u32,
             len_used: vec.len() as u32,
         }.into();
-        let mut iter = self.buffers.iter();
-        // TODO: make varname its own field instead of part of `self.buffers`
-        let var = make_buffer(iter.next().unwrap());
-        let subscripts = iter.map(make_buffer).collect();
+        let subscripts = self.subscripts.iter().map(make_buffer).collect();
         (var, subscripts)
     }
 }
@@ -1037,13 +1037,13 @@ impl From<ydb_buffer_t> for ConstYDBBuffer {
 /// but without `shrink_to_fit`, `drain`, or other methods that aren't relevant
 impl Key {
     pub fn truncate(&mut self, i: usize) {
-        self.buffers.truncate(i)
+        self.subscripts.truncate(i)
     }
     pub fn push(&mut self, subscript: Vec<u8>) {
-        self.buffers.push(subscript)
+        self.subscripts.push(subscript)
     }
     pub fn pop(&mut self) -> Option<Vec<u8>> {
-        self.buffers.pop()
+        self.subscripts.pop()
     }
 }
 
@@ -1051,7 +1051,7 @@ impl Deref for Key {
     type Target = Vec<Vec<u8>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.buffers
+        &self.subscripts
     }
 }
 
@@ -1059,13 +1059,13 @@ impl Index<usize> for Key {
     type Output = Vec<u8>;
 
     fn index(&self, i: usize) -> &Self::Output {
-        &self.buffers[i]
+        &self.subscripts[i]
     }
 }
 
 impl IndexMut<usize> for Key {
     fn index_mut(&mut self, i: usize) -> &mut Vec<u8> {
-        &mut self.buffers[i]
+        &mut self.subscripts[i]
     }
 }
 
