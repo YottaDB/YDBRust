@@ -691,7 +691,6 @@ impl Key {
                 }
                 return Err(YDBError { message: out_buffer, status, tptoken });
             }
-            subscripts.insert(0, varname);
             break (ret_subs_used, subscripts);
         };
         assert!(ret_subs_used <= self.subscripts.len(),
@@ -1408,5 +1407,16 @@ mod tests {
         let err_buf = Vec::new();
         let res = key.get_st(YDB_NOTTP, err_buf);
         assert_eq!(res.unwrap_err().status, YDB_ERR_GVUNDEF);
+    }
+    #[test]
+    fn empty_subscript() {
+        use crate::craw::YDB_NOTTP;
+        let mut key = make_key!("simpleHello", "world");
+        let err_buf = Vec::new();
+        let err_buf = key.set_st(YDB_NOTTP, err_buf, "data").unwrap();
+        key[0].clear();
+        let err_buf = key.node_next_self_st(YDB_NOTTP, err_buf).unwrap();
+        assert_eq!(&key[0], b"world");
+        assert_eq!(&key.get_st(YDB_NOTTP, err_buf).unwrap(), b"data");
     }
 }

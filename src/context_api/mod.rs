@@ -1020,9 +1020,10 @@ mod tests {
                 key.set(b"Elder Scrolls").unwrap();
                 key[0] = dbg!(Vec::from("high garden"));
                 key.set(b"Song of Ice and Fire").unwrap();
+                assert_eq!(&key[0], b"high garden");
                 key[0].clear();
                 for (i, x) in key.$func().enumerate() {
-                    let x = dbg!(x.unwrap());
+                    let x = x.unwrap();
                     let x = $transform(x.clone());
                     assert_eq!(x, match i {
                         $( $pat => $val ),*,
@@ -1185,10 +1186,10 @@ mod tests {
     fn empty_subscripts() {
         let mut key = make_ckey!(Context::new(), "contextHello", "world");
         key.set("data").unwrap();
-        key[1].clear();
+        key[0].clear();
         key.next_node_self().unwrap();
         assert_eq!(&key.get().unwrap(), b"data");
-        assert_eq!(&key[1], b"world");
+        assert_eq!(&key[0], b"world");
     }
     #[test]
     fn no_subscripts() {
