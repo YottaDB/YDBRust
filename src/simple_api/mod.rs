@@ -1599,7 +1599,7 @@ pub(crate) mod tests {
     #[test]
     fn basic_set_and_get_st() {
         let mut result = Vec::with_capacity(1);
-        let key = Key::variable("^hello");
+        let key = Key::variable("^basicSetGet");
 
         // Try setting a value
         result = key.set_st(0, result, b"Hello world!").unwrap();
@@ -2046,5 +2046,54 @@ pub(crate) mod tests {
         let err_buf = key.node_next_self_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(&key[0], b"world");
         assert_eq!(&key.get_st(YDB_NOTTP, err_buf).unwrap(), b"data");
+    }
+    // https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-codes
+    // NOTE: if one of these tests fails, you can use
+    // `RUST_BACKTRACE=1 cargo test --lib common_errors` to find out which.
+    fn common_errors() {
+        use crate::craw;
+
+        let expect_err_with = |key: Key, err_code, get| {
+            // data_st
+            let err = key.data_st(0, Vec::with_capacity(50)).unwrap_err();
+            assert_eq!(err.status, err_code);
+
+            // delete_st
+            let err = key.delete_st(0, Vec::with_capacity(50), DeleteType::DelNode).unwrap_err();
+            assert_eq!(err.status, err_code);
+
+            // incr_st
+            let err = key.incr_st(0, Vec::with_capacity(50), None).unwrap_err();
+            assert_eq!(err.status, err_code);
+
+            // get_st
+            if get {
+                let err = key.get_st(0, Vec::with_capacity(50)).unwrap_err();
+                assert_eq!(err.status, err_code);
+            }
+        };
+        let expect_err = |varname, err_code, get| {
+            expect_err_with(Key::variable(varname), err_code, get);
+        };
+        expect_err("^", craw::YDB_ERR_INVVARNAME, true);
+        expect_err("1", craw::YDB_ERR_INVVARNAME, true);
+        expect_err("a_b_c", craw::YDB_ERR_INVVARNAME, true);
+        expect_err("$ZCHSET", craw::YDB_ERR_UNIMPLOP, false);
+        expect_err("$NOTANINTRINSIC", craw::YDB_ERR_INVSVN, true);
+        expect_err("^ThisIsAVeryLongVariableNameWithFarTooManyLetters", craw::YDB_ERR_VARNAME2LONG, true);
+
+        let subscripts: Vec<_> = (1..100).map(|i| i.to_string().into_bytes()).collect();
+        let too_many_subscripts = Key::new("^somevar", &subscripts);
+        expect_err_with(too_many_subscripts, craw::YDB_ERR_MAXNRSUBSCRIPTS, true);
+    }
+
+    #[test]
+    fn increment_errors() {
+        let key = Key::variable("incrementError");
+        let err_buf = Vec::with_capacity(50);
+        let err_buf = key.set_st(0, err_buf, "9E46").unwrap();
+        let incr = "1E46".into();
+        let err = key.incr_st(0, err_buf, Some(&incr)).unwrap_err();
+        assert_eq!(err.status, crate::craw::YDB_ERR_NUMOFLOW);
     }
 }
