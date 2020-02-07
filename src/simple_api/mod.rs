@@ -648,9 +648,13 @@ impl Key {
 
         // this is a loop instead of a recursive call so we can keep the original `len`
         let (ret_subs_used, buffer_structs) = loop {
+            // Make sure `subscripts` is not a null pointer
+            if self.buffers.len() < 2 {
+                self.buffers.reserve(1);
+            }
+
             // Get pointers to the varname and to the first subscript
             let (varname, mut subscripts) = self.get_buffers_mut();
-            assert!(!subscripts.is_empty());
             assert_eq!(subscripts.len(), self.buffers.len() - 1);
             let mut ret_subs_used = subscripts.len() as i32;
 

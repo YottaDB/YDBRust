@@ -1163,4 +1163,20 @@ mod tests {
 
         Ok(())
     }
+    #[test]
+    fn vec_new() {
+        let mut key = make_ckey!(Context::new(), "contextHello", "world");
+        key.set("data").unwrap();
+        key[1].clear();
+        key.next_node_self().unwrap();
+        assert_eq!(&key.get().unwrap(), b"data");
+        assert_eq!(&key[1], b"world");
+    }
+    #[test]
+    fn empty_subscripts() {
+        let next = KeyContext::new(&Context::new(), "empty", &["subscript"]);
+        next.set("some data").unwrap();
+        let mut key = KeyContext::variable(&Context::new(), "empty");
+        key.next_node_self().unwrap();
+    }
 }
