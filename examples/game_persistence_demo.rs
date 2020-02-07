@@ -44,9 +44,9 @@ impl<'a> Circle<'a> {
         let (r, g, b) = (rand::random::<u8>() % 255, rand::random::<u8>() % 255, rand::random::<u8>() % 255);
         let mut key = make_ckey!(ctx, "^balls", id.to_string().as_str(), "color", "r");
         key.set(&Vec::from(r.to_string())).unwrap();
-        key[3] = Vec::from(String::from("g"));
+        key[2] = Vec::from(String::from("g"));
         key.set(&Vec::from(g.to_string())).unwrap();
-        key[3] = Vec::from(String::from("b"));
+        key[2] = Vec::from(String::from("b"));
         key.set(&Vec::from(b.to_string())).unwrap();
         Circle::new(id, (rand::random::<u16>() % 512 + 5) as i16, (rand::random::<u16>() % 512 + 5) as i16,
             (rand::random::<u16>() % 10 + 5) as i16,
@@ -63,13 +63,13 @@ impl<'a> Circle<'a> {
     fn save(&self, ctx: &Context) -> Result<(), Box<dyn Error>> {
         let mut key = make_ckey!(ctx, "^balls", self.id.to_string().as_str(), "x");
         key.set(&Vec::from(self.x.to_string()))?;
-        key[2] = Vec::from("y");
+        key[1] = Vec::from("y");
         key.set(&Vec::from(self.y.to_string()))?;
-        key[2] = Vec::from("xvel");
+        key[1] = Vec::from("xvel");
         key.set(&Vec::from(self.xvel.to_string()))?;
-        key[2] = Vec::from("yvel");
+        key[1] = Vec::from("yvel");
         key.set(&Vec::from(self.yvel.to_string()))?;
-        key[2] = Vec::from("r");
+        key[1] = Vec::from("r");
         key.set(&Vec::from(self.r.to_string()))?;
         Ok(())
     }
@@ -128,31 +128,31 @@ fn main() {
     for ball in balls_key.iter_key_subs() {
         let mut ball = ball.unwrap();
 
-        let id = String::from_utf8_lossy(&ball[1]).parse::<usize>().unwrap();
+        let id = String::from_utf8_lossy(&ball[0]).parse::<usize>().unwrap();
         ball.push(Vec::from("x"));
         let x = ball.get().unwrap();
         let x = String::from_utf8_lossy(&x).parse::<i16>().unwrap();
-        ball[2] = Vec::from("y");
+        ball[1] = Vec::from("y");
         let y = ball.get().unwrap();
         let y = String::from_utf8_lossy(&y).parse::<i16>().unwrap();
-        ball[2] = Vec::from("xvel");
+        ball[1] = Vec::from("xvel");
         let xvel = ball.get().unwrap();
         let xvel = String::from_utf8_lossy(&xvel).parse::<i16>().unwrap();
-        ball[2] = Vec::from("yvel");
+        ball[1] = Vec::from("yvel");
         let yvel = ball.get().unwrap();
         let yvel = String::from_utf8_lossy(&yvel).parse::<i16>().unwrap();
-        ball[2] = Vec::from("r");
+        ball[1] = Vec::from("r");
         let radius = ball.get().unwrap();
         let radius = String::from_utf8_lossy(&radius).parse::<i16>().unwrap();
 
-        ball[2] = Vec::from("color");
+        ball[1] = Vec::from("color");
         ball.push(Vec::from("r"));
         let r = ball.get().unwrap();
         let r = String::from_utf8_lossy(&r).parse::<u8>().unwrap();
-        ball[3] = Vec::from("g");
+        ball[2] = Vec::from("g");
         let g = ball.get().unwrap();
         let g = String::from_utf8_lossy(&g).parse::<u8>().unwrap();
-        ball[3] = Vec::from("b");
+        ball[2] = Vec::from("b");
         let b = ball.get().unwrap();
         let b = String::from_utf8_lossy(&b).parse::<u8>().unwrap();
 

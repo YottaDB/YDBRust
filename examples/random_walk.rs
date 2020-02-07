@@ -28,7 +28,7 @@ fn random_walk() {
     let mut key = make_ckey!(ctx, get_global(), get_global(), get_global(), get_global(), get_global());
     // Randomly select between 0 and 4 subscripts
     let mut rng = rand::thread_rng();
-    key.truncate(rng.gen_range(1, 5));
+    key.truncate(rng.gen_range(0, 4));
     // Select a random operation
     match rng.gen_range(0, 6) {
         0 => key.delete(DeleteType::DelNode).unwrap(),
@@ -56,5 +56,5 @@ fn main() {
         });
     }
 
-    thread::sleep(time::Duration::from_secs(30));
+    thread::sleep(time::Duration::from_secs(10));
 }
