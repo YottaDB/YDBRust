@@ -133,10 +133,10 @@ fn verify() {
         };
 
         let toString = String::from_utf8_lossy;
-        let (crab_t, delta_t, horse_t) = (toString(&crab[1]), toString(&delta[1]), toString(&horse[1]));
+        let (crab_t, delta_t, horse_t) = (toString(&crab[0]), toString(&delta[0]), toString(&horse[0]));
 
         // confirm that timestamps match
-        if crab[1] != delta[1] || delta[1] != horse[1] {
+        if crab[0] != delta[0] || delta[0] != horse[0] {
             println!("ACID fail: tDelta={}; tCrab={}; tHorse={}", delta_t, crab_t, horse_t);
             process::exit(1);
         }
