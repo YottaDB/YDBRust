@@ -30,7 +30,7 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::rc::Rc;
 use std::str::FromStr;
-use std::ops::{Deref, DerefMut, Index, IndexMut};
+use std::ops::{Deref, DerefMut};
 
 use crate::craw::{YDB_NOTTP, YDB_ERR_NODEEND};
 use crate::simple_api::{tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType};
