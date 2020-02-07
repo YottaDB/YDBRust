@@ -1605,7 +1605,7 @@ pub(crate) mod tests {
         result = key.set_st(0, result, b"Hello world!").unwrap();
         // Then try getting the value we set
         result = key.get_st(0, result).unwrap();
-        assert_eq!(result, Vec::from("Hello world!"));
+        assert_eq!(result, b"Hello world!");
 
         // Try an error where the error message is shorter than the retrieved value
         let val: &[_] = &[b'a'; 1000];
@@ -1619,15 +1619,39 @@ pub(crate) mod tests {
     fn ydb_get_st_error() {
         let result = Vec::with_capacity(1);
         let key = Key::variable("^helloDoesntExists");
-        key.get_st(0, result).unwrap_err();
+        let err = key.get_st(0, result).unwrap_err();
+        assert_eq!(err.status, crate::craw::YDB_ERR_GVUNDEF);
     }
 
     #[test]
     fn ydb_data_st() {
-        let result = Vec::with_capacity(1);
-        let key = Key::variable("^helloDoesNotExists");
+        let err_buf = Vec::with_capacity(1);
+        let mut key = Key::variable("testDataSt");
 
-        let (retval, _) = key.data_st(0, result).unwrap();
+        // should be empty to start
+        let (retval, err_buf) = key.data_st(0, err_buf).unwrap();
+        assert_eq!(retval, DataReturn::NoData);
+
+        // set the node
+        let err_buf = key.set_st(0, err_buf, "some data").unwrap();
+        let (retval, err_buf) = key.data_st(0, err_buf).unwrap();
+        assert_eq!(retval, DataReturn::ValueData);
+
+        // set node and child
+        key.push("some subscript".into());
+        let err_buf = key.set_st(0, err_buf, "subscript data").unwrap();
+        key.pop();
+        let (retval, err_buf) = key.data_st(0, err_buf).unwrap();
+        assert_eq!(retval, DataReturn::ValueTreeData);
+
+        // delete the node, keep the child
+        let err_buf = key.delete_st(0, err_buf, DeleteType::DelNode).unwrap();
+        let (retval, err_buf) = key.data_st(0, err_buf).unwrap();
+        assert_eq!(retval, DataReturn::TreeData);
+
+        // delete the tree
+        let err_buf = key.delete_st(0, err_buf, DeleteType::DelTree).unwrap();
+        let (retval, _) = key.data_st(0, err_buf).unwrap();
         assert_eq!(retval, DataReturn::NoData);
     }
 
