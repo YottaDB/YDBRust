@@ -1,3 +1,6 @@
+//! Rust implementation of the 3n+1 problem
+//! https://yottadb.com/solving-the-3n1-problem-with-yottadb/
+
 #[macro_use] extern crate yottadb;
 extern crate num_cpus;
 extern crate threadpool;
@@ -54,7 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             blk = maxblk;
         }
         // Kill all limits again for this run
-        limits.truncate(1);
+        limits.clear();
         limits.delete(DeleteType::DelTree)?;
         limits.push(Vec::new());
 
@@ -70,7 +73,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             if tmp > endnum {
                 tmp = endnum;
             }
-            limits[1] = Vec::from(i.to_string());
+            limits[0] = Vec::from(i.to_string());
             limits.set(&Vec::from(tmp.to_string()))?;
             i += 1;
         }
@@ -106,10 +109,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             Err(x) => panic!(x),
         } as f64;
 
-        /*result[1] = Vec::from(tmp.to_string());
-        highest[1] = Vec::from(tmp.to_string());
-        updates[1] = Vec::from(tmp.to_string());
-        let valstrp = result.get()?;*/
         let updt = updates.get()?;
         let updt = String::from_utf8_lossy(&updt);
         let res = result.get()?;
@@ -132,7 +131,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         reads.set(b"0")?;
         result.set(b"0")?;
         updates.set(b"0")?;
-        step.truncate(1);
+        step.clear();
         step.delete(DeleteType::DelTree)?;
     }
 
@@ -161,8 +160,8 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
 
     loop {
         index += 1;
-        limits.truncate(2);
-        limits[1] = Vec::from(index.to_string());
+        limits.truncate(1);
+        limits[0] = Vec::from(index.to_string());
         // If there are no more elements left in limits, we are done
         let data = limits.data()?;
         if data == DataReturn::NoData {
@@ -174,14 +173,14 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
         if val != Vec::from("1") {
             continue;
         }
-        limits.truncate(2);
+        limits.truncate(1);
         let val = limits.get()?;
         let blkend = String::from_utf8_lossy(&val);
         let blkend = blkend.parse::<u64>()?;
         let blkstart = if index == 1 {
             1
         } else {
-            limits[1] = Vec::from((index-1).to_string());
+            limits[0] = Vec::from((index-1).to_string());
             let v = limits.get()?;
             let v = String::from_utf8_lossy(&v);
             v.parse::<u64>()? + 1
@@ -190,18 +189,18 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
         // Logic from dostep in other versions here; not sure why it's a function at this point
         for current in blkstart..=blkend {
             let mut n = current;
-            currpath_l.truncate(2);
+            currpath_l.truncate(1);
             currpath_l.delete(DeleteType::DelTree)?;
             currpath_l.push(Vec::new());
             let mut i = 0;
             loop {
                 reads_l.increment(None)?;
-                step[1] = Vec::from(n.to_string());
+                step[0] = Vec::from(n.to_string());
                 let dval = step.data()?;
                 if dval != DataReturn::NoData || n == 1 {
                     break;
                 }
-                currpath_l[2] = Vec::from(i.to_string());
+                currpath_l[1] = Vec::from(i.to_string());
                 currpath_l.set(&Vec::from(n.to_string()))?;
                 n = if n % 2 == 0 {
                     n / 2
@@ -219,7 +218,7 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
 
             if i > 0 {
                 if n > 1 {
-                    step[1] = Vec::from(n.to_string());
+                    step[0] = Vec::from(n.to_string());
                     let add_steps = step.get()?;
                     let add_steps = String::from_utf8_lossy(&add_steps);
                     let add_steps = add_steps.parse::<u64>()?;
@@ -238,13 +237,13 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
                     }
                     Ok(())
                 }, "BATCH", &Vec::new())?;
-                currpath_l[2] = Vec::from("");
+                currpath_l[1] = Vec::from("");
                 for subval in currpath_l.iter_subs_values() {
                     let (sub, val) = subval?;
                     let n = String::from_utf8_lossy(&sub);
                     let n = n.parse::<u64>()?;
                     updates_l.increment(None)?;
-                    step[1] = val;
+                    step[0] = val;
                     step.set(&Vec::from((i - n).to_string()))?;
                 }
             }

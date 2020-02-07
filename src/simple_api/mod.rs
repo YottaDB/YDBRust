@@ -1042,10 +1042,14 @@ impl From<ydb_buffer_t> for ConstYDBBuffer {
 /// but without `shrink_to_fit`, `drain`, or other methods that aren't relevant
 impl Key {
     pub fn truncate(&mut self, i: usize) {
-        self.subscripts.truncate(i)
+        self.subscripts.truncate(i);
+    }
+    /// Remove all subscripts, leaving only the `variable`
+    pub fn clear(&mut self) {
+        self.subscripts.clear();
     }
     pub fn push(&mut self, subscript: Vec<u8>) {
-        self.subscripts.push(subscript)
+        self.subscripts.push(subscript);
     }
     pub fn pop(&mut self) -> Option<Vec<u8>> {
         self.subscripts.pop()
