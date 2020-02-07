@@ -30,7 +30,7 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::rc::Rc;
 use std::str::FromStr;
-use std::ops::{Deref, Index, IndexMut};
+use std::ops::{Deref, DerefMut, Index, IndexMut};
 
 use crate::craw::{YDB_NOTTP, YDB_ERR_NODEEND};
 use crate::simple_api::{tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType};
@@ -170,39 +170,17 @@ impl Context {
     }
 }
 
-/// Allow Key to mostly be treated as a `Vec<Vec<u8>>`,
-/// but without `shrink_to_fit`, `drain`, or other methods that aren't relevant
-impl KeyContext {
-    pub fn truncate(&mut self, i: usize) {
-        self.key.truncate(i)
-    }
-    pub fn push(&mut self, subscript: Vec<u8>) {
-        self.key.push(subscript)
-    }
-    pub fn pop(&mut self) -> Option<Vec<u8>> {
-        self.key.pop()
-    }
-}
-
 impl Deref for KeyContext {
-    type Target = Vec<Vec<u8>>;
+    type Target = Key;
 
     fn deref(&self) -> &Self::Target {
-        self.key.deref()
+        &self.key
     }
 }
 
-impl Index<usize> for KeyContext {
-    type Output = Vec<u8>;
-
-    fn index(&self, i: usize) -> &Self::Output {
-        self.key.index(i)
-    }
-}
-
-impl IndexMut<usize> for KeyContext {
-    fn index_mut(&mut self, i: usize) -> &mut Vec<u8> {
-        self.key.index_mut(i)
+impl DerefMut for KeyContext {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.key
     }
 }
 
@@ -597,7 +575,7 @@ impl KeyContext {
     /// use yottadb::context_api::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
@@ -607,7 +585,7 @@ impl KeyContext {
     ///     key[0] = Vec::from("0");
     ///     let k2 = key.next_sub()?;
     ///
-    ///     assert_eq!(&k2[1], b"1");
+    ///     assert_eq!(&k2[0], b"1");
     ///
     ///     Ok(())
     /// }
@@ -633,7 +611,7 @@ impl KeyContext {
     /// use yottadb::context_api::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
@@ -643,7 +621,7 @@ impl KeyContext {
     ///     key[0] = Vec::from("1");
     ///     let k2 = key.prev_sub()?;
     ///
-    ///     assert_eq!(&k2[1], b"0");
+    ///     assert_eq!(&k2[0], b"0");
     ///
     ///     Ok(())
     /// }
@@ -751,7 +729,7 @@ impl KeyContext {
     /// use yottadb::context_api::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0", "0");
     ///
@@ -760,7 +738,7 @@ impl KeyContext {
     ///     key.truncate(1);
     ///     let k2 = key.next_node()?;
     ///
-    ///     assert_eq!(k2[2], b"0");
+    ///     assert_eq!(k2[1], b"0");
     ///
     ///     Ok(())
     /// }
@@ -787,7 +765,7 @@ impl KeyContext {
     /// use yottadb::context_api::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^helloPrevNode", "0", "0");
     ///
@@ -795,10 +773,12 @@ impl KeyContext {
     ///     // Forget the second subscript
     ///     key.truncate(1);
     ///     // Go to the next node, then walk backward
-    ///     key[0] = Vec::from("1");
+    ///     key[0] = "1".into();
     ///     let k2 = key.prev_node()?;
     ///
-    ///     assert_eq!(k2[2], b"0");
+    ///     assert_eq!(&k2.variable, "^helloPrevNode");
+    ///     assert_eq!(k2[0], b"0");
+    ///     assert_eq!(k2[1], b"0");
     ///
     ///     Ok(())
     /// }
