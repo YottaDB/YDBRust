@@ -1221,12 +1221,6 @@ mod tests {
     }
 
     #[test]
-    fn empty_subscript() {
-        let mut key = Key::variable("tmp");
-        key.push(Vec::new());
-        key.get_st(0, Vec::with_capacity(1)).unwrap_err();
-    }
-
     #[test]
     fn ydb_get_st_error() {
         let result = Vec::with_capacity(1);
@@ -1414,11 +1408,16 @@ mod tests {
     }
     #[test]
     fn empty_subscript() {
-        use crate::craw::YDB_NOTTP;
+        use crate::craw::{YDB_NOTTP, YDB_ERR_LVUNDEF};
+
         let mut key = make_key!("simpleHello", "world");
         let err_buf = Vec::new();
         let err_buf = key.set_st(YDB_NOTTP, err_buf, "data").unwrap();
         key[0].clear();
+
+        let err = key.get_st(0, Vec::new()).unwrap_err();
+        assert_eq!(err.status, YDB_ERR_LVUNDEF);
+
         let err_buf = key.node_next_self_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(&key[0], b"world");
         assert_eq!(&key.get_st(YDB_NOTTP, err_buf).unwrap(), b"data");
