@@ -1720,7 +1720,14 @@ pub(crate) mod tests {
 
         let num = 1500.to_string().into_bytes();
         let err_buf = key.incr_st(0, out_buf, Some(&num)).unwrap();
-        assert_eq!(&key.get_st(YDB_NOTTP, err_buf).unwrap(), b"1501");
+        let out_buf = key.get_st(YDB_NOTTP, err_buf).unwrap();
+        assert_eq!(&out_buf, b"1501");
+
+        // make sure that incr_st works even if the node doesn't exist yet
+        let err_buf = key.delete_st(YDB_NOTTP, out_buf, DeleteType::DelNode).unwrap();
+        let err_buf = key.incr_st(0, err_buf, None).unwrap();
+        let out_buf = key.get_st(YDB_NOTTP, err_buf).unwrap();
+        assert_eq!(&out_buf, b"1");
     }
 
     // Return the number of locks held for `var`
