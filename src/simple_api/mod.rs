@@ -2083,6 +2083,26 @@ pub(crate) mod tests {
                 let err = key.get_st(0, Vec::with_capacity(50)).unwrap_err();
                 assert_eq!(err.status, err_code);
             }
+
+            // node_next_st
+            let mut dup = key.clone();
+            let err = dup.node_next_self_st(0, Vec::new()).unwrap_err();
+            assert_eq!(err.status, err_code);
+
+            // node_prev_st
+            let mut dup = key.clone();
+            let err = dup.node_prev_self_st(0, Vec::new()).unwrap_err();
+            assert_eq!(err.status, err_code);
+
+            // sub_next_st
+            let mut dup = key.clone();
+            let err = dup.sub_next_self_st(0, Vec::new()).unwrap_err();
+            assert_eq!(err.status, err_code);
+
+            // sub_prev_st
+            let mut dup = key.clone();
+            let err = dup.sub_prev_self_st(0, Vec::new()).unwrap_err();
+            assert_eq!(err.status, err_code);
         };
         let expect_err = |varname, err_code, get| {
             expect_err_with(Key::variable(varname), err_code, get);
