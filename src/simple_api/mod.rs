@@ -2059,12 +2059,12 @@ pub(crate) mod tests {
         assert_eq!(&key[0], b"world");
         assert_eq!(&key.get_st(YDB_NOTTP, err_buf).unwrap(), b"data");
     }
+
     // https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-codes
     // NOTE: if one of these tests fails, you can use
     // `RUST_BACKTRACE=1 cargo test --lib common_errors` to find out which.
+    #[test]
     fn common_errors() {
-        use crate::craw;
-
         let expect_err_with = |key: Key, err_code, get| {
             // data_st
             let err = key.data_st(0, Vec::with_capacity(50)).unwrap_err();
