@@ -1714,8 +1714,13 @@ pub(crate) mod tests {
         let key = Key::variable("^helloIncrementMe");
         let err_buf = key.set_st(YDB_NOTTP, err_buf, "0").unwrap();
 
-        let err_buf = key.incr_st(0, err_buf, Some(b"1500")).unwrap();
-        assert_eq!(&key.get_st(YDB_NOTTP, err_buf).unwrap(), b"1500");
+        let err_buf = key.incr_st(0, err_buf, None).unwrap();
+        let mut out_buf = key.get_st(YDB_NOTTP, err_buf).unwrap();
+        assert_eq!(&out_buf, b"1");
+
+        let num = 1500.to_string().into_bytes();
+        let err_buf = key.incr_st(0, out_buf, Some(&num)).unwrap();
+        assert_eq!(&key.get_st(YDB_NOTTP, err_buf).unwrap(), b"1501");
     }
 
     // Return the number of locks held for `var`
@@ -2100,8 +2105,13 @@ pub(crate) mod tests {
     fn undef_var() {
         use crate::craw::{YDB_NOTTP, YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
         let key = Key::variable("^doesnotexist");
-        let err_buf = Vec::new();
+        let err_buf = Vec::with_capacity(10);
         let res = key.get_st(YDB_NOTTP, err_buf);
         assert_eq!(res.unwrap_err().status, YDB_ERR_GVUNDEF);
+
+        let key = Key::variable("doesnotexist");
+        let err_buf = Vec::with_capacity(10);
+        let res = key.get_st(YDB_NOTTP, err_buf);
+        assert_eq!(res.unwrap_err().status, YDB_ERR_LVUNDEF);
     }
 }
