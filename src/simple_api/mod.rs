@@ -2096,4 +2096,12 @@ pub(crate) mod tests {
         let err = key.incr_st(0, err_buf, Some(&incr)).unwrap_err();
         assert_eq!(err.status, crate::craw::YDB_ERR_NUMOFLOW);
     }
+    #[test]
+    fn undef_var() {
+        use crate::craw::{YDB_NOTTP, YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
+        let key = Key::variable("^doesnotexist");
+        let err_buf = Vec::new();
+        let res = key.get_st(YDB_NOTTP, err_buf);
+        assert_eq!(res.unwrap_err().status, YDB_ERR_GVUNDEF);
+    }
 }
