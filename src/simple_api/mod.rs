@@ -1204,7 +1204,7 @@ mod tests {
         let key = Key::variable("^hello");
 
         // Try setting a value
-        result = key.set_st(0, result, &Vec::from("Hello world!")).unwrap();
+        result = key.set_st(0, result, b"Hello world!").unwrap();
         // Then try getting the value we set
         result = key.get_st(0, result).unwrap();
         assert_eq!(result, Vec::from("Hello world!"));
@@ -1233,7 +1233,7 @@ mod tests {
         let key = Key::variable("^helloDeleteMe");
 
         // Try setting a value
-        result = key.set_st(0, result, &Vec::from("Hello world!")).unwrap();
+        result = key.set_st(0, result, b"Hello world!").unwrap();
         // Check data
         let (retval, mut result) = key.data_st(0, result).unwrap();
         assert_ne!(retval, DataReturn::NoData);
@@ -1359,7 +1359,7 @@ mod tests {
         let result = Vec::with_capacity(1);
         let result = tp_st(0, result, |_| {
             Ok(())
-        }, "BATCH", &Vec::new()).unwrap();
+        }, "BATCH", &[]).unwrap();
 
         // user error
         let err = tp_st(0, result, |_| {
@@ -1373,7 +1373,7 @@ mod tests {
             let key = make_key!("hello");
             key.get_st(tptoken, Vec::with_capacity(1024))?;
             unreachable!();
-        }, "BATCH", &Vec::new()).unwrap_err();
+        }, "BATCH", &[]).unwrap_err();
         assert!(err.downcast::<YDBError>().unwrap().status == craw::YDB_ERR_LVUNDEF);
     }
 

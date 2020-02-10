@@ -959,7 +959,7 @@ mod tests {
     fn simple_delete() {
         let ctx = Context::new();
         let key = ctx.new_key(Key::variable("^helloDeleteMe"));
-        key.set(&Vec::from("Hello world!")).unwrap();
+        key.set(b"Hello world!").unwrap();
         key.delete(DeleteType::DelNode).unwrap();
     }
 
