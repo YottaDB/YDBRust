@@ -170,6 +170,31 @@ impl Context {
         result.map(|_| {})
     }
 
+    /// Delete all local variables _except_ for those passed in `saved_variable`.
+    ///
+    /// Passing an empty `saved_variables` slice deletes all local variables.
+    /// Attempting to save a global or intrinsic variable is an error.
+    ///
+    /// # Errors
+    /// - YDB_ERR_NAMECOUNT2HI if `saved_variables.len() > YDB_MAX_NAMES`
+    /// - YDB_ERR_INVVARNAME if attempting to save a global or intrinsic variable
+    /// - Another system [error return code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # See also
+    /// - The [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-delete-excl-s-ydb-delete-excl-st)
+    /// - [Local and global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
+    /// - [Instrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
+    pub fn delete_excl(&self, saved_variables: &[&str]) -> YDBResult<()> {
+        use crate::simple_api::delete_excl_st;
+
+        let tptoken = self.context.borrow().tptoken;
+        let result = if self.context.borrow().multithreaded {
+            delete_excl_st(tptoken, self.context.borrow_mut().buffer.take().unwrap(), saved_variables)
+        } else {
+            panic!("Not supported!");
+        };
+        self.recover_buffer(result)
+    }
     fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
         match result {
             Ok(x) => {
