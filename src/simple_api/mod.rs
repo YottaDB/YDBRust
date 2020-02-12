@@ -1200,7 +1200,9 @@ pub fn tp_st<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut f: F, trans_id: &str,
 pub fn delete_excl_st(tptoken: u64, mut out_buffer: Vec<u8>, saved_variables: &[&str]) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_delete_excl_st;
 
+    assert!(out_buffer.len() <= out_buffer.capacity());
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
+
     let varnames: Vec<ConstYDBBuffer> = saved_variables.iter().map(|var| ydb_buffer_t {
         buf_addr: var.as_ptr() as *mut _,
         len_used: var.len() as u32,
