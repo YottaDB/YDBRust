@@ -1425,6 +1425,27 @@ pub fn delete_excl_st(tptoken: u64, mut out_buffer: Vec<u8>, saved_variables: &[
     }
 }
 
+/// Given a binary sequence, serialize it to 'Zwrite format', which is ASCII printable.
+///
+/// # See also
+/// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
+/// - [zwr2str_st](fn.zwr2str_st.html)
+pub fn str2zwr_st(tptoken: u64, out_buf: Vec<u8>, original: Vec<u8>) -> YDBResult<Vec<u8>> {
+
+}
+
+/// Given a buffer in 'Zwrite format', deserialize it to the original binary buffer.
+///
+/// # Errors
+/// This function returns an error if `serialized` is not in Zwrite format.
+///
+/// # See also
+/// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
+/// - [str2zwr_st](fn.str2zwr_st.html)
+pub fn zwr2str_st(tptoken: u64, serialized: Vec<u8>) -> Result<Vec<u8>, ()> {
+    // although the C function is typed as returning an error, 
+}
+
 #[cfg(test)]
 mod tests {
     use crate::*;
