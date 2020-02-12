@@ -1183,6 +1183,45 @@ pub fn tp_st<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut f: F, trans_id: &str,
     }
 }
 
+/// Delete all local variables _except_ for those passed in `saved_variable`.
+///
+/// Passing an empty `saved_variables` slice deletes all local variables.
+/// Attempting to save a global or intrinsic variable is an error.
+///
+/// # Errors
+/// - YDB_ERR_NAMECOUNT2HI if `saved_variables.len() > YDB_MAX_NAMES`
+/// - YDB_ERR_INVVARNAME if attempting to save a global or intrinsic variable
+/// - Another system [error return code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+///
+/// # See also
+/// - The [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-delete-excl-s-ydb-delete-excl-st)
+/// - [Local and global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
+/// - [Instrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
+pub fn delete_excl_st(tptoken: u64, mut out_buffer: Vec<u8>, saved_variables: &[&str]) -> YDBResult<Vec<u8>> {
+    use crate::craw::ydb_delete_excl_st;
+
+    let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
+    let varnames: Vec<ConstYDBBuffer> = saved_variables.iter().map(|var| ydb_buffer_t {
+        buf_addr: var.as_ptr() as *mut _,
+        len_used: var.len() as u32,
+        len_alloc: var.len() as u32,
+    }.into()).collect();
+
+    let status = unsafe {
+        ydb_delete_excl_st(tptoken, &mut out_buffer_t, varnames.len() as c_int, varnames.as_ptr() as *const _)
+    };
+
+    let len = min(out_buffer_t.len_used, out_buffer_t.len_alloc);
+    unsafe {
+        out_buffer.set_len(len as usize);
+    }
+    if status != YDB_OK as c_int {
+        Err(YDBError { message: out_buffer, status, tptoken })
+    } else {
+        Ok(out_buffer)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::*;
@@ -1242,6 +1281,42 @@ mod tests {
         let (retval, _) = key.data_st(0, result).unwrap();
         // Check for no data
         assert_eq!(retval, DataReturn::NoData);
+    }
+
+    #[test]
+    fn ydb_delete_excl_st() {
+        let out_buf = Vec::new();
+        let mut key = Key::variable("deleteExcl");
+
+        // Set a few values
+        let out_buf = key.set_st(0, out_buf, b"some value").unwrap();
+        key.variable = "deleteExcl2".into();
+        let out_buf = key.set_st(0, out_buf, b"some value").unwrap();
+
+        // Delete `deleteExcl2`, saving `deleteExcl`
+        let out_buf = delete_excl_st(0, out_buf, &["deleteExcl"]).unwrap();
+        // Check data
+        let (data_type, out_buf) = key.data_st(0, out_buf).unwrap();
+        assert_eq!(data_type, DataReturn::NoData);
+        key.variable = "deleteExcl".into();
+        let (data_type, out_buf) = key.data_st(0, out_buf).unwrap();
+        assert_eq!(data_type, DataReturn::ValueData);
+
+        // Delete `deleteExcl`
+        let out_buf = delete_excl_st(0, out_buf, &[]).unwrap();
+        // Make sure it was actually deleted
+        let (data_type, out_buf) = key.data_st(0, out_buf).unwrap();
+        assert_eq!(data_type, DataReturn::NoData);
+
+        // Saving a global/intrinsic variable should be an error
+        use crate::craw::YDB_ERR_INVVARNAME;
+        let err = delete_excl_st(0, out_buf, &["^global"]).unwrap_err();
+        assert_eq!(err.status, YDB_ERR_INVVARNAME);
+        let err = delete_excl_st(0, Vec::new(), &["$ZSTATUS"]).unwrap_err();
+        assert_eq!(err.status, YDB_ERR_INVVARNAME);
+
+        // Saving a variable that doesn't exist should do nothing and return YDB_OK.
+        delete_excl_st(0, Vec::new(), &["local"]).unwrap();
     }
 
     #[test]
