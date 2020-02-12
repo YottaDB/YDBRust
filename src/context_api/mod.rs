@@ -1173,6 +1173,42 @@ mod tests {
     }
 
     #[test]
+    fn ydb_delete_excl_st() {
+        let ctx = Context::new();
+        let mut key = KeyContext::variable(&ctx, "deleteExcl");
+
+        // Set a few values
+        key.set(b"some value").unwrap();
+        key.variable = "deleteExcl2".into();
+        key.set(b"some value").unwrap();
+
+        // Delete `deleteExcl2`, saving `deleteExcl`
+        key.context.delete_excl(&["deleteExcl"]).unwrap();
+        // Check data
+        let data_type = key.data().unwrap();
+        assert_eq!(data_type, DataReturn::NoData);
+        key.variable = "deleteExcl".into();
+        let data_type = key.data().unwrap();
+        assert_eq!(data_type, DataReturn::ValueData);
+
+        // Delete `deleteExcl`
+        key.context.delete_excl(&[]).unwrap();
+        // Make sure it was actually deleted
+        let data_type = key.data().unwrap();
+        assert_eq!(data_type, DataReturn::NoData);
+
+        // Saving a global/intrinsic variable should be an error
+        use crate::craw::YDB_ERR_INVVARNAME;
+        let err = key.context.delete_excl(&["^global"]).unwrap_err();
+        assert_eq!(err.status, YDB_ERR_INVVARNAME);
+        let err = ctx.delete_excl(&["$ZSTATUS"]).unwrap_err();
+        assert_eq!(err.status, YDB_ERR_INVVARNAME);
+
+        // Saving a variable that doesn't exist should do nothing and return YDB_OK.
+        ctx.delete_excl(&["local"]).unwrap();
+    }
+
+    #[test]
     fn get_and_parse() {
         let ctx = Context::new();
         let key = ctx.new_key("hello");
