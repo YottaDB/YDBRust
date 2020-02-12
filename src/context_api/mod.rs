@@ -491,20 +491,23 @@ impl KeyContext {
     /// use yottadb::context_api::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^helloIncrementMe");
     ///
     ///     key.set("0")?;
     ///     key.increment(None)?;
     ///     let output_buffer = key.get()?;
-    ///
     ///     assert_eq!(output_buffer, b"1");
+    ///
+    ///     key.increment(Some(b"100"));
+    ///     let output_buffer = key.get()?;
+    ///     assert_eq!(output_buffer, b"101");
     ///
     ///     Ok(())
     /// }
     /// ```
-    pub fn increment(&self, increment: Option<&Vec<u8>>) -> YDBResult<Vec<u8>> {
+    pub fn increment(&self, increment: Option<&[u8]>) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = Vec::with_capacity(1024);
         if self.context.borrow().multithreaded {

@@ -504,7 +504,7 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn incr_st(&self, tptoken: u64, mut out_buffer: Vec<u8>, increment: Option<&Vec<u8>>)
+    pub fn incr_st(&self, tptoken: u64, mut out_buffer: Vec<u8>, increment: Option<&[u8]>)
             -> YDBResult<Vec<u8>> {
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
@@ -516,7 +516,7 @@ impl Key {
         let increment_t = if let Some(increment_v) = increment {
             increment_t_buf = ydb_buffer_t {
                 buf_addr: increment_v.as_ptr() as *const _ as *mut _,
-                len_alloc: increment_v.capacity() as u32,
+                len_alloc: increment_v.len() as u32,
                 len_used: increment_v.len() as u32,
             };
             &mut increment_t_buf as *mut _
@@ -1327,8 +1327,7 @@ mod tests {
         let key = Key::variable("^helloIncrementMe");
         let err_buf = key.set_st(YDB_NOTTP, err_buf, "0").unwrap();
 
-        let num = 1500.to_string().into_bytes();
-        let err_buf = key.incr_st(0, err_buf, Some(&num)).unwrap();
+        let err_buf = key.incr_st(0, err_buf, Some(b"1500")).unwrap();
         assert_eq!(&key.get_st(YDB_NOTTP, err_buf).unwrap(), b"1500");
     }
 
