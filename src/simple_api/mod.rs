@@ -591,6 +591,38 @@ impl Key {
         Ok(out_buffer)
     }
 
+    /// Decrement the count of a lock help by the process.
+    ///
+    /// When a lock goes from 1 to 0, it is released.
+    /// Attempting to decrement a lock not owned by the current process has no effect.
+    ///
+    /// # Errors
+    /// - `YDB_ERR_INVVARNAME` if `self.variable` is not a valid variable name.
+    ///
+    /// # See also
+    /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-decr-s-ydb-lock-decr-st)
+    /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
+    /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
+    pub fn lock_decr_st(&self, tptoken: u64, mut out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+        use crate::craw::ydb_lock_decr_st;
+
+        let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
+        let (var, subscripts) = self.get_buffers();
+        let status = unsafe {
+            ydb_lock_decr_st(tptoken, &mut out_buffer_t, var.as_ptr(), subscripts.len() as c_int, subscripts.as_ptr() as *const _)
+        };
+
+        let len = min(out_buffer_t.len_used, out_buffer_t.len_alloc);
+        unsafe {
+            out_buffer.set_len(len as usize);
+        }
+        if status != YDB_OK as c_int {
+            Err(YDBError { message: out_buffer, status, tptoken })
+        } else {
+            Ok(out_buffer)
+        }
+    }
+
     /// Facilitates depth-first traversal of a local or global variable tree, and passes itself in as the output parameter.
     ///
     /// For more information on variable trees, see the [overview of YottaDB][how-it-works]
