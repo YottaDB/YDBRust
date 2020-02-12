@@ -135,10 +135,11 @@ impl Default for Context {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct KeyContext {
-    context: Rc<RefCell<ContextInternal>>,
+    context: Context,
     pub key: Key,
 }
 
+use core::cell::{Ref, RefMut};
 impl Context {
     pub fn new() -> Context {
         Context{
@@ -167,6 +168,25 @@ impl Context {
         self.context.borrow_mut().tptoken = tptoken;
         // discard the new buffer
         result.map(|_| {})
+    }
+
+    fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
+        match result {
+            Ok(x) => {
+                self.context.borrow_mut().buffer = Some(x);
+                Ok(())
+            },
+            Err(x) => {
+                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
+                Err(x)
+            },
+        }
+    }
+    fn borrow(&self) -> Ref<'_, ContextInternal> {
+        self.context.borrow()
+    }
+    fn borrow_mut(&self) -> RefMut<'_, ContextInternal> {
+        self.context.borrow_mut()
     }
 }
 
@@ -220,22 +240,12 @@ impl KeyContext {
     }
     pub fn with_key<K: Into<Key>>(ctx: &Context, key: K) -> Self {
         Self {
-            context: ctx.context.clone(),
+            context: ctx.clone(),
             key: key.into(),
         }
     }
     fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
-        match result {
-            Ok(x) => {
-                self.context.borrow_mut().buffer = Some(x);
-                Ok(())
-            },
-            Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
-                Err(x)
-            },
-        }
-
+        self.context.recover_buffer(result)
     }
     /// Gets the value of this key from the database and returns the value.
     ///
