@@ -1475,6 +1475,17 @@ mod tests {
     }
 
     #[test]
+    fn ydb_lock_incr_st() {
+        let err_buf = Vec::new();
+        let key = Key::variable("simpleIncrLock");
+        let err_buf = key.lock_incr_st(YDB_NOTTP, err_buf, Duration::from_millis(500)).unwrap();
+        let err_buf = key.lock_incr_st(YDB_NOTTP, err_buf, Duration::from_secs(0)).unwrap();
+        // should be at 2
+        let err_buf = key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
+        let err_buf = key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
+    }
+
+    #[test]
     fn ydb_node_next_self_st() {
         let mut result = Vec::with_capacity(1);
         let value = Vec::from("Hello world!");
