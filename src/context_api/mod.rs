@@ -554,6 +554,35 @@ impl KeyContext {
         self.key.incr_st(tptoken, out_buffer, increment)
     }
 
+    /// Increment the count of a lock held by the process, or acquire a new lock.
+    ///
+    /// If the lock is not currently held by this process, it is acquired.
+    /// Otherwise, the lock count is incremented.
+    ///
+    /// `timeout` specifies a time that the function waits to acquire the requested locks.
+    /// If `timeout` is 0, the function makes exactly one attempt to acquire the lock.
+    ///
+    /// # Errors
+    /// - `YDB_ERR_INVVARNAME` if `self.variable` is not a valid variable name.
+    /// - `YDB_LOCK_TIMEOUT` if the lock could not be acquired within the specific time.
+    /// - `YDB_ERR_TIME2LONG` if `timeout.as_nanos()` exceeds `YDB_MAX_TIME_NSEC`
+    ///                    or if `timeout.as_nanos()` does not fit into a `c_ulonglong`.
+    /// - Another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # See also
+    /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-decr-s-ydb-lock-decr-st)
+    /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
+    /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
+    pub fn lock_incr(&self, timeout: std::time::Duration) -> YDBResult<()> {
+        let tptoken = self.context.borrow().tptoken;
+        let result = if self.context.borrow().multithreaded {
+            self.lock_incr_st(tptoken, self.context.borrow_mut().buffer.take().unwrap(), timeout)
+        } else {
+            panic!("Not supported!");
+        };
+        self.recover_buffer(result)
+    }
+
     /// Implements breadth-first traversal of a tree by searching for the next subscript, and passes itself in as the output parameter.
     ///
     /// # Errors
