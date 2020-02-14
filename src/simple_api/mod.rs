@@ -56,6 +56,7 @@ use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr;
 use std::ffi::CString;
 use std::os::raw::{c_void, c_int};
+use std::time::Duration;
 use std::cmp::min;
 use std::fmt;
 use std::error;
@@ -591,7 +592,7 @@ impl Key {
         Ok(out_buffer)
     }
 
-    /// Decrement the count of a lock help by the process.
+    /// Decrement the count of a lock held by the process.
     ///
     /// When a lock goes from 1 to 0, it is released.
     /// Attempting to decrement a lock not owned by the current process has no effect.
@@ -622,7 +623,57 @@ impl Key {
             Ok(out_buffer)
         }
     }
+    /// Increment the count of a lock held by the process, or acquire a new lock.
+    ///
+    /// If the lock is not currently held by this process, it is acquired.
+    /// Otherwise, the lock count is incremented.
+    ///
+    /// `timeout` specifies a time that the function waits to acquire the requested locks.
+    /// If `timeout` is 0, the function makes exactly one attempt to acquire the lock.
+    ///
+    /// # Errors
+    /// - `YDB_ERR_INVVARNAME` if `self.variable` is not a valid variable name.
+    /// - `YDB_LOCK_TIMEOUT` if the lock could not be acquired within the specific time.
+    /// - `YDB_ERR_TIME2LONG` if `timeout.as_nanos()` exceeds `YDB_MAX_TIME_NSEC`
+    //                     or if `timeout.as_nanos()` does not fit into a `c_ulonglong`.
+    /// - Another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # See also
+    /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-decr-s-ydb-lock-decr-st)
+    /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
+    /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
+    pub fn lock_incr_st(&self, tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration) -> YDBResult<Vec<u8>> {
+        use std::convert::TryInto;
+        use crate::craw::{ydb_lock_incr_st, YDB_ERR_TIME2LONG};
 
+        let timeout_ns = match timeout.as_nanos().try_into() {
+            Err(_) => {
+                // discard any previous error
+                out_buffer.clear();
+                return Err(YDBError {
+                    status: YDB_ERR_TIME2LONG,
+                    message: out_buffer,
+                    tptoken,
+                });
+            }
+            Ok(n) => n,
+        };
+        let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
+        let (var, subscripts) = self.get_buffers();
+        let status = unsafe {
+            ydb_lock_incr_st(tptoken, &mut out_buffer_t, timeout_ns, var.as_ptr(), subscripts.len() as c_int, subscripts.as_ptr() as *const _)
+        };
+
+        let len = min(out_buffer_t.len_used, out_buffer_t.len_alloc);
+        unsafe {
+            out_buffer.set_len(len as usize);
+        }
+        if status != YDB_OK as c_int {
+            Err(YDBError { message: out_buffer, status, tptoken })
+        } else {
+            Ok(out_buffer)
+        }
+    }
     /// Facilitates depth-first traversal of a local or global variable tree, and passes itself in as the output parameter.
     ///
     /// For more information on variable trees, see the [overview of YottaDB][how-it-works]
