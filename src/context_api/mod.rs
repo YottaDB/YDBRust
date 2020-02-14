@@ -576,7 +576,29 @@ impl KeyContext {
     pub fn lock_incr(&self, timeout: std::time::Duration) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let result = if self.context.borrow().multithreaded {
-            self.lock_incr_st(tptoken, self.context.borrow_mut().buffer.take().unwrap(), timeout)
+            self.key.lock_incr_st(tptoken, self.context.borrow_mut().buffer.take().unwrap(), timeout)
+        } else {
+            panic!("Not supported!");
+        };
+        self.recover_buffer(result)
+    }
+
+    /// Decrement the count of a lock held by the process.
+    ///
+    /// When a lock goes from 1 to 0, it is released.
+    /// Attempting to decrement a lock not owned by the current process has no effect.
+    ///
+    /// # Errors
+    /// - `YDB_ERR_INVVARNAME` if `self.variable` is not a valid variable name.
+    ///
+    /// # See also
+    /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-decr-s-ydb-lock-decr-st)
+    /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
+    /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
+    pub fn lock_decr(&self) -> YDBResult<()> {
+        let tptoken = self.context.borrow().tptoken;
+        let result = if self.context.borrow().multithreaded {
+            self.key.lock_decr_st(tptoken, self.context.borrow_mut().buffer.take().unwrap())
         } else {
             panic!("Not supported!");
         };
@@ -1259,6 +1281,18 @@ mod tests {
 
         // Saving a variable that doesn't exist should do nothing and return YDB_OK.
         ctx.delete_excl(&["local"]).unwrap();
+    }
+
+    #[test]
+    fn lock_incr_st() {
+        use std::time::Duration;
+        let ctx = Context::new();
+        let key = KeyContext::variable(&ctx, "contextIncrSt");
+
+        key.lock_incr(Duration::from_secs(0)).unwrap();
+        key.lock_incr(Duration::from_secs(0)).unwrap();
+        key.lock_decr().unwrap();
+        key.lock_decr().unwrap();
     }
 
     #[test]
