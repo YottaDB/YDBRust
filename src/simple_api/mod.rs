@@ -1482,7 +1482,7 @@ mod tests {
         let err_buf = key.lock_incr_st(YDB_NOTTP, err_buf, Duration::from_secs(0)).unwrap();
         // should be at 2
         let err_buf = key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
-        let err_buf = key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
+        key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
     }
 
     #[test]
