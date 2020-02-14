@@ -2098,7 +2098,8 @@ pub(crate) mod tests {
         assert_eq!(err.status, YDB_ERR_NAMECOUNT2HI);
 
         // Passing a buffer that has insufficient capacity for an error should resize the buffer
-        delete_excl_st(YDB_NOTTP, Vec::with_capacity(1), &["^global"]).unwrap();
+        let err = delete_excl_st(YDB_NOTTP, Vec::with_capacity(1), &["^global"]).unwrap_err();
+        assert_eq!(err.status, YDB_ERR_INVVARNAME);
     }
 
     #[test]
