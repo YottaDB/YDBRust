@@ -2096,6 +2096,9 @@ pub(crate) mod tests {
         let vars = vec!["hello"; YDB_MAX_NAMES as usize + 1];
         let err = delete_excl_st(YDB_NOTTP, Vec::new(), &vars).unwrap_err();
         assert_eq!(err.status, YDB_ERR_NAMECOUNT2HI);
+
+        // Passing a buffer that has insufficient capacity for an error should resize the buffer
+        delete_excl_st(YDB_NOTTP, Vec::with_capacity(1), &["^global"]).unwrap();
     }
 
     #[test]
