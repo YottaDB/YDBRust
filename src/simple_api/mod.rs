@@ -635,7 +635,7 @@ impl Key {
     /// - `YDB_ERR_INVVARNAME` if `self.variable` is not a valid variable name.
     /// - `YDB_LOCK_TIMEOUT` if the lock could not be acquired within the specific time.
     /// - `YDB_ERR_TIME2LONG` if `timeout.as_nanos()` exceeds `YDB_MAX_TIME_NSEC`
-    //                     or if `timeout.as_nanos()` does not fit into a `c_ulonglong`.
+    ///                    or if `timeout.as_nanos()` does not fit into a `c_ulonglong`.
     /// - Another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
     ///
     /// # See also
