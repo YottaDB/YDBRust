@@ -1735,23 +1735,23 @@ mod tests {
     #[test]
     fn ydb_delete_excl_st() {
         let ctx = Context::new();
-        let mut key = KeyContext::variable(&ctx, "deleteExcl");
+        let mut key = KeyContext::variable(&ctx, "contextDeleteExcl");
 
         // Set a few values
         key.set(b"some value").unwrap();
-        key.variable = "deleteExcl2".into();
+        key.variable = "contextDeleteExcl2".into();
         key.set(b"some value").unwrap();
 
-        // Delete `deleteExcl2`, saving `deleteExcl`
-        key.context.delete_excl(&["deleteExcl"]).unwrap();
+        // Delete `contextDeleteExcl2`, saving `contextDeleteExcl`
+        key.context.delete_excl(&["contextDeleteExcl"]).unwrap();
         // Check data
         let data_type = key.data().unwrap();
         assert_eq!(data_type, DataReturn::NoData);
-        key.variable = "deleteExcl".into();
+        key.variable = "contextDeleteExcl".into();
         let data_type = key.data().unwrap();
         assert_eq!(data_type, DataReturn::ValueData);
 
-        // Delete `deleteExcl`
+        // Delete `contextDeleteExcl`
         key.context.delete_excl(&[]).unwrap();
         // Make sure it was actually deleted
         let data_type = key.data().unwrap();
