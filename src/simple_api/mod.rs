@@ -1470,39 +1470,39 @@ pub fn str2zwr_st(tptoken: u64, out_buf: Vec<u8>, original: &[u8]) -> YDBResult<
 /// Given a buffer in 'Zwrite format', deserialize it to the original binary buffer.
 ///
 /// # Errors
-/// This function returns an error if `serialized` is not in Zwrite format.
+/// This function returns an empty array if `serialized` is not in Zwrite format.
 ///
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
 /// - [str2zwr_st](fn.str2zwr_st.html)
-/*
-pub fn zwr2str_st(tptoken: u64, out_buffer: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, ()> {
+pub fn zwr2str_st(tptoken: u64, out_buf: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
     use crate::craw::ydb_zwr2str_st;
 
-    let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-    let original_t = ConstYDBBuffer::from(original);
+    let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buf);
+    let serialized_t = ConstYDBBuffer::from(serialized);
 
     let status = unsafe {
-        ydb_str2zwr_st(tptoken, &mut out_buffer_t, original_t.as_ptr(), &mut out_buffer_t)
+        ydb_zwr2str_st(tptoken, &mut out_buffer_t, serialized_t.as_ptr(), &mut out_buffer_t)
     };
 
     if status == YDB_ERR_INVSTRLEN {
-        out_buf.reserve(out_buffer_t.len_used - out_buf.capacity());
-        return str2zwr_st(tptoken, out_buf, original);
+        out_buf.reserve(out_buffer_t.len_used as usize - out_buf.capacity());
+        return zwr2str_st(tptoken, out_buf, serialized);
+    } else if status == YDB_OK as c_int && out_buffer_t.len_used == 0 {
+        out_buf.clear();
     }
     // Resize the vec with the buffer to we can see the value
     // We could end up with a buffer of a larger size if we couldn't fit the error string
     // into the out_buffer, so make sure to pick the smaller size
     unsafe {
-        out_buffer.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
+        out_buf.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
     }
     if status != YDB_OK as i32 {
-        Err(YDBError { message: out_buffer, status, tptoken });
+        Err(YDBError { message: out_buf, status, tptoken })
     } else {
-        Ok(out_buffer)
+        Ok(out_buf)
     }
 }
-*/
 
 #[cfg(test)]
 mod tests {
