@@ -1182,6 +1182,16 @@ impl From<ydb_buffer_t> for ConstYDBBuffer {
     }
 }
 
+impl From<&[u8]> for ConstYDBBuffer {
+    fn from(slice: &[u8]) -> Self {
+        Self(ydb_buffer_t {
+            buf_addr: slice.as_ptr() as *mut _,
+            len_used: slice.len() as u32,
+            len_alloc: slice.len() as u32,
+        })
+    }
+}
+
 /// Allow Key to mostly be treated as a `Vec<Vec<u8>>`,
 /// but without `shrink_to_fit`, `drain`, or other methods that aren't relevant
 impl Key {
@@ -1430,8 +1440,31 @@ pub fn delete_excl_st(tptoken: u64, mut out_buffer: Vec<u8>, saved_variables: &[
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
 /// - [zwr2str_st](fn.zwr2str_st.html)
-pub fn str2zwr_st(tptoken: u64, out_buf: Vec<u8>, original: Vec<u8>) -> YDBResult<Vec<u8>> {
+pub fn str2zwr_st(tptoken: u64, out_buf: Vec<u8>, original: &[u8]) -> YDBResult<Vec<u8>> {
+    use crate::craw::ydb_str2zwr_st;
 
+    let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buf);
+    let original_t = ConstYDBBuffer::from(original);
+
+    let status = unsafe {
+        ydb_str2zwr_st(tptoken, &mut out_buffer_t, original_t.as_ptr(), &mut out_buffer_t)
+    };
+
+    if status == YDB_ERR_INVSTRLEN {
+        out_buf.reserve(out_buffer_t.len_used as usize - out_buf.capacity());
+        return str2zwr_st(tptoken, out_buf, original);
+    }
+    // Resize the vec with the buffer to we can see the value
+    // We could end up with a buffer of a larger size if we couldn't fit the error string
+    // into the out_buffer, so make sure to pick the smaller size
+    unsafe {
+        out_buf.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
+    }
+    if status != YDB_OK as i32 {
+        Err(YDBError { message: out_buf, status, tptoken })
+    } else {
+        Ok(out_buf)
+    }
 }
 
 /// Given a buffer in 'Zwrite format', deserialize it to the original binary buffer.
@@ -1442,9 +1475,34 @@ pub fn str2zwr_st(tptoken: u64, out_buf: Vec<u8>, original: Vec<u8>) -> YDBResul
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
 /// - [str2zwr_st](fn.str2zwr_st.html)
-pub fn zwr2str_st(tptoken: u64, serialized: Vec<u8>) -> Result<Vec<u8>, ()> {
-    // although the C function is typed as returning an error, 
+/*
+pub fn zwr2str_st(tptoken: u64, out_buffer: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, ()> {
+    use crate::craw::ydb_zwr2str_st;
+
+    let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
+    let original_t = ConstYDBBuffer::from(original);
+
+    let status = unsafe {
+        ydb_str2zwr_st(tptoken, &mut out_buffer_t, original_t.as_ptr(), &mut out_buffer_t)
+    };
+
+    if status == YDB_ERR_INVSTRLEN {
+        out_buf.reserve(out_buffer_t.len_used - out_buf.capacity());
+        return str2zwr_st(tptoken, out_buf, original);
+    }
+    // Resize the vec with the buffer to we can see the value
+    // We could end up with a buffer of a larger size if we couldn't fit the error string
+    // into the out_buffer, so make sure to pick the smaller size
+    unsafe {
+        out_buffer.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
+    }
+    if status != YDB_OK as i32 {
+        Err(YDBError { message: out_buffer, status, tptoken });
+    } else {
+        Ok(out_buffer)
+    }
 }
+*/
 
 #[cfg(test)]
 mod tests {
