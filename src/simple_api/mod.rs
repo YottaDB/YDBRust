@@ -1395,7 +1395,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn ydb_get_st_error() {
         let result = Vec::with_capacity(1);
         let key = Key::variable("^helloDoesntExists");
@@ -1476,13 +1475,63 @@ mod tests {
 
     #[test]
     fn ydb_lock_incr_st() {
+        use std::os::raw::c_char;
+        use crate::craw::{ydb_ci_t, ydb_string_t};
+
+        fn make_out_str_t(slice: &mut [u8]) -> ydb_string_t {
+            ydb_string_t {
+                address: slice.as_mut_ptr() as *mut c_char,
+                length: slice.len() as u64,
+            }
+        }
+
+        // TODO: allow getting lock count for a specific variable instead of all variables
+        fn lock_count() -> usize {
+            std::env::set_var("ydb_routines", "examples/m-ffi");
+            std::env::set_var("ydb_ci", "examples/m-ffi/zshvar.ci");
+
+            let mut err_buf = Vec::new();
+
+            let m_code = CString::new("zshvar").unwrap();
+            let mut stored_var = Vec::from("outputvar");
+            let mut var = Vec::from("l");
+            let mut var_t = make_out_str_t(&mut var);
+            let mut stored_var_t = make_out_str_t(&mut stored_var);
+            let status = loop {
+                let mut err_buf_t = Key::make_out_buffer_t(&mut err_buf);
+                let status = unsafe {
+                    let func_ptr = m_code.as_ptr() as *const c_char;
+                    ydb_ci_t(YDB_NOTTP, &mut err_buf_t, func_ptr, &mut var_t as *mut _, &mut stored_var_t as *mut _)
+                };
+                if status == YDB_ERR_INVSTRLEN {
+                    err_buf.reserve(err_buf_t.len_used as usize - err_buf.len());
+                    continue;
+                }
+                break status;
+            };
+            assert_eq!(status, 0, "ydb_ci_t not successful: {}", YDBError { status, tptoken: YDB_NOTTP, message: err_buf });
+
+            let key = Key::new(String::from_utf8(stored_var).unwrap(), &["L", "1"]);
+            let (data, err_buf) = key.data_st(YDB_NOTTP, err_buf).unwrap();
+            if data == DataReturn::NoData {
+                return 0;
+            }
+            let val = key.get_st(YDB_NOTTP, err_buf).unwrap();
+            // looks like `LOCK x LEVEL=1`
+            let locks = String::from_utf8(val).unwrap();
+            let count = &locks.split_whitespace().last().unwrap()["LEVEL=".len()..];
+            return count.parse::<usize>().unwrap();
+        }
+
         let err_buf = Vec::new();
         let key = Key::variable("simpleIncrLock");
         let err_buf = key.lock_incr_st(YDB_NOTTP, err_buf, Duration::from_millis(500)).unwrap();
         let err_buf = key.lock_incr_st(YDB_NOTTP, err_buf, Duration::from_secs(0)).unwrap();
-        // should be at 2
+        assert_eq!(lock_count(), 2);
+
         let err_buf = key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
         key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
+        assert_eq!(lock_count(), 0);
     }
 
     #[test]

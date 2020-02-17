@@ -1,0 +1,1 @@
+zshvar:	void	^zshvar(I:ydb_string_t*,I:ydb_string_t*)
