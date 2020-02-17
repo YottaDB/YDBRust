@@ -83,27 +83,32 @@ impl fmt::Debug for YDBError {
 impl fmt::Display for YDBError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut out_buffer = Vec::with_capacity(DEFAULT_CAPACITY);
-        let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
-        let mut err_str = out_buffer_t;
-        let ret_code = unsafe {
-            ydb_message_t(self.tptoken, &mut err_str, self.status, &mut out_buffer_t)
-        };
-        // Resize the vec with the buffer to we can see the value
-        // We could end up with a buffer of a larger size if we couldn't fit the error string
-        // into the out_buffer, so make sure to pick the smaller size
-        if ret_code != YDB_OK as i32 {
-            unsafe {
-                out_buffer.set_len(min(err_str.len_used, out_buffer_t.len_alloc) as usize);
+        let message = loop {
+            let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
+            let mut err_str = out_buffer_t;
+            let ret_code = unsafe {
+                ydb_message_t(self.tptoken, &mut err_str, self.status, &mut out_buffer_t)
+            };
+            // Resize the vec with the buffer to we can see the value
+            // We could end up with a buffer of a larger size if we couldn't fit the error string
+            // into the out_buffer, so make sure to pick the smaller size
+            if ret_code == YDB_ERR_INVSTRLEN {
+                out_buffer.resize(out_buffer_t.len_used as usize, Default::default());
+                continue;
+            } else if ret_code != YDB_OK as i32 {
+                unsafe {
+                    out_buffer.set_len(min(err_str.len_used, out_buffer_t.len_alloc) as usize);
+                }
+            } else {
+                unsafe {
+                    out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+                }
             }
-        } else {
-            unsafe {
-                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            break if ret_code != YDB_OK as i32 {
+                std::borrow::Cow::from(format!("<error retrieving error message: {}>", ret_code))
+            } else {
+                String::from_utf8_lossy(&out_buffer)
             }
-        }
-        let message = if ret_code != YDB_OK as i32 {
-            std::borrow::Cow::from(format!("<error retrieving error message: {}>", ret_code))
-        } else {
-            String::from_utf8_lossy(&out_buffer)
         };
         write!(f, "YDB Error ({}): {}", message, String::from_utf8_lossy(&self.message))
     }
@@ -1464,6 +1469,12 @@ mod tests {
         use crate::craw;
         let mut err = YDBError { message: Vec::new(), status: craw::YDB_ERR_GVUNDEF, tptoken: craw::YDB_NOTTP };
         assert!(err.to_string().contains("%YDB-E-GVUNDEF, Global variable undefined"));
+
+        // make sure it works even if it has to resize the out_buffer
+        err.status = 150380370;
+        let expected = "%YDB-E-INVTRNSQUAL, Invalid TRANSACTION qualifier.  Specify only one of TRANSACTION=[NO]SET or TRANSACTION=[NO]KILL.";
+        assert!(err.to_string().contains(expected), "expected INVTRNSQUAL, got {}", err.to_string());
+
         err.status = 10001;
         assert!(err.to_string().contains("%SYSTEM-E-ENO10001, Unknown error 10001"));
     }
