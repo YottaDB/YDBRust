@@ -1440,7 +1440,7 @@ pub fn delete_excl_st(tptoken: u64, mut out_buffer: Vec<u8>, saved_variables: &[
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
 /// - [zwr2str_st](fn.zwr2str_st.html)
-pub fn str2zwr_st(tptoken: u64, out_buf: Vec<u8>, original: &[u8]) -> YDBResult<Vec<u8>> {
+pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_str2zwr_st;
 
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buf);
@@ -1451,7 +1451,9 @@ pub fn str2zwr_st(tptoken: u64, out_buf: Vec<u8>, original: &[u8]) -> YDBResult<
     };
 
     if status == YDB_ERR_INVSTRLEN {
-        out_buf.reserve(out_buffer_t.len_used as usize - out_buf.capacity());
+        let needed = out_buffer_t.len_used as usize;
+        let current = out_buf.len();
+        out_buf.reserve(needed - current);
         return str2zwr_st(tptoken, out_buf, original);
     }
     // Resize the vec with the buffer to we can see the value
@@ -1475,7 +1477,7 @@ pub fn str2zwr_st(tptoken: u64, out_buf: Vec<u8>, original: &[u8]) -> YDBResult<
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
 /// - [str2zwr_st](fn.str2zwr_st.html)
-pub fn zwr2str_st(tptoken: u64, out_buf: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
+pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
     use crate::craw::ydb_zwr2str_st;
 
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buf);
@@ -1486,7 +1488,7 @@ pub fn zwr2str_st(tptoken: u64, out_buf: Vec<u8>, serialized: &[u8]) -> Result<V
     };
 
     if status == YDB_ERR_INVSTRLEN {
-        out_buf.reserve(out_buffer_t.len_used as usize - out_buf.capacity());
+        out_buf.reserve(out_buffer_t.len_used as usize - out_buf.len());
         return zwr2str_st(tptoken, out_buf, serialized);
     } else if status == YDB_OK as c_int && out_buffer_t.len_used == 0 {
         out_buf.clear();
@@ -1817,6 +1819,14 @@ mod tests {
 
         err.status = 10001;
         assert!(err.to_string().contains("%SYSTEM-E-ENO10001, Unknown error 10001"));
+    }
+
+    #[test]
+    fn ydb_zwr2str_st() {
+        let s = "hello good morning this is a very very long string that you'll have to resize";
+        let serialized = str2zwr_st(YDB_NOTTP, Vec::new(), s.as_bytes()).unwrap();
+        let deserialized = zwr2str_st(YDB_NOTTP, Vec::new(), &serialized).unwrap();
+        assert_eq!(s.as_bytes(), deserialized.as_slice());
     }
 
     #[test]
