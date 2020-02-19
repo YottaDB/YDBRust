@@ -1454,6 +1454,8 @@ pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBRes
         let needed = out_buffer_t.len_used as usize;
         let current = out_buf.len();
         out_buf.reserve(needed - current);
+        assert!(out_buf.len() <= out_buf.capacity());
+        //dbg!(needed, out_buf.len(), out_buf.capacity(), original.len());
         return str2zwr_st(tptoken, out_buf, original);
     }
     // Resize the vec with the buffer to we can see the value
@@ -1819,6 +1821,15 @@ mod tests {
 
         err.status = 10001;
         assert!(err.to_string().contains("%SYSTEM-E-ENO10001, Unknown error 10001"));
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn ydb_zwr2str_st_proptest(s in ".*") {
+            let serialized = str2zwr_st(YDB_NOTTP, Vec::new(), s.as_bytes()).unwrap();
+            let deserialized = zwr2str_st(YDB_NOTTP, Vec::new(), &serialized).unwrap();
+            assert_eq!(s.as_bytes(), deserialized.as_slice());
+        }
     }
 
     #[test]
