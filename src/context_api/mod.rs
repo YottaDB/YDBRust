@@ -103,7 +103,6 @@ macro_rules! make_ckey {
 struct ContextInternal {
     buffer: Option<Vec<u8>>,
     tptoken: u64,
-    multithreaded: bool,
 }
 
 /// `Context` is _not_ thread-safe, async-safe, or re-entrant.
@@ -146,7 +145,6 @@ impl Context {
             context: Rc::new(RefCell::new(ContextInternal {
                 buffer: Some(Vec::with_capacity(1024)),
                 tptoken: YDB_NOTTP,
-                multithreaded: true,
             }))
         }
     }
@@ -188,11 +186,7 @@ impl Context {
         use crate::simple_api::delete_excl_st;
 
         let tptoken = self.context.borrow().tptoken;
-        let result = if self.context.borrow().multithreaded {
-            delete_excl_st(tptoken, self.context.borrow_mut().buffer.take().unwrap(), saved_variables)
-        } else {
-            panic!("Not supported!");
-        };
+        let result = delete_excl_st(tptoken, self.context.borrow_mut().buffer.take().unwrap(), saved_variables);
         self.recover_buffer(result)
     }
     fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
@@ -302,11 +296,7 @@ impl KeyContext {
     pub fn get(&self) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = Vec::with_capacity(1024);
-        if self.context.borrow().multithreaded {
-            self.key.get_st(tptoken, out_buffer)
-        } else {
-            panic!("Not supported!")
-        }
+        self.key.get_st(tptoken, out_buffer)
     }
 
     /// Retrieve a value from the database and parse it into a Rust data structure.
@@ -380,11 +370,7 @@ impl KeyContext {
     pub fn set<U: AsRef<[u8]>>(&self, new_val: U) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = if self.context.borrow().multithreaded {
-            self.key.set_st(tptoken, out_buffer, new_val)
-        } else {
-            panic!("Not supported!");
-        };
+        let result = self.key.set_st(tptoken, out_buffer, new_val);
         self.recover_buffer(result)
     }
 
@@ -420,12 +406,7 @@ impl KeyContext {
     pub fn data(&self) -> YDBResult<DataReturn> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = if self.context.borrow().multithreaded {
-            self.key.data_st(tptoken, out_buffer)
-        } else {
-            panic!("Not supported!");
-        };
-        match result {
+        match self.key.data_st(tptoken, out_buffer) {
             Ok((y, x)) => {
                 self.context.borrow_mut().buffer = Some(x);
                 Ok(y)
@@ -468,11 +449,7 @@ impl KeyContext {
     pub fn delete(&self, delete_type: DeleteType) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = if self.context.borrow().multithreaded {
-            self.key.delete_st(tptoken, out_buffer, delete_type)
-        } else {
-            panic!("Not supported!");
-        };
+        let result = self.key.delete_st(tptoken, out_buffer, delete_type);
         self.recover_buffer(result)
     }
 
@@ -510,11 +487,7 @@ impl KeyContext {
     pub fn increment(&self, increment: Option<&[u8]>) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = Vec::with_capacity(1024);
-        if self.context.borrow().multithreaded {
-            self.key.incr_st(tptoken, out_buffer, increment)
-        } else {
-            panic!("Not supported!");
-        }
+        self.key.incr_st(tptoken, out_buffer, increment)
     }
 
     /// Implements breadth-first traversal of a tree by searching for the next subscript, and passes itself in as the output parameter.
@@ -550,11 +523,7 @@ impl KeyContext {
     pub fn next_sub_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = if self.context.borrow().multithreaded {
-            self.key.sub_next_self_st(tptoken, out_buffer)
-        } else {
-            panic!("Not supported!");
-        };
+        let result = self.key.sub_next_self_st(tptoken, out_buffer);
         self.recover_buffer(result)
     }
     /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript, and passes itself in as the output parameter.
@@ -590,11 +559,7 @@ impl KeyContext {
     pub fn prev_sub_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = if self.context.borrow().multithreaded {
-            self.key.sub_prev_self_st(tptoken, out_buffer)
-        } else {
-            panic!("Not supported!");
-        };
+        let result = self.key.sub_prev_self_st(tptoken, out_buffer);
         self.recover_buffer(result)
     }
 
@@ -702,11 +667,7 @@ impl KeyContext {
     pub fn next_node_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = if self.context.borrow().multithreaded {
-            self.key.node_next_self_st(tptoken, out_buffer)
-        } else {
-            panic!("Not supported!");
-        };
+        let result = self.key.node_next_self_st(tptoken, out_buffer);
         self.recover_buffer(result)
     }
 
@@ -744,11 +705,7 @@ impl KeyContext {
     pub fn prev_node_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
         let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let result = if self.context.borrow().multithreaded {
-            self.key.node_prev_self_st(tptoken, out_buffer)
-        } else {
-            panic!("Not supported!");
-        };
+        let result = self.key.node_prev_self_st(tptoken, out_buffer);
         self.recover_buffer(result)
     }
 
