@@ -1443,19 +1443,21 @@ pub fn delete_excl_st(tptoken: u64, mut out_buffer: Vec<u8>, saved_variables: &[
 pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_str2zwr_st;
 
+    let mut err_buf = Vec::new();
+    let mut err_buf_t = Key::make_out_buffer_t(&mut err_buf);
+
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buf);
     let original_t = ConstYDBBuffer::from(original);
 
     let status = unsafe {
-        ydb_str2zwr_st(tptoken, &mut out_buffer_t, original_t.as_ptr(), &mut out_buffer_t)
+        ydb_str2zwr_st(tptoken, &mut err_buf_t, original_t.as_ptr(), &mut out_buffer_t)
     };
 
     if status == YDB_ERR_INVSTRLEN {
         let needed = out_buffer_t.len_used as usize;
         let current = out_buf.len();
         out_buf.reserve(needed - current);
-        assert!(out_buf.len() <= out_buf.capacity());
-        //dbg!(needed, out_buf.len(), out_buf.capacity(), original.len());
+        debug_assert!(needed <= out_buf.capacity());
         return str2zwr_st(tptoken, out_buf, original);
     }
     // Resize the vec with the buffer to we can see the value
@@ -1464,6 +1466,7 @@ pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBRes
     unsafe {
         out_buf.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
     }
+    assert!(out_buf.len() <= out_buf.capacity());
     if status != YDB_OK as i32 {
         Err(YDBError { message: out_buf, status, tptoken })
     } else {
@@ -1835,6 +1838,13 @@ mod tests {
     #[test]
     fn ydb_zwr2str_st() {
         let s = "hello good morning this is a very very long string that you'll have to resize";
+        let serialized = str2zwr_st(YDB_NOTTP, Vec::new(), s.as_bytes()).unwrap();
+        let deserialized = zwr2str_st(YDB_NOTTP, Vec::new(), &serialized).unwrap();
+        assert_eq!(s.as_bytes(), deserialized.as_slice());
+
+        // found by proptest
+        let s = "🕴\'\u{c3d07}\u{106179}\u{1b}\u{a8c00}\u{c41b6}";
+        println!("{}", s.len());
         let serialized = str2zwr_st(YDB_NOTTP, Vec::new(), s.as_bytes()).unwrap();
         let deserialized = zwr2str_st(YDB_NOTTP, Vec::new(), &serialized).unwrap();
         assert_eq!(s.as_bytes(), deserialized.as_slice());
