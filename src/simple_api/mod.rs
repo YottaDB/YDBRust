@@ -1437,9 +1437,27 @@ pub fn delete_excl_st(tptoken: u64, mut out_buffer: Vec<u8>, saved_variables: &[
 
 /// Given a binary sequence, serialize it to 'Zwrite format', which is ASCII printable.
 ///
+/// # Errors
+/// - If YDB is in UTF8 mode, will return [`BADCHAR`] on invalid UTF8.
+/// - Another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+///
+/// # Examples
+///
+/// ```
+/// # use yottadb::YDBError;
+/// # fn main() -> Result<(), YDBError> {
+/// use yottadb::simple_api::str2zwr_st;
+/// use yottadb::YDB_NOTTP;
+/// assert_eq!(str2zwr_st(YDB_NOTTP, Vec::new(), "💖".as_bytes())?, b"\"\xf0\"_$C(159,146,150)");
+/// # Ok(())
+/// # }
+/// ```
+///
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
-/// - [zwr2str_st](fn.zwr2str_st.html)
+/// - [`zwr2str_st`](fn.zwr2str_st.html), which deserializes a buffer in Zwrite format back to the original binary.
+///
+/// [`BADCHAR`]: https://docs.yottadb.com/MessageRecovery/errors.html#badchar
 pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_str2zwr_st;
 
@@ -1478,10 +1496,23 @@ pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBRes
 ///
 /// # Errors
 /// This function returns an empty array if `serialized` is not in Zwrite format.
+/// It can also return another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code).
+///
+/// # Examples
+///
+/// ```
+/// # use yottadb::YDBError;
+/// # fn main() -> Result<(), YDBError> {
+/// use yottadb::simple_api::zwr2str_st;
+/// use yottadb::YDB_NOTTP;
+/// assert_eq!(zwr2str_st(YDB_NOTTP, Vec::new(), b"\"\xf0\"_$C(159,146,150)")?, "💖".as_bytes());
+/// # Ok(())
+/// # }
+/// ```
 ///
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
-/// - [str2zwr_st](fn.str2zwr_st.html)
+/// - [str2zwr_st](fn.str2zwr_st.html), the inverse of `zwr2str_st`.
 pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
     use crate::craw::ydb_zwr2str_st;
 
