@@ -1513,7 +1513,7 @@ pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBRes
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
 /// - [str2zwr_st](fn.str2zwr_st.html), the inverse of `zwr2str_st`.
-pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
+pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, mut err_buf: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
     use crate::craw::ydb_zwr2str_st;
 
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buf);

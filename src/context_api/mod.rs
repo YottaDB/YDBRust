@@ -272,6 +272,35 @@ impl Context {
         let buffer = self.context.borrow_mut().buffer.take().unwrap();
         self.recover_buffer(delete_excl_st(tptoken, buffer, saved_variables))
     }
+    /// Given a buffer in 'Zwrite format', deserialize it to the original binary buffer.
+    ///
+    /// # Errors
+    /// This function returns an empty array if `serialized` is not in Zwrite format.
+    /// It can also return another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use yottadb::YDBError;
+    /// # fn main() -> Result<(), YDBError> {
+    /// use yottadb::simple_api::zwr2str_st;
+    /// use yottadb::YDB_NOTTP;
+    /// assert_eq!(zwr2str_st(YDB_NOTTP, Vec::new(), b"\"\xf0\"_$C(159,146,150)")?, "💖".as_bytes());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # See also
+    /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
+    /// - [str2zwr_st](fn.str2zwr_st.html), the inverse of `zwr2str_st`.
+    pub fn zwr2str(&self, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
+        use crate::simple_api::zwr2str_st;
+
+        let tptoken = self.context.borrow().tptoken;
+        // need to allocate a new buffer since the output buffer is used to store the deserialized string
+        let result = zwr2str_st(tptoken, serialized);
+        self.recover_buffer(result)
+    }
     fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
         match result {
             Ok(x) => {
