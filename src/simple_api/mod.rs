@@ -1715,7 +1715,7 @@ pub(crate) mod tests {
         let err_buf = key.set_st(YDB_NOTTP, err_buf, "0").unwrap();
 
         let err_buf = key.incr_st(0, err_buf, None).unwrap();
-        let mut out_buf = key.get_st(YDB_NOTTP, err_buf).unwrap();
+        let out_buf = key.get_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(&out_buf, b"1");
 
         let num = 1500.to_string().into_bytes();
@@ -2124,8 +2124,7 @@ pub(crate) mod tests {
         let key = Key::variable("incrementError");
         let err_buf = Vec::with_capacity(50);
         let err_buf = key.set_st(0, err_buf, "9E46").unwrap();
-        let incr = "1E46".into();
-        let err = key.incr_st(0, err_buf, Some(&incr)).unwrap_err();
+        let err = key.incr_st(0, err_buf, Some(b"1E46")).unwrap_err();
         assert_eq!(err.status, crate::craw::YDB_ERR_NUMOFLOW);
     }
     #[test]
