@@ -272,7 +272,41 @@ impl Context {
         let buffer = self.context.borrow_mut().buffer.take().unwrap();
         self.recover_buffer(delete_excl_st(tptoken, buffer, saved_variables))
     }
+    /// Given a binary sequence, serialize it to 'Zwrite format', which is ASCII printable.
+    ///
+    /// # Errors
+    /// - If YDB is in UTF8 mode, will return [`BADCHAR`] on invalid UTF8.
+    /// - Another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use yottadb::YDBError;
+    /// # fn main() -> Result<(), YDBError> {
+    /// use yottadb::context_api::Context;
+    /// use yottadb::YDB_NOTTP;
+    ///
+    /// let ctx = Context::new();
+    /// assert_eq!(ctx.str2zwr("💖".as_bytes())?, b"\"\xf0\"_$C(159,146,150)");
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # See also
+    /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
+    /// - [`zwr2str_st`](fn.zwr2str_st.html), which deserializes a buffer in Zwrite format back to the original binary.
+    ///
+    /// [`BADCHAR`]: https://docs.yottadb.com/MessageRecovery/errors.html#badchar
+    pub fn str2zwr(&self, original: &[u8]) -> YDBResult<Vec<u8>> {
+        use crate::simple_api::str2zwr_st;
+
+        let tptoken = self.context.borrow().tptoken;
+        // str2zwr creates its own err_buf, so we don't need to pass ours
+        str2zwr_st(tptoken, Vec::new(), original)
+    }
     /// Given a buffer in 'Zwrite format', deserialize it to the original binary buffer.
+    ///
+    /// `zwr2str_st` writes directly to `out_buf` to avoid returning multiple output buffers.
     ///
     /// # Errors
     /// This function returns an empty array if `serialized` is not in Zwrite format.
@@ -283,11 +317,13 @@ impl Context {
     /// ```
     /// # use yottadb::YDBError;
     /// # fn main() -> Result<(), YDBError> {
-    /// use yottadb::simple_api::zwr2str_st;
     /// use yottadb::YDB_NOTTP;
+    /// use yottadb::context_api::Context;
+    ///
+    /// let ctx = Context::new();
     /// let mut out_buf = Vec::new();
-    /// zwr2str_st(YDB_NOTTP, Vec::new(), b"\"\xf0\"_$C(159,146,150)", &mut out_buf)?;
-    /// assert_eq!(out_buf, "💖".as_bytes());
+    /// ctx.zwr2str(b"\"\xf0\"_$C(159,146,150)", &mut out_buf)?;
+    /// assert_eq!(out_buf.as_slice(), "💖".as_bytes());
     /// # Ok(())
     /// # }
     /// ```
