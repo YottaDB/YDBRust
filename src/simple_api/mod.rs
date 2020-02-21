@@ -1485,7 +1485,7 @@ mod tests {
             }
         }
 
-        // TODO: allow getting lock count for a specific variable instead of all variables
+        // TODO: allow getting lock count for a specific lock instead of all locks
         fn lock_count() -> usize {
             std::env::set_var("ydb_routines", "examples/m-ffi");
             std::env::set_var("ydb_ci", "examples/m-ffi/zshvar.ci");
