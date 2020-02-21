@@ -1494,6 +1494,9 @@ pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBRes
 
 /// Given a buffer in 'Zwrite format', deserialize it to the original binary buffer.
 ///
+/// `zwr2str_st` writes directly to `out_buf` to avoid returning multiple output buffers.
+/// This means the value returned on success is the `err_buf`, **NOT** the deserialized buffer.
+///
 /// # Errors
 /// This function returns an empty array if `serialized` is not in Zwrite format.
 /// It can also return another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code).
@@ -1505,7 +1508,9 @@ pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBRes
 /// # fn main() -> Result<(), YDBError> {
 /// use yottadb::simple_api::zwr2str_st;
 /// use yottadb::YDB_NOTTP;
-/// assert_eq!(zwr2str_st(YDB_NOTTP, Vec::new(), b"\"\xf0\"_$C(159,146,150)")?, "💖".as_bytes());
+/// let mut out_buf = Vec::new();
+/// let err_buf = zwr2str_st(YDB_NOTTP, Vec::new(), b"\"\xf0\"_$C(159,146,150)", &mut out_buf)?;
+/// assert_eq!(out_buf.as_slice(), "💖".as_bytes());
 /// # Ok(())
 /// # }
 /// ```
@@ -1513,19 +1518,22 @@ pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBRes
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
 /// - [str2zwr_st](fn.str2zwr_st.html), the inverse of `zwr2str_st`.
-pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, mut err_buf: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
+pub fn zwr2str_st(tptoken: u64, mut err_buf: Vec<u8>, serialized: &[u8], out_buf: &mut Vec<u8>) -> Result<Vec<u8>, YDBError> {
     use crate::craw::ydb_zwr2str_st;
 
-    let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buf);
+    let mut out_buffer_t = Key::make_out_buffer_t(out_buf);
+    let mut err_buffer_t = Key::make_out_buffer_t(&mut err_buf);
     let serialized_t = ConstYDBBuffer::from(serialized);
 
     let status = unsafe {
-        ydb_zwr2str_st(tptoken, &mut out_buffer_t, serialized_t.as_ptr(), &mut out_buffer_t)
+        // TODO: until the *_st functions allow using the same buffer for both output and errors,
+        // they have to be different
+        ydb_zwr2str_st(tptoken, &mut err_buffer_t, serialized_t.as_ptr(), &mut out_buffer_t)
     };
 
     if status == YDB_ERR_INVSTRLEN {
         out_buf.reserve(out_buffer_t.len_used as usize - out_buf.len());
-        return zwr2str_st(tptoken, out_buf, serialized);
+        return zwr2str_st(tptoken, err_buf, serialized, out_buf);
     } else if status == YDB_OK as c_int && out_buffer_t.len_used == 0 {
         out_buf.clear();
     }
@@ -1533,12 +1541,13 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, mut err_buf: Vec<u8>, seri
     // We could end up with a buffer of a larger size if we couldn't fit the error string
     // into the out_buffer, so make sure to pick the smaller size
     unsafe {
+        err_buf.set_len(min(err_buffer_t.len_alloc, err_buffer_t.len_used) as usize);
         out_buf.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
     }
     if status != YDB_OK as i32 {
-        Err(YDBError { message: out_buf, status, tptoken })
+        Err(YDBError { message: err_buf, status, tptoken })
     } else {
-        Ok(out_buf)
+        Ok(err_buf)
     }
 }
 
@@ -1861,7 +1870,8 @@ mod tests {
         #[test]
         fn ydb_zwr2str_st_proptest(s in ".*") {
             let serialized = str2zwr_st(YDB_NOTTP, Vec::new(), s.as_bytes()).unwrap();
-            let deserialized = zwr2str_st(YDB_NOTTP, Vec::new(), &serialized).unwrap();
+            let mut deserialized = Vec::new();
+            zwr2str_st(YDB_NOTTP, Vec::new(), &serialized, &mut deserialized).unwrap();
             assert_eq!(s.as_bytes(), deserialized.as_slice());
         }
     }
@@ -1870,14 +1880,16 @@ mod tests {
     fn ydb_zwr2str_st() {
         let s = "hello good morning this is a very very long string that you'll have to resize";
         let serialized = str2zwr_st(YDB_NOTTP, Vec::new(), s.as_bytes()).unwrap();
-        let deserialized = zwr2str_st(YDB_NOTTP, Vec::new(), &serialized).unwrap();
+        let mut deserialized = Vec::new();
+        zwr2str_st(YDB_NOTTP, Vec::new(), &serialized, &mut deserialized).unwrap();
         assert_eq!(s.as_bytes(), deserialized.as_slice());
 
         // found by proptest
         let s = "🕴\'\u{c3d07}\u{106179}\u{1b}\u{a8c00}\u{c41b6}";
         println!("{}", s.len());
         let serialized = str2zwr_st(YDB_NOTTP, Vec::new(), s.as_bytes()).unwrap();
-        let deserialized = zwr2str_st(YDB_NOTTP, Vec::new(), &serialized).unwrap();
+        let mut deserialized = Vec::new();
+        zwr2str_st(YDB_NOTTP, Vec::new(), &serialized, &mut deserialized).unwrap();
         assert_eq!(s.as_bytes(), deserialized.as_slice());
     }
 
