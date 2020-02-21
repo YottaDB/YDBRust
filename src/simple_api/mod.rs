@@ -456,6 +456,10 @@ impl Key {
     /// - YDB_ERR_NUMOFLOW
     /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
     ///
+    /// # See also
+    ///
+    /// - [How YDB stores numbers internally](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#numeric-considerations)
+    ///
     /// # Examples
     ///
     /// ```
@@ -464,7 +468,7 @@ impl Key {
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let mut key = make_key!("^helloIncrementDocTest");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
@@ -1728,6 +1732,15 @@ pub(crate) mod tests {
         let err_buf = key.incr_st(0, err_buf, None).unwrap();
         let out_buf = key.get_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(&out_buf, b"1");
+
+        // Make sure the value is converted when it isn't a number
+        let err_buf = key.set_st(YDB_NOTTP, out_buf, "not a number").unwrap();
+        let err_buf = key.incr_st(0, err_buf, None).unwrap();
+        let out_buf = key.get_st(YDB_NOTTP, err_buf).unwrap();
+        assert_eq!(&out_buf, b"1");
+
+        // Clean up
+        key.delete_st(0, out_buf, DeleteType::DelNode).unwrap();
     }
 
     // Return the number of locks held for `var`
