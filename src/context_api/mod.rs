@@ -321,8 +321,7 @@ impl Context {
     /// use yottadb::context_api::Context;
     ///
     /// let ctx = Context::new();
-    /// let mut out_buf = Vec::new();
-    /// ctx.zwr2str(b"\"\xf0\"_$C(159,146,150)", &mut out_buf)?;
+    /// let out_buf = ctx.zwr2str(Vec::new(), b"\"\xf0\"_$C(159,146,150)")?;
     /// assert_eq!(out_buf.as_slice(), "💖".as_bytes());
     /// # Ok(())
     /// # }
@@ -331,12 +330,12 @@ impl Context {
     /// # See also
     /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
     /// - [str2zwr_st](fn.str2zwr_st.html), the inverse of `zwr2str_st`.
-    pub fn zwr2str(&self, serialized: &[u8], out_buffer: &mut Vec<u8>) -> Result<(), YDBError> {
+    pub fn zwr2str(&self, out_buffer: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
         use crate::simple_api::zwr2str_st;
 
         let tptoken = self.context.borrow().tptoken;
-        let buffer = self.context.borrow_mut().buffer.take().unwrap();
-        self.recover_buffer(zwr2str_st(tptoken, buffer, serialized, out_buffer))
+        // We can't reuse `context.buffer` since we return the buffer on success
+        zwr2str_st(tptoken, out_buffer, serialized)
     }
     fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
         match result {
