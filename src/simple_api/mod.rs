@@ -67,10 +67,19 @@ use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_
 
 const DEFAULT_CAPACITY: usize = 50;
 
+/// An error returned by the underlying YottaDB library.
+///
+/// This error should not be constructed manually.
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct YDBError {
+    /// YottaDB internally uses an error-handling mechanism similar to `errno` and `perror`.
+    /// Since, in a threaded context, another error may occur before the application has
+    /// a chance to call `perror()` (in YottaDB, `$ZSTATUS`),
+    /// the stringified error must be returned at the same time as the status code.
     pub message: Vec<u8>,
+    /// The status returned by a YottaDB function. This will be a `YDB_ERR_*` constant.
     pub status: i32,
+    /// The transaction that was in process when the error occurred.
     pub tptoken: u64
 }
 
@@ -120,19 +129,34 @@ impl error::Error for YDBError {
     }
 }
 
+/// A specialized `Result` type returned by a YottaDB function.
 pub type YDBResult<T> = Result<T, YDBError>;
 
+/// The type of data available at the current node.
+///
+/// # See also
+/// - [`Key::data_st()`](struct.Key.html#method.data_st)
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum DataReturn {
+    /// There is no data present, either here or lower in the tree.
     NoData,
+    /// There is data present at this node, but not lower in the tree.
     ValueData,
+    /// There is data present lower in the tree, but not at this node.
     TreeData,
+    /// There is data present both at this node and lower in the tree.
     ValueTreeData,
 }
 
+/// The type of deletion that should be carried out.
+///
+/// # See also
+/// - [`Key::delete_st()`](struct.Key.html#method.delete_st)
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum DeleteType {
+    /// Delete only this node
     DelNode,
+    /// Delete this node and all subnodes in the tree.
     DelTree,
 }
 
@@ -168,8 +192,22 @@ macro_rules! make_key {
     );
 }
 
+/// A key used for accessing the database.
+///
+/// # See also
+/// - [Keys, values, nodes, variables, and subscripts](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts)
+/// - [Local and Global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
+/// - [Intrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Key {
+    /// The [variable] of the key, which can be freely modified.
+    ///
+    /// Note that not all variables are valid.
+    /// If a `variable` is set to an invalid value, the next call to YottaDB
+    /// will result in a [`YDB_ERR_INVVARNAME`](../craw/constant.YDB_ERR_INVVARNAME.html).
+    /// See [variables vs. subscripts][variable] for details on what variables are valid and invalid.
+    ///
+    /// [variable]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values
     pub variable: String,
     subscripts: Vec<Vec<u8>>,
 }
@@ -223,7 +261,6 @@ impl Key {
             where V: Into<String>,
                   S: Into<Vec<u8>> + Clone, {
         Key {
-            // TODO: check if the variable is valid
             variable: variable.into(),
             // NOTE: we cannot remove this copy because `node_next_st` mutates subscripts
             // and `node_subscript_st` mutates the variable
