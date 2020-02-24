@@ -868,7 +868,7 @@ impl Key {
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let mut key = make_key!("^helloSubNext", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
@@ -1461,14 +1461,12 @@ pub fn delete_excl_st(tptoken: u64, mut out_buffer: Vec<u8>, saved_variables: &[
 pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_str2zwr_st;
 
-    let mut err_buf = Vec::new();
-    let mut err_buf_t = Key::make_out_buffer_t(&mut err_buf);
-
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buf);
+    let mut err_buffer_t = out_buffer_t;
     let original_t = ConstYDBBuffer::from(original);
 
     let status = unsafe {
-        ydb_str2zwr_st(tptoken, &mut err_buf_t, original_t.as_ptr(), &mut out_buffer_t)
+        ydb_str2zwr_st(tptoken, &mut err_buffer_t, original_t.as_ptr(), &mut out_buffer_t)
     };
 
     if status == YDB_ERR_INVSTRLEN {
@@ -1481,8 +1479,13 @@ pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBRes
     // Resize the vec with the buffer to we can see the value
     // We could end up with a buffer of a larger size if we couldn't fit the error string
     // into the out_buffer, so make sure to pick the smaller size
+    let used = if status != YDB_OK as i32 {
+        err_buffer_t.len_used
+    } else {
+        out_buffer_t.len_used
+    };
     unsafe {
-        out_buf.set_len(min(out_buffer_t.len_alloc, out_buffer_t.len_used) as usize);
+        out_buf.set_len(min(out_buffer_t.len_alloc, used) as usize);
     }
     assert!(out_buf.len() <= out_buf.capacity());
     if status != YDB_OK as i32 {
