@@ -1670,6 +1670,13 @@ pub(crate) mod tests {
         // Then try getting the value we set
         result = key.get_st(0, result).unwrap();
         assert_eq!(result, Vec::from("Hello world!"));
+
+        // Try an error where the error message is shorter than the retrieved value
+        let val: &[_] = &[b'a'; 1000];
+        key.set_st(0, result, &val).unwrap();
+        // Then try getting the value we set
+        result = key.get_st(0, Vec::new()).unwrap();
+        assert_eq!(result, val);
     }
 
     #[test]
@@ -1925,12 +1932,30 @@ pub(crate) mod tests {
     #[test]
     fn ydb_subscript_next() {
         let mut result = Vec::with_capacity(1);
-        let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubNext", "a");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(0, result, b"Hello world!").unwrap();
         key[0] = Vec::with_capacity(1);
         result = key.sub_next_st(0, result).unwrap();
-        assert_eq!(result, Vec::from("a"));
+        assert_eq!(result, b"a");
+        key[0] = vec![b'a'];
+        key.delete_st(0, Vec::new(), DeleteType::DelNode).unwrap();
+
+        key[0] = vec![b'a'; 100];
+        key.delete_st(0, Vec::new(), DeleteType::DelNode).unwrap();
+
+        // Test a subscript with an INVSTRLEN shorter than the required capacity
+        key[0] = vec![b'a'; 150];
+        key.set_st(0, result, "some val").expect("set_st");
+
+        key[0] = vec![b'a'];
+        let subs = key.sub_next_st(0, Vec::new()).expect("sub_next");
+        assert_eq!(subs.as_slice(), &[b'a'; 150][..]);
+
+        key[0] = vec![b'b'];
+        let subs = key.sub_prev_st(0, Vec::new()).expect("sub_prev");
+        assert_eq!(subs.as_slice(), &[b'a'; 150][..]);
+        key[0] = subs;
+        key.delete_st(0, Vec::new(), DeleteType::DelTree).unwrap();
     }
 
     #[test]
