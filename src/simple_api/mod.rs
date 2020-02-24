@@ -1072,16 +1072,33 @@ impl From<ydb_buffer_t> for ConstYDBBuffer {
 /// Allow Key to mostly be treated as a `Vec<Vec<u8>>`,
 /// but without `shrink_to_fit`, `drain`, or other methods that aren't relevant
 impl Key {
+    /// Remove all subscripts after the `i`th index.
+    ///
+    /// # See also
+    /// - [`Vec::truncate()`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.truncate)
     pub fn truncate(&mut self, i: usize) {
         self.subscripts.truncate(i);
     }
-    /// Remove all subscripts, leaving only the `variable`
+    /// Remove all subscripts, leaving only the `variable`.
+    ///
+    /// # See also
+    /// - [`Vec::clear()`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.clear)
     pub fn clear(&mut self) {
         self.subscripts.clear();
     }
+    /// Add a new subscript, keeping all existing subscripts in place.
+    ///
+    /// # See also
+    /// - [`Vec::push()`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.push)
     pub fn push(&mut self, subscript: Vec<u8>) {
         self.subscripts.push(subscript);
     }
+    /// Remove the last subscript, keeping all other subscripts in place.
+    ///
+    /// Note that this will _not_ return the `variable` even if there are no subscripts present.
+    ///
+    /// # See also
+    /// - [`Vec::pop()`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.pop)
     pub fn pop(&mut self) -> Option<Vec<u8>> {
         self.subscripts.pop()
     }
