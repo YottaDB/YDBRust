@@ -47,12 +47,12 @@ cd YDBRust
 
 source $(pkg-config --variable=prefix yottadb)/ydb_env_set
 
-# install dependencies for bindgen
+# install dependencies for bindgen and examples
 # NOTE: this does not necessarily need apt, this is just an example
-sudo apt update && sudo apt install clang
+sudo apt update
+sudo apt install clang libsdl2-dev libsdl2-ttf-dev libsdl2-gfx-dev
 
 cargo test
-
 cargo doc --open
 ```
 
