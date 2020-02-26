@@ -27,7 +27,6 @@
 #[allow(missing_docs)]
 pub mod craw;
 pub mod simple_api;
-#[allow(missing_docs)]
 pub mod context_api;
 
 pub use craw::{YDB_NOTTP, YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};

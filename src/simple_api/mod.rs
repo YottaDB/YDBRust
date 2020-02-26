@@ -192,9 +192,10 @@ macro_rules! make_key {
     );
 }
 
-/// A key used for accessing the database.
+/// A key used to get, set, and delete values in the database.
 ///
 /// # See also
+/// - [`KeyContext`](../context_api/struct.KeyContext.html)
 /// - [Keys, values, nodes, variables, and subscripts](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts)
 /// - [Local and Global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
 /// - [Intrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)

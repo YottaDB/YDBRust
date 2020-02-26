@@ -38,6 +38,7 @@ use crate::simple_api::{tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType}
 // Private macro to help make iterators
 macro_rules! implement_iterator {
     ($name:ident, $advance:ident, $return_type:ty, $next:expr) => {
+        #[allow(missing_docs)]
         pub struct $name<'a> {
             key: &'a mut KeyContext,
         }
@@ -105,6 +106,20 @@ struct ContextInternal {
     tptoken: u64,
 }
 
+/// A struct that keeps track of the current transaction and error buffer.
+///
+/// Since all functions in the YottaDB threaded API take a `tptoken` and `error_buffer`,
+/// it can be inconvenient to keep track of them manually, especially since
+/// > Passing in a different or incorrect tptoken can result in hard-to-debug application behavior, including deadlocks.
+///
+/// This struct keeps track of them for you
+/// so you don't have to clutter your application logic with resource management.
+///
+/// # See also
+/// - [Transaction processing](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
+/// - [Threads](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads)
+/// - [Threads and transaction processing](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing)
+///
 /// `Context` is _not_ thread-safe, async-safe, or re-entrant.
 ///
 /// Example:
@@ -132,14 +147,27 @@ impl Default for Context {
     }
 }
 
+/// A key which keeps track of the current transaction and error buffer.
+///
+/// Keys are used to get, set, and delete values in the database.
+///
+/// # See also
+/// - [`Key`](../simple_api/struct.Key.html)
+/// - [Keys, values, nodes, variables, and subscripts](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts)
+/// - [Local and Global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
+/// - [Intrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
+///
+/// [`Key`]: ../simple_api/struct.Key.html
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct KeyContext {
     context: Context,
+    /// `KeyContext` implements `Deref<Target =Key>`
     pub key: Key,
 }
 
 use core::cell::{Ref, RefMut};
 impl Context {
+    /// Create a new `Context`
     pub fn new() -> Context {
         Context{
             context: Rc::new(RefCell::new(ContextInternal {
@@ -149,10 +177,30 @@ impl Context {
         }
     }
 
+    /// Create a `KeyContext` from this `Context`.
+    ///
+    /// # See also
+    /// - [`KeyContext::new()`](struct.KeyContext.html#method.new)
+    /// - [`KeyContext::with_key`](struct.KeyContext.html#method.with_key)
+    /// - [`impl From<(&Context, Key)> for KeyContext`](struct.KeyContext.html#implementations)
     pub fn new_key<K: Into<Key>>(&self, key: K) -> KeyContext {
         KeyContext::with_key(self, key)
     }
 
+    /// Start a new transaction, where `f` is the transaction to execute.
+    ///
+    /// `f` must be `FnMut`, not `FnOnce`, since the YottaDB engine may
+    /// call f many times if necessary to ensure ACID properties.
+    /// This may affect your application logic; if you need to know how many
+    /// times the callback has been executed, get the [intrinsic variable][intrinsics]
+    /// [`$trestart`](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#trestart)
+    ///
+    /// # See Also
+    /// - [`simple_api::tp_st`](../simple_api/fn.tp_st.html)
+    /// - [More details about the underlying FFI call](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st)
+    /// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
+    ///
+    /// [intrinsics]: index.html#intrinsic-variables
     pub fn tp<'a, F>(&'a self, mut f: F, trans_id: &str, locals_to_reset: &[Vec<u8>])
             -> Result<(), Box<dyn Error>>
             where F: FnMut(&'a Self) -> Result<(), Box<dyn Error>> {
@@ -179,6 +227,7 @@ impl Context {
     /// - Another system [error return code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
     ///
     /// # See also
+    /// - [`simple_api::delete_excl_st`](../simple_api/fn.delete_excl_st.html)
     /// - The [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-delete-excl-s-ydb-delete-excl-st)
     /// - [Local and global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
     /// - [Instrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
@@ -246,17 +295,28 @@ pub enum ParseError<T> {
 }
 
 impl KeyContext {
-    // this should be kept in sync with `Key::new`
+    /// Create a new `KeyContext`, creating the `Key` at the same time.
+    ///
+    /// # See also
+    /// - [`KeyContext::with_key`](struct.KeyContext.html#method.with_key)
+    /// - [`Context::new_key()`](struct.Context.html#method.new_key)
+    /// - [`impl From<(&Context, Key)> for KeyContext`](struct.KeyContext.html#implementations)
     pub fn new<V, S>(ctx: &Context, variable: V, subscripts: &[S]) -> KeyContext
             where V: Into<String>,
                   S: Into<Vec<u8>> + Clone, {
         Self::with_key(ctx, Key::new(variable, subscripts))
     }
-    /// Shortcut for creating a key with no subscripts.
+    /// Shortcut for creating a `KeyContext` with no subscripts.
     // this should be kept in sync with `Key::variable`
     pub fn variable<V: Into<String>>(ctx: &Context, var: V) -> Self {
         Self::with_key(ctx, var)
     }
+    /// Create a new `KeyContext` using an existing key.
+    ///
+    /// # See also
+    /// - [`KeyContext::new`](struct.KeyContext.html#method.new)
+    /// - [`Context::new_key()`](struct.Context.html#method.new_key)
+    /// - [`impl From<(&Context, Key)> for KeyContext`](struct.KeyContext.html#implementations)
     pub fn with_key<K: Into<Key>>(ctx: &Context, key: K) -> Self {
         Self {
             context: ctx.clone(),
