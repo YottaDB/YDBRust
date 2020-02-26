@@ -110,7 +110,8 @@ struct ContextInternal {
 ///
 /// Since all functions in the YottaDB threaded API take a `tptoken` and `error_buffer`,
 /// it can be inconvenient to keep track of them manually, especially since
-/// > Passing in a different or incorrect tptoken can result in hard-to-debug application behavior, including deadlocks.
+///
+/// > Passing in a different or incorrect tptoken can result in hard-to-debug application behavior, including deadlocks. [1]
 ///
 /// This struct keeps track of them for you
 /// so you don't have to clutter your application logic with resource management.
@@ -136,6 +137,8 @@ struct ContextInternal {
 ///     ctx.tp(|_| Ok(()), "BATCH", &[])
 /// });
 /// ```
+///
+/// [1]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Context {
     context: Rc<RefCell<ContextInternal>>,
