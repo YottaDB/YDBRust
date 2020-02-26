@@ -55,7 +55,7 @@ use std::error::Error;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr;
 use std::ffi::CString;
-use std::os::raw::{c_void, c_int};
+use std::os::raw::{c_void, c_int, c_ulonglong};
 use std::time::Duration;
 use std::cmp::min;
 use std::fmt;
@@ -1528,6 +1528,68 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Resu
         Err(YDBError { message: out_buf, status, tptoken })
     } else {
         Ok(out_buf)
+    }
+}
+
+/// Manages locks held by the process.
+///
+/// # Errors
+///
+/// Possible errors for this function include:
+/// - YDB_LOCK_TIMEOUT if all locks could not be acquired within the timeout period.
+///   In this case, no locks are acquired.
+/// - YDB_ERR_TIME2LONG if `timeout` is greater than `YDB_MAX_TIME_NSEC`
+/// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+///
+/// # See also
+///
+/// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
+///
+pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: c_ulonglong, locks: &[Key]) -> YDBResult<Vec<u8>> {
+    use crate::craw::ydb_lock_st;
+
+    #[repr(C)]
+    struct LockTuple {
+        varname: *const ConstYDBBuffer,
+        subs_used: c_int,
+        subsarray: *const ConstYDBBuffer,
+    }
+
+    let mut err_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
+    let keys: Vec<_> = locks.iter().map(Key::get_buffers).collect();
+    let ffi_keys = keys.iter().map(|(var, subscripts)| LockTuple {
+        varname: var,
+        subs_used: subscripts.len() as c_int,
+        subsarray: subscripts.as_ptr(),
+    });
+    // tptoken, err_buf, timeout, len, then each key is viewed by lock_st as 3 arguments
+    let arg_count = 4 + ffi_keys.len() * 3;
+    // setup the initial args. Note that all these arguments are required to have size uint64_t.
+    let mut args = vec![arg_count as u64, tptoken as u64,
+                                  &mut err_buffer_t as *mut _ as u64,
+                                  timeout as u64, locks.len() as u64];
+    //let args = [initial_args, ffi_keys].concat();
+    for key in ffi_keys {
+        args.push(key.varname as u64);
+        args.push(key.subs_used as u64);
+        args.push(key.subsarray as u64);
+    }
+    let status = unsafe {
+        use crate::craw::{ydb_call_variadic_plist_func, gparam_list_struct};
+        //ydb_lock_st(tptoken, &mut err_buffer_t, timeout, locks.len() as c_int, &ffi_keys)
+        //ydb_call_variadic_plist_func(&ydb_lock_st, tptoken, err_buffer_t, timeout, locks.len() as c_int, &ffi_keys)
+        ydb_call_variadic_plist_func(Some(ydb_lock_st as _), &args as *const _ as usize)
+    };
+
+    // We could end up with a buffer of a larger size if we couldn't fit the error string
+    // into the out_buffer, so make sure to pick the smaller size
+    let len = min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize;
+    unsafe { out_buffer.set_len(len); }
+
+    if status != YDB_OK as c_int {
+        Err(YDBError { message: out_buffer, status, tptoken })
+    } else {
+        Ok(out_buffer)
     }
 }
 
