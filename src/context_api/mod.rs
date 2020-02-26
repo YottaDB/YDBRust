@@ -134,6 +134,7 @@ struct ContextInternal {
 /// let mut key1 = make_ckey!(ctx, "key1");
 /// let mut key2 = make_ckey!(ctx, "key2");
 /// tokio::spawn(async {
+///     // error[E0277]: `dyn std::error::Error` cannot be sent between threads safely
 ///     ctx.tp(|_| Ok(()), "BATCH", &[])
 /// });
 /// ```
