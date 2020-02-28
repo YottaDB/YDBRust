@@ -1378,7 +1378,7 @@ pub fn tp_st<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut f: F, trans_id: &str,
 /// let b = Key::variable("deleteExclTestB");
 /// b.set_st(YDB_NOTTP, Vec::new(), "test data 2")?;
 /// let c = Key::variable("deleteExclTestC");
-/// b.set_st(YDB_NOTTP, Vec::new(), "test data 3")?;
+/// c.set_st(YDB_NOTTP, Vec::new(), "test data 3")?;
 ///
 /// // Delete all variables except `a`
 /// delete_excl_st(YDB_NOTTP, Vec::new(), &[&a.variable])?;

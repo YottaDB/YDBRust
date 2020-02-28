@@ -244,7 +244,7 @@ impl Context {
     /// let b = KeyContext::variable(&ctx, "deleteExclTestB");
     /// b.set("test data 2")?;
     /// let c = KeyContext::variable(&ctx, "deleteExclTestC");
-    /// b.set("test data 3")?;
+    /// c.set("test data 3")?;
     ///
     /// // Delete all variables except `a`
     /// ctx.delete_excl(&[&a.variable])?;
