@@ -55,7 +55,7 @@ use std::error::Error;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr;
 use std::ffi::CString;
-use std::os::raw::{c_void, c_int, c_ulonglong};
+use std::os::raw::{c_void, c_int};
 use std::time::Duration;
 use std::cmp::min;
 use std::fmt;
@@ -1541,44 +1541,57 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Resu
 /// - YDB_ERR_TIME2LONG if `timeout` is greater than `YDB_MAX_TIME_NSEC`
 /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
 ///
+/// # Examples
+/// ```
+/// use yottadb::YDB_
+/// use yottadb::simple_api::{Key, lock_st};
+///
+/// let key = Key::variable("lockA");
+/// lock_st(YDB_
+/// ```
+///
 /// # See also
 ///
 /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
 ///
-pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: c_ulonglong, locks: &[Key]) -> YDBResult<Vec<u8>> {
-    use crate::craw::ydb_lock_st;
-
-    #[repr(C)]
-    struct LockTuple {
-        varname: *const ConstYDBBuffer,
-        subs_used: c_int,
-        subsarray: *const ConstYDBBuffer,
-    }
+pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[&Key]) -> YDBResult<Vec<u8>> {
+    use crate::craw::{YDB_ERR_MAXARGCNT, MAXVPARMS, ydb_lock_st, ydb_call_variadic_plist_func, gparam_list};
 
     let mut err_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
-    let keys: Vec<_> = locks.iter().map(Key::get_buffers).collect();
-    let ffi_keys = keys.iter().map(|(var, subscripts)| LockTuple {
-        varname: var,
-        subs_used: subscripts.len() as c_int,
-        subsarray: subscripts.as_ptr(),
-    });
+    let keys: Vec<_> = locks.iter().copied().map(Key::get_buffers).collect();
+
     // tptoken, err_buf, timeout, len, then each key is viewed by lock_st as 3 arguments
-    let arg_count = 4 + ffi_keys.len() * 3;
-    // setup the initial args. Note that all these arguments are required to have size uint64_t.
-    let mut args = vec![arg_count as u64, tptoken as u64,
-                                  &mut err_buffer_t as *mut _ as u64,
-                                  timeout as u64, locks.len() as u64];
-    //let args = [initial_args, ffi_keys].concat();
-    for key in ffi_keys {
-        args.push(key.varname as u64);
-        args.push(key.subs_used as u64);
-        args.push(key.subsarray as u64);
+    let arg_count = 4 + keys.len() * 3;
+    if arg_count > MAXVPARMS as usize {
+        return Err(YDBError {
+            status: YDB_ERR_MAXARGCNT,
+            message: format!("Expected at most {} arguments, got {}", MAXVPARMS, arg_count).into_bytes(),
+            tptoken,
+        });
     }
+    // setup the initial args. Note that all these arguments are required to have size uint64_t.
+    let mut arg = [0; MAXVPARMS as usize];
+    arg[0] = tptoken as u64;
+    arg[1] = &mut err_buffer_t as *mut _ as u64;
+    arg[2] = timeout.as_nanos() as u64;
+    arg[3] = locks.len() as u64;
+
+    for (i, (var, subscripts)) in keys.iter().enumerate() {
+        // start at 4 since we've already used the first 4 slots
+        arg[i + 4] = var.as_ptr() as u64;
+        arg[i + 5] = subscripts.len() as u64;
+        arg[i + 6] = subscripts.as_ptr() as u64;
+    }
+    let args = gparam_list { n: arg_count as isize, arg: [0; MAXVPARMS as usize] };
     let status = unsafe {
-        use crate::craw::{ydb_call_variadic_plist_func, gparam_list_struct};
-        //ydb_lock_st(tptoken, &mut err_buffer_t, timeout, locks.len() as c_int, &ffi_keys)
-        //ydb_call_variadic_plist_func(&ydb_lock_st, tptoken, err_buffer_t, timeout, locks.len() as c_int, &ffi_keys)
-        ydb_call_variadic_plist_func(Some(ydb_lock_st as _), &args as *const _ as usize)
+        // the types on `ydb_call_variadic_plist_func` are not correct
+        // additionally, `ydb_lock_st` on its own is a unique zero-sized-type (ZST):
+        // see https://doc.rust-lang.org/reference/types/function-item.html#function-item-types for more details on function types
+        // and https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts for details on ZSTs.
+        // this `as *const ()` turns the unique ZST for `ydb_lock_st` into a proper function pointer
+        // without the `as` cast, `transmute` will return `1_usize` and `ydb_call` will subsequently segfault
+        let ydb_lock_no_really_trust_me = std::mem::transmute(ydb_lock_st as *const ());
+        ydb_call_variadic_plist_func(Some(ydb_lock_no_really_trust_me), &args as *const _ as usize)
     };
 
     // We could end up with a buffer of a larger size if we couldn't fit the error string

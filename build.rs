@@ -17,6 +17,7 @@ fn main() {
         library_path.push_str(s);
     }
     println!("cargo:rust-link-search={}", library_path);
+    println!("cargo:rerun-if-changed=wrapper.h");
 
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
@@ -24,6 +25,9 @@ fn main() {
         .whitelist_type("ydb_.*")
         .whitelist_function("ydb_.*")
         .whitelist_var("YDB_.*")
+        // for `ydb_lock`
+        .whitelist_type("gparam_list.*")
+        .whitelist_var("MAXVPARMS")
         .blacklist_item("YDB_NOTTP")
         // Finish the builder and generate the bindings.
         .generate()
