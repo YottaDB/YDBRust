@@ -154,7 +154,7 @@ pub enum DataReturn {
 /// - [`Key::delete_st()`](struct.Key.html#method.delete_st)
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum DeleteType {
-    /// Delete only this node
+    /// Delete only this node.
     DelNode,
     /// Delete this node and all subnodes in the tree.
     DelTree,
