@@ -1531,7 +1531,13 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Resu
     }
 }
 
-/// Manages locks held by the process.
+/// Acquires locks specified in `locks` and releases all others.
+///
+/// This operation is atomic. If any lock cannot be acquired, no locks are acquired.
+/// The `timeout` specifies the maximum time to wait before returning an error.
+/// If no locks are specified, all locks are released.
+///
+/// Note that YottaDB locks are per-process, not per-thread.
 ///
 /// # Errors
 ///
@@ -1543,17 +1549,22 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Resu
 ///
 /// # Examples
 /// ```
-/// use yottadb::YDB_
+/// use std::time::Duration;
+/// use yottadb::YDB_NOTTP;
 /// use yottadb::simple_api::{Key, lock_st};
 ///
+/// // acquire a new lock
 /// let key = Key::variable("lockA");
-/// lock_st(YDB_
+/// lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &[&key]).unwrap();
+///
+/// // release all locks
+/// lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &[]).unwrap();
 /// ```
 ///
 /// # See also
 ///
 /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
-///
+/// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
 pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[&Key]) -> YDBResult<Vec<u8>> {
     use crate::craw::{YDB_ERR_MAXARGCNT, MAXVPARMS, ydb_lock_st, ydb_call_variadic_plist_func, gparam_list};
 
@@ -1571,18 +1582,18 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
     }
     // setup the initial args. Note that all these arguments are required to have size uint64_t.
     let mut arg = [0; MAXVPARMS as usize];
-    arg[0] = tptoken as u64;
-    arg[1] = &mut err_buffer_t as *mut _ as u64;
-    arg[2] = timeout.as_nanos() as u64;
-    arg[3] = locks.len() as u64;
+    arg[0] = tptoken as usize;
+    arg[1] = &mut err_buffer_t as *mut _ as usize;
+    arg[2] = timeout.as_nanos() as usize;
+    arg[3] = keys.len() as usize;
 
     for (i, (var, subscripts)) in keys.iter().enumerate() {
         // start at 4 since we've already used the first 4 slots
-        arg[i + 4] = var.as_ptr() as u64;
-        arg[i + 5] = subscripts.len() as u64;
-        arg[i + 6] = subscripts.as_ptr() as u64;
+        arg[i + 4] = var.as_ptr() as usize;
+        arg[i + 5] = subscripts.len() as usize;
+        arg[i + 6] = subscripts.as_ptr() as usize;
     }
-    let args = gparam_list { n: arg_count as isize, arg: [0; MAXVPARMS as usize] };
+    let args = gparam_list { n: arg_count as isize, arg };
     let status = unsafe {
         // the types on `ydb_call_variadic_plist_func` are not correct
         // additionally, `ydb_lock_st` on its own is a unique zero-sized-type (ZST):
@@ -1712,8 +1723,8 @@ mod tests {
         assert_eq!(&key.get_st(YDB_NOTTP, err_buf).unwrap(), b"1500");
     }
 
-    #[test]
-    fn ydb_lock_incr_decr_st() {
+    // Return the number of locks held for `var`
+    fn lock_count(var: &str) -> usize {
         use std::os::raw::{c_char, c_ulong};
         use crate::craw::{ydb_ci_t, ydb_string_t};
 
@@ -1724,44 +1735,55 @@ mod tests {
             }
         }
 
-        // TODO: allow getting lock count for a specific lock instead of all locks
-        fn lock_count() -> usize {
-            std::env::set_var("ydb_routines", "examples/m-ffi");
-            std::env::set_var("ydb_ci", "examples/m-ffi/zshvar.ci");
+        std::env::set_var("ydb_routines", "examples/m-ffi");
+        std::env::set_var("ydb_ci", "examples/m-ffi/zshvar.ci");
 
-            let mut err_buf = Vec::new();
+        let mut err_buf = Vec::new();
 
-            let m_code = CString::new("zshvar").unwrap();
-            let mut stored_var = Vec::from("outputvar");
-            let mut var = Vec::from("l");
-            let mut var_t = make_out_str_t(&mut var);
-            let mut stored_var_t = make_out_str_t(&mut stored_var);
-            let status = loop {
-                let mut err_buf_t = Key::make_out_buffer_t(&mut err_buf);
-                let status = unsafe {
-                    let func_ptr = m_code.as_ptr() as *const c_char;
-                    ydb_ci_t(YDB_NOTTP, &mut err_buf_t, func_ptr, &mut var_t as *mut _, &mut stored_var_t as *mut _)
-                };
-                if status == YDB_ERR_INVSTRLEN {
-                    err_buf.reserve(err_buf_t.len_used as usize - err_buf.len());
-                    continue;
-                }
-                break status;
+        let m_code = CString::new("zshvar").unwrap();
+        let mut stored_var = Vec::from("outputvar");
+        let mut output_var = Vec::from("l");
+        let mut output_var_t = make_out_str_t(&mut output_var);
+        let mut stored_var_t = make_out_str_t(&mut stored_var);
+        let status = loop {
+            let mut err_buf_t = Key::make_out_buffer_t(&mut err_buf);
+            let status = unsafe {
+                let func_ptr = m_code.as_ptr() as *const c_char;
+                ydb_ci_t(YDB_NOTTP, &mut err_buf_t, func_ptr, &mut output_var_t as *mut _, &mut stored_var_t as *mut _)
             };
-            assert_eq!(status, 0, "ydb_ci_t not successful: {}", YDBError { status, tptoken: YDB_NOTTP, message: err_buf });
+            if status == YDB_ERR_INVSTRLEN {
+                err_buf.reserve(err_buf_t.len_used as usize - err_buf.len());
+                continue;
+            }
+            break status;
+        };
+        assert_eq!(status, 0, "ydb_ci_t not successful: {}", YDBError { status, tptoken: YDB_NOTTP, message: err_buf });
 
-            let key = Key::new(String::from_utf8(stored_var).unwrap(), &["L", "1"]);
-            let (data, err_buf) = key.data_st(YDB_NOTTP, err_buf).unwrap();
+        // look for the right key
+        let mut count = 1;
+        let mut key = Key::new(String::from_utf8(stored_var).unwrap(), &["L", "1"]);
+        loop {
+            let (data, loop_buf) = key.data_st(YDB_NOTTP, err_buf).unwrap();
             if data == DataReturn::NoData {
                 return 0;
             }
-            let val = key.get_st(YDB_NOTTP, err_buf).unwrap();
+            let val = key.get_st(YDB_NOTTP, loop_buf).unwrap();
             // looks like `LOCK x LEVEL=1`
             let locks = String::from_utf8(val).unwrap();
-            let count = &locks.split_whitespace().last().unwrap()["LEVEL=".len()..];
-            return count.parse::<usize>().unwrap();
+            let mut groups = locks.split_whitespace();
+            assert_eq!(groups.next(), Some("LOCK"));
+            let name = groups.next().unwrap();
+            if name == var {
+                let count = &groups.next().unwrap()["LEVEL=".len()..];
+                return count.parse().unwrap();
+            }
+            count += 1;
+            key[1] = count.to_string().into_bytes();
+            err_buf = locks.into_bytes();
         }
-
+    }
+    #[test]
+    fn ydb_lock_incr_decr_st() {
         // Create a new lock
         let err_buf = Vec::new();
         let key = Key::variable("simpleIncrLock");
@@ -1769,13 +1791,26 @@ mod tests {
         let err_buf = key.lock_incr_st(YDB_NOTTP, err_buf, Duration::from_millis(500)).unwrap();
         let err_buf = key.lock_incr_st(YDB_NOTTP, err_buf, Duration::from_secs(0)).unwrap();
         // Make sure the lock count is correct
-        assert_eq!(lock_count(), 2);
+        assert_eq!(lock_count(&key.variable), 2);
 
         // Decrement it twice
         let err_buf = key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
         key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
         // Make sure the lock has been released
-        assert_eq!(lock_count(), 0);
+        assert_eq!(lock_count(&key.variable), 0);
+    }
+
+    #[test]
+    fn ydb_lock_st() {
+        // Test `ydb_lock`
+        let key = Key::variable("ydbLock");
+        assert_eq!(lock_count(&key.variable), 0);
+        // Acquuire the lock
+        lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &[&key]).unwrap();
+        assert_eq!(lock_count(&key.variable), 1);
+        // Release all locks
+        lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &[]).unwrap();
+        assert_eq!(lock_count(&key.variable), 0);
     }
 
     #[test]
