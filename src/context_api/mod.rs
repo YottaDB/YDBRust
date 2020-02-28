@@ -569,6 +569,20 @@ impl KeyContext {
     ///                    or if `timeout.as_nanos()` does not fit into a `c_ulonglong`.
     /// - Another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), yottadb::YDBError> {
+    /// use yottadb::context_api::{Context, KeyContext};
+    /// use std::time::Duration;
+    ///
+    /// let ctx = Context::new();
+    /// let key = KeyContext::variable(&ctx, "lockIncrTest");
+    /// key.lock_incr(Duration::from_secs(1))?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # See also
     /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-decr-s-ydb-lock-decr-st)
     /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)

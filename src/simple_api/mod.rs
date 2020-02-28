@@ -600,6 +600,21 @@ impl Key {
     /// # Errors
     /// - `YDB_ERR_INVVARNAME` if `self.variable` is not a valid variable name.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), yottadb::YDBError> {
+    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// use std::time::Duration;
+    ///
+    /// let key = Key::variable("lockDecrStTest");
+    /// key.lock_incr_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1))?;
+    /// key.lock_decr_st(YDB_NOTTP, Vec::new())?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # See also
     /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-decr-s-ydb-lock-decr-st)
     /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
@@ -637,6 +652,20 @@ impl Key {
     /// - `YDB_ERR_TIME2LONG` if `timeout.as_nanos()` exceeds `YDB_MAX_TIME_NSEC`
     ///                    or if `timeout.as_nanos()` does not fit into a `c_ulonglong`.
     /// - Another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), yottadb::YDBError> {
+    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::simple_api::Key;
+    /// use std::time::Duration;
+    ///
+    /// let key = Key::variable("lockIncrStTest");
+    /// key.lock_incr_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1))?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # See also
     /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-decr-s-ydb-lock-decr-st)
