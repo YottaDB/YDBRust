@@ -269,8 +269,8 @@ impl Context {
         use crate::simple_api::delete_excl_st;
 
         let tptoken = self.context.borrow().tptoken;
-        let result = delete_excl_st(tptoken, self.context.borrow_mut().buffer.take().unwrap(), saved_variables);
-        self.recover_buffer(result)
+        let buffer = self.context.borrow_mut().buffer.take().unwrap();
+        self.recover_buffer(delete_excl_st(tptoken, buffer, saved_variables))
     }
     fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
         match result {
