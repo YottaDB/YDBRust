@@ -589,12 +589,8 @@ impl KeyContext {
     /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
     pub fn lock_incr(&self, timeout: std::time::Duration) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
-        let result = if self.context.borrow().multithreaded {
-            self.key.lock_incr_st(tptoken, self.context.borrow_mut().buffer.take().unwrap(), timeout)
-        } else {
-            panic!("Not supported!");
-        };
-        self.recover_buffer(result)
+        let buffer = self.context.borrow_mut().buffer.take().unwrap();
+        self.recover_buffer(self.key.lock_incr_st(tptoken, buffer, timeout))
     }
 
     /// Decrement the count of a lock held by the process.
@@ -626,12 +622,8 @@ impl KeyContext {
     /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
     pub fn lock_decr(&self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
-        let result = if self.context.borrow().multithreaded {
-            self.key.lock_decr_st(tptoken, self.context.borrow_mut().buffer.take().unwrap())
-        } else {
-            panic!("Not supported!");
-        };
-        self.recover_buffer(result)
+        let buffer = self.context.borrow_mut().buffer.take().unwrap();
+        self.recover_buffer(self.key.lock_decr_st(tptoken, buffer))
     }
 
     /// Implements breadth-first traversal of a tree by searching for the next subscript, and passes itself in as the output parameter.
