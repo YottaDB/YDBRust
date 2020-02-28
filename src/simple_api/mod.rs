@@ -1503,7 +1503,7 @@ mod tests {
     }
 
     #[test]
-    fn ydb_lock_incr_st() {
+    fn ydb_lock_incr_decr_st() {
         use std::os::raw::c_char;
         use crate::craw::{ydb_ci_t, ydb_string_t};
 
