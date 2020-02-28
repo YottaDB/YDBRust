@@ -9,8 +9,6 @@
 #![allow(non_snake_case)]
 #![allow(unknown_lints)]
 #![allow(clippy::all)]
-use std::hash::{Hash, Hasher};
-use std::ptr;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
@@ -52,32 +50,3 @@ pub const YDB_NOTOK: i32 = (YDB_INT_MAX - 5); /* 0x7ffffffa */
 ///
 /// [transaction]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
 pub const YDB_NOTTP: u64 = 0;
-
-
-// Derive some attributes for things
-impl Hash for ydb_buffer_t {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.len_alloc.hash(state);
-        self.len_used.hash(state);
-        self.buf_addr.hash(state);
-    }
-}
-
-impl PartialEq for ydb_buffer_t {
-    fn eq(&self, other: &ydb_buffer_t) -> bool {
-        self.buf_addr == other.buf_addr && self.len_used == other.len_used
-            && self.len_alloc == other.len_alloc
-    }
-}
-
-impl Eq for ydb_buffer_t { }
-
-impl Default for ydb_buffer_t {
-    fn default() -> Self {
-        ydb_buffer_t {
-            buf_addr: ptr::null_mut(),
-            len_alloc: 0,
-            len_used: 0,
-        }
-    }
-}
