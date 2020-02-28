@@ -230,6 +230,36 @@ impl Context {
     /// - YDB_ERR_INVVARNAME if attempting to save a global or intrinsic variable
     /// - Another system [error return code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> yottadb::YDBResult<()> {
+    /// use yottadb::{YDB_NOTTP, YDB_ERR_LVUNDEF};
+    /// use yottadb::context_api::{Context, KeyContext};
+    ///
+    /// // Create three variables and set all
+    /// let ctx = Context::new();
+    /// let a = KeyContext::variable(&ctx, "deleteExclTestA");
+    /// a.set("test data")?;
+    /// let b = KeyContext::variable(&ctx, "deleteExclTestB");
+    /// b.set("test data 2")?;
+    /// let c = KeyContext::variable(&ctx, "deleteExclTestC");
+    /// b.set("test data 3")?;
+    ///
+    /// // Delete all variables except `a`
+    /// ctx.delete_excl(&[&a.variable])?;
+    /// assert_eq!(a.get()?, b"test data");
+    /// assert_eq!(b.get().unwrap_err().status, YDB_ERR_LVUNDEF);
+    /// assert_eq!(c.get().unwrap_err().status, YDB_ERR_LVUNDEF);
+    ///
+    /// // Delete `a` too
+    /// ctx.delete_excl(&[])?;
+    /// assert_eq!(a.get().unwrap_err().status, YDB_ERR_LVUNDEF);
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # See also
     /// - [`simple_api::delete_excl_st`](../simple_api/fn.delete_excl_st.html)
     /// - The [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-delete-excl-s-ydb-delete-excl-st)

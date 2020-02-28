@@ -1365,6 +1365,35 @@ pub fn tp_st<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut f: F, trans_id: &str,
 /// - YDB_ERR_INVVARNAME if attempting to save a global or intrinsic variable
 /// - Another system [error return code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
 ///
+/// # Examples
+///
+/// ```
+/// # fn main() -> yottadb::YDBResult<()> {
+/// use yottadb::{YDB_NOTTP, YDB_ERR_LVUNDEF};
+/// use yottadb::simple_api::{Key, delete_excl_st};
+///
+/// // Create three variables and set all
+/// let a = Key::variable("deleteExclTestA");
+/// a.set_st(YDB_NOTTP, Vec::new(), "test data")?;
+/// let b = Key::variable("deleteExclTestB");
+/// b.set_st(YDB_NOTTP, Vec::new(), "test data 2")?;
+/// let c = Key::variable("deleteExclTestC");
+/// b.set_st(YDB_NOTTP, Vec::new(), "test data 3")?;
+///
+/// // Delete all variables except `a`
+/// delete_excl_st(YDB_NOTTP, Vec::new(), &[&a.variable])?;
+/// assert_eq!(a.get_st(YDB_NOTTP, Vec::new())?, b"test data");
+/// assert_eq!(b.get_st(YDB_NOTTP, Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
+/// assert_eq!(c.get_st(YDB_NOTTP, Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
+///
+/// // Delete `a` too
+/// delete_excl_st(YDB_NOTTP, Vec::new(), &[])?;
+/// assert_eq!(a.get_st(YDB_NOTTP, Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
+///
+/// # Ok(())
+/// # }
+/// ```
+///
 /// # See also
 /// - The [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-delete-excl-s-ydb-delete-excl-st)
 /// - [Local and global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
