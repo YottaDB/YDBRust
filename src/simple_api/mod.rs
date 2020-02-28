@@ -1182,6 +1182,9 @@ impl From<ydb_buffer_t> for ConstYDBBuffer {
     }
 }
 
+// TODO: this is unsafe and could allow using the slice after it goes out of scope
+// TODO: this is ok for now because `ConstYDBBuffer` is only used locally within a single function.
+// TODO: possible fix: use `PhantomData` for `ConstYDBBuffer`
 impl From<&[u8]> for ConstYDBBuffer {
     fn from(slice: &[u8]) -> Self {
         Self(ydb_buffer_t {
