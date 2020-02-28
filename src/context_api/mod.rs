@@ -591,6 +591,21 @@ impl KeyContext {
     /// # Errors
     /// - `YDB_ERR_INVVARNAME` if `self.variable` is not a valid variable name.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), yottadb::YDBError> {
+    /// use yottadb::context_api::{Context, KeyContext};
+    /// use std::time::Duration;
+    ///
+    /// let ctx = Context::new();
+    /// let key = KeyContext::variable(&ctx, "lockDecrTest");
+    /// key.lock_incr(Duration::from_secs(1))?;
+    /// key.lock_decr()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # See also
     /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-decr-s-ydb-lock-decr-st)
     /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
