@@ -1552,14 +1552,19 @@ mod tests {
             return count.parse::<usize>().unwrap();
         }
 
+        // Create a new lock
         let err_buf = Vec::new();
         let key = Key::variable("simpleIncrLock");
+        // Increment it twice
         let err_buf = key.lock_incr_st(YDB_NOTTP, err_buf, Duration::from_millis(500)).unwrap();
         let err_buf = key.lock_incr_st(YDB_NOTTP, err_buf, Duration::from_secs(0)).unwrap();
+        // Make sure the lock count is correct
         assert_eq!(lock_count(), 2);
 
+        // Decrement it twice
         let err_buf = key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
         key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
+        // Make sure the lock has been released
         assert_eq!(lock_count(), 0);
     }
 
