@@ -301,7 +301,7 @@ impl Context {
         use crate::simple_api::str2zwr_st;
 
         let tptoken = self.context.borrow().tptoken;
-        // str2zwr creates its own err_buf, so we don't need to pass ours
+        // We can't reuse `context.buffer` since we return the buffer on success
         str2zwr_st(tptoken, Vec::new(), original)
     }
     /// Given a buffer in 'Zwrite format', deserialize it to the original binary buffer.
