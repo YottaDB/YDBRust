@@ -1572,19 +1572,10 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
     let mut err_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
     let keys: Vec<_> = locks.iter().copied().map(Key::get_buffers).collect();
 
-    // tptoken, err_buf, timeout, len, then each key is viewed by lock_st as 3 arguments
-    let arg_count = 4 + keys.len() * 3;
-    if arg_count > MAXVPARMS as usize {
-        return Err(YDBError {
-            status: YDB_ERR_MAXARGCNT,
-            message: format!("Expected at most {} arguments, got {}", MAXVPARMS, arg_count).into_bytes(),
-            tptoken,
-        });
-    }
     type Void = *mut c_void;
     // setup the initial args. Note that all these arguments are required to have size uint64_t.
     let mut arg = [0 as Void; MAXVPARMS as usize];
-    let mut i;
+    let mut i: usize;
 
     // we can't just use `as usize` since on 32-bit platforms that will discard the upper half of the value
     // NOTE: this could be wrong if the pointer width is different from `usize`. We don't handle this case.
@@ -1601,17 +1592,17 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
     {
         #[cfg(target_endian = "little")]
         {
-            arg[0] = tptoken & 0xffffffff;
-            arg[1] = tptoken >> 32;
-            arg[3] = nanos & 0xffffffff;
-            arg[4] = nanos >> 32;
+            arg[0] = (tptoken & 0xffffffff) as Void;
+            arg[1] = (tptoken >> 32) as Void;
+            arg[3] = (nanos & 0xffffffff) as Void;
+            arg[4] = (nanos >> 32) as Void;
         }
         #[cfg(target_endian = "big")]
         {
-            arg[0] = tptoken >> 32;
-            arg[1] = tptoken & 0xffffffff;
-            arg[3] = nanos >> 32;
-            arg[4] = nanos & 0xffffffff;
+            arg[0] = (tptoken >> 32) as Void;
+            arg[1] = (tptoken & 0xffffffff) as Void;
+            arg[3] = (nanos >> 32) as Void;
+            arg[4] = (nanos & 0xffffffff) as Void;
         }
         arg[2] = &mut err_buffer_t as *mut _ as Void;
         arg[5] = keys.len() as Void;
@@ -1627,7 +1618,16 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
         arg[i + 2] = subscripts.as_ptr() as Void;
         i += 3;
     }
-    let args = gparam_list { n: arg_count as isize, arg };
+
+    if i > MAXVPARMS as usize {
+        return Err(YDBError {
+            status: YDB_ERR_MAXARGCNT,
+            message: format!("Expected at most {} arguments, got {}", MAXVPARMS, i).into_bytes(),
+            tptoken,
+        });
+    }
+
+    let args = gparam_list { n: i as isize, arg };
     let status = unsafe {
         // the types on `ydb_call_variadic_plist_func` are not correct
         // additionally, `ydb_lock_st` on its own is a unique zero-sized-type (ZST):
