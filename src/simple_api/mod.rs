@@ -1583,16 +1583,48 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
     }
     // setup the initial args. Note that all these arguments are required to have size uint64_t.
     let mut arg = [0; MAXVPARMS as usize];
-    arg[0] = tptoken as usize;
-    arg[1] = &mut err_buffer_t as *mut _ as usize;
-    arg[2] = timeout.as_nanos() as usize;
-    arg[3] = keys.len() as usize;
+    let mut i;
 
-    for (i, (var, subscripts)) in keys.iter().enumerate() {
+    // we can't just use `as usize` since on 32-bit platforms that will discard the upper half of the value
+    // NOTE: this could be wrong if the pointer width is different from `usize`. We don't handle this case.
+    let nanos = timeout.as_nanos();
+    #[cfg(target_pointer_width = "64")]
+    {
+        arg[0] = tptoken as usize;
+        arg[1] = &mut err_buffer_t as *mut _ as usize;
+        arg[2] = nanos as usize;
+        arg[3] = keys.len() as usize;
+        i = 4;
+    }
+    #[cfg(target_pointer_width = "32")]
+    {
+        #[cfg(target_endian = "little")]
+        {
+            arg[0] = tptoken & 0xffffffff;
+            arg[1] = tptoken >> 32;
+            arg[3] = nanos & 0xffffffff;
+            arg[4] = nanos >> 32;
+        }
+        #[cfg(target_endian = "big")]
+        {
+            arg[0] = tptoken >> 32;
+            arg[1] = tptoken & 0xffffffff;
+            arg[3] = nanos >> 32;
+            arg[4] = nanos & 0xffffffff;
+        }
+        arg[2] = &mut err_buffer_t as *mut _ as usize;
+        arg[5] = keys.len() as usize;
+        i = 6;
+    }
+    #[cfg(not(any(target_pointer_width = "64", target_pointer_width = "32")))]
+    panic!("ydb_lock does not support architectures other than 32 and 64 bit");
+
+    for (var, subscripts) in keys.iter() {
         // start at 4 since we've already used the first 4 slots
-        arg[i + 4] = var.as_ptr() as usize;
-        arg[i + 5] = subscripts.len() as usize;
-        arg[i + 6] = subscripts.as_ptr() as usize;
+        arg[i] = var.as_ptr() as usize;
+        arg[i + 1] = subscripts.len() as usize;
+        arg[i + 2] = subscripts.as_ptr() as usize;
+        i += 1;
     }
     let args = gparam_list { n: arg_count as isize, arg };
     let status = unsafe {
