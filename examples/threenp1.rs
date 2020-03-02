@@ -8,7 +8,7 @@ extern crate threadpool;
 use std::error::Error;
 use std::io::{self, BufRead};
 use std::sync::{Arc, Barrier};
-use std::time::{SystemTime};
+use std::time::SystemTime;
 
 use threadpool::ThreadPool;
 use yottadb::context_api::Context;
@@ -32,19 +32,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     step.delete(DeleteType::DelTree)?;
 
     let cpus = num_cpus::get();
-    let streams = cpus * 2;
-
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let line = line?;
         let tokens: Vec<usize> = line.split_whitespace()
             .map(|x| x.parse::<usize>().unwrap())
             .collect();
-        let (endnum, streams, mut blk) = match tokens.len() {
-            0 => (0, streams, 0),
-            1 => (tokens[0], streams, 0),
-            2 => (tokens[0], tokens[1], 0),
-            3 => (tokens[0], tokens[1], tokens[2]),
+        let (endnum, streams, mut blk) = match tokens.as_slice() {
+            &[] => (0, cpus*2, 0),
+            &[endnum] => (endnum, cpus*2, 0),
+            &[endnum, streams] => (endnum, streams, 0),
+            &[endnum, streams, blk] => (endnum, streams, blk),
             _ => panic!("Too many parameters passed!"),
         };
 
@@ -60,6 +58,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         limits.clear();
         limits.delete(DeleteType::DelTree)?;
         limits.push(Vec::new());
+
+        // Reset globals
+        highest.set(b"0")?;
+        reads.set(b"0")?;
+        result.set(b"0")?;
+        updates.set(b"0")?;
+        step.clear();
+        step.delete(DeleteType::DelTree)?;
 
         // Set limits for each block to be computed, letting each thread grab
         // a ^limits(i) when it starts or finishes a block
@@ -125,14 +131,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             print!(" updates/s={} reads/s={}", updatecnt/(time/1000.0), readcnt/(time/1000.0));
         }
         println!();
-
-        // Reset globals
-        highest.set(b"0")?;
-        reads.set(b"0")?;
-        result.set(b"0")?;
-        updates.set(b"0")?;
-        step.clear();
-        step.delete(DeleteType::DelTree)?;
     }
 
     Ok(())
