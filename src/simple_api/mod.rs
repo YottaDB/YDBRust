@@ -1620,6 +1620,8 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use serial_test::serial;
+
     use crate::*;
     use super::*;
 
@@ -1784,6 +1786,7 @@ pub(crate) mod tests {
         }
     }
     #[test]
+    #[serial]
     fn ydb_lock_incr_decr_st() {
         // Create a new lock
         let err_buf = Vec::new();
@@ -1802,6 +1805,7 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[serial]
     fn ydb_lock_st() {
         // Test `ydb_lock`
         let key = Key::variable("ydbLock");

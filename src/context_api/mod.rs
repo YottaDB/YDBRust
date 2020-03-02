@@ -1188,8 +1188,11 @@ implement_iterator!(ReverseKeyNodeIterator, prev_node_self, KeyContext, |me: &mu
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::num::ParseIntError;
+    use serial_test::serial;
+
+    use super::*;
+
     #[test]
     fn create() {
         let ctx = Context::new();
@@ -1499,12 +1502,13 @@ mod tests {
         key.next_node_self().unwrap();
     }
     #[test]
+    #[serial]
     fn ydb_lock_st() {
         use crate::simple_api::tests::lock_count;
 
         // Test `Context::lock`
         let ctx = Context::new();
-        let key = KeyContext::variable(&ctx, "ydbLock");
+        let key = KeyContext::variable(&ctx, "ydbCtxLock");
         assert_eq!(lock_count(&key.variable), 0);
         // Acquuire the lock
         ctx.lock(Duration::from_secs(1), &[&key]).unwrap();
