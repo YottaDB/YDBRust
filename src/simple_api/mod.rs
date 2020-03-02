@@ -1533,13 +1533,13 @@ mod tests {
 
     #[test]
     fn ydb_lock_incr_decr_st() {
-        use std::os::raw::c_char;
+        use std::os::raw::{c_char, c_ulong};
         use crate::craw::{ydb_ci_t, ydb_string_t};
 
         fn make_out_str_t(slice: &mut [u8]) -> ydb_string_t {
             ydb_string_t {
                 address: slice.as_mut_ptr() as *mut c_char,
-                length: slice.len() as u64,
+                length: slice.len() as c_ulong,
             }
         }
 
