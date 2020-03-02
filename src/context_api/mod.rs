@@ -31,6 +31,7 @@ use std::error::Error;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::ops::{Deref, DerefMut};
+use std::time::Duration;
 
 use crate::craw::{YDB_NOTTP, YDB_ERR_NODEEND};
 use crate::simple_api::{tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType};
@@ -348,6 +349,49 @@ impl Context {
                 Err(x)
             },
         }
+    }
+    /// Acquires locks specified in `locks` and releases all others.
+    ///
+    /// This operation is atomic. If any lock cannot be acquired, no locks are acquired.
+    /// The `timeout` specifies the maximum time to wait before returning an error.
+    /// If no locks are specified, all locks are released.
+    ///
+    /// Note that YottaDB locks are per-process, not per-thread.
+    ///
+    /// # Errors
+    ///
+    /// Possible errors for this function include:
+    /// - YDB_LOCK_TIMEOUT if all locks could not be acquired within the timeout period.
+    ///   In this case, no locks are acquired.
+    /// - YDB_ERR_TIME2LONG if `timeout` is greater than `YDB_MAX_TIME_NSEC`
+    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # Examples
+    /// ```
+    /// use std::time::Duration;
+    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::context_api::{Context, KeyContext};
+    ///
+    /// // acquire a new lock
+    /// let ctx = Context::new();
+    /// let key = KeyContext::variable(&ctx, "lockA");
+    /// ctx.lock(Duration::from_secs(1), &[&key]).unwrap();
+    ///
+    /// // release all locks
+    /// ctx.lock(Duration::from_secs(1), &[]).unwrap();
+    /// ```
+    ///
+    /// # See also
+    ///
+    /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
+    /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
+    /// - [`simple_api::lock_st`](../simple_api/fn.lock_st.html)
+    pub fn lock(&self, timeout: Duration, locks: &[&Key]) -> YDBResult<()> {
+        use crate::simple_api::lock_st;
+
+        let tptoken = self.context.borrow().tptoken;
+        let buffer = self.context.borrow_mut().buffer.take().unwrap();
+        self.recover_buffer(lock_st(tptoken, buffer, timeout, locks)) 
     }
     fn borrow(&self) -> Ref<'_, ContextInternal> {
         self.context.borrow()

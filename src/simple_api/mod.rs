@@ -1565,6 +1565,7 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Resu
 ///
 /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
 /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
+/// - [`context_api::Context::lock`](../context_api/struct.Context.html#method.lock)
 pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[&Key]) -> YDBResult<Vec<u8>> {
     use crate::craw::{YDB_ERR_MAXARGCNT, MAXVPARMS, ydb_lock_st, ydb_call_variadic_plist_func, gparam_list};
 
