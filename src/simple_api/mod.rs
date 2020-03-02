@@ -1619,7 +1619,7 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use crate::*;
     use super::*;
 
@@ -1725,7 +1725,7 @@ mod tests {
     }
 
     // Return the number of locks held for `var`
-    fn lock_count(var: &str) -> usize {
+    pub(crate) fn lock_count(var: &str) -> usize {
         use std::os::raw::{c_char, c_ulong};
         use crate::craw::{ydb_ci_t, ydb_string_t};
 

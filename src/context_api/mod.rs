@@ -1498,4 +1498,19 @@ mod tests {
         let mut key = KeyContext::variable(&Context::new(), "empty");
         key.next_node_self().unwrap();
     }
+    #[test]
+    fn ydb_lock_st() {
+        use crate::simple_api::tests::lock_count;
+
+        // Test `Context::lock`
+        let ctx = Context::new();
+        let key = KeyContext::variable(&ctx, "ydbLock");
+        assert_eq!(lock_count(&key.variable), 0);
+        // Acquuire the lock
+        ctx.lock(Duration::from_secs(1), &[&key]).unwrap();
+        assert_eq!(lock_count(&key.variable), 1);
+        // Release all locks
+        ctx.lock(Duration::from_secs(1), &[]).unwrap();
+        assert_eq!(lock_count(&key.variable), 0);
+    }
 }
