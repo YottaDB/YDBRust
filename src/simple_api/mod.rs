@@ -1573,7 +1573,9 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
     let keys: Vec<_> = locks.iter().copied().map(Key::get_buffers).collect();
 
     type Void = *mut c_void;
-    // setup the initial args. Note that all these arguments are required to have size uint64_t.
+    // Setup the initial args.
+    // Note that all these arguments are required to have size of `void*`,
+    // whatever that is on the target.
     let mut arg = [0 as Void; MAXVPARMS as usize];
     let mut i: usize;
 
@@ -1594,25 +1596,28 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
         {
             arg[0] = (tptoken & 0xffffffff) as Void;
             arg[1] = (tptoken >> 32) as Void;
-            arg[3] = (nanos & 0xffffffff) as Void;
-            arg[4] = (nanos >> 32) as Void;
+            // arg[2] is err_buffer_t, but we need to use 2 slots for it to avoid unaligned accesses :(
+            // here's hoping that YDB gets a better API upstream soon ...
+            arg[4] = (nanos & 0xffffffff) as Void;
+            arg[5] = (nanos >> 32) as Void;
         }
         #[cfg(target_endian = "big")]
         {
             arg[0] = (tptoken >> 32) as Void;
             arg[1] = (tptoken & 0xffffffff) as Void;
-            arg[3] = (nanos >> 32) as Void;
-            arg[4] = (nanos & 0xffffffff) as Void;
+            arg[4] = (nanos >> 32) as Void;
+            arg[5] = (nanos & 0xffffffff) as Void;
         }
         arg[2] = &mut err_buffer_t as *mut _ as Void;
-        arg[5] = keys.len() as Void;
-        i = 6;
+        arg[6] = keys.len() as Void;
+        i = 7;
     }
     #[cfg(not(any(target_pointer_width = "64", target_pointer_width = "32")))]
     panic!("ydb_lock does not support architectures other than 32 and 64 bit");
 
     for (var, subscripts) in keys.iter() {
-        // start at 4 since we've already used the first 4 slots
+        // we've already used some of the slots for the initial parameters,
+        // so just keep a manual count instead of `enumerate`.
         arg[i] = var.as_ptr() as Void;
         arg[i + 1] = subscripts.len() as Void;
         arg[i + 2] = subscripts.as_ptr() as Void;
