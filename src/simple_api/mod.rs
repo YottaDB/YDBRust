@@ -457,6 +457,12 @@ impl Key {
     }
 
     // A call that can reallocate the `out_buffer`, but cannot modify `self`.
+    //
+    // `non_allocating_call` assumes that there are no extant references to `out_buffer`.
+    // Functions that require a separate `err_buffer_t` cannot use `non_allocating_call`.
+    //
+    // `non_allocating_call` assumes that on error, `func` should be called again.
+    // Functions which require `func` to only be called once cannot use `non_allocating_call`.
     fn non_allocating_call<F>(&self, tptoken: u64, mut out_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
     where F: FnMut(u64, *mut ydb_buffer_t, *const ydb_buffer_t, i32, *const ydb_buffer_t) -> c_int {
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
