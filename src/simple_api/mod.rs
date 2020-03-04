@@ -993,30 +993,30 @@ impl Key {
 
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_buffers();
-
-        let (t, mut last_self_buffer) = {
-            let t = self.subscripts.last_mut().unwrap_or(unsafe {
-                self.variable.as_mut_vec()
-            });
-            let buf = ydb_buffer_t {
+        let t = self.subscripts.last_mut().unwrap_or(unsafe {
+            self.variable.as_mut_vec()
+        });
+        let mut last_self_buffer;
+        let status = loop {
+            last_self_buffer = ydb_buffer_t {
                 buf_addr: t.as_mut_ptr() as *mut _,
                 len_alloc: t.capacity() as u32,
                 len_used: t.len() as u32,
             };
-            (t, buf)
-        };
 
-        let status = unsafe {
-            ydb_subscript_next_st(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
-                subscripts.as_ptr() as *const _, &mut last_self_buffer)
+            let status = unsafe {
+                ydb_subscript_next_st(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
+                    subscripts.as_ptr() as *const _, &mut last_self_buffer)
+            };
+            if status == YDB_ERR_INVSTRLEN {
+                // New size should be size needed + (current size - len used)
+                let new_size = (last_self_buffer.len_used - last_self_buffer.len_alloc) as usize;
+                let new_size = new_size + (t.capacity() - t.len());
+                t.reserve(new_size);
+                continue;
+            }
+            break status;
         };
-        if status == YDB_ERR_INVSTRLEN {
-            // New size should be size needed + (current size - len used)
-            let new_size = (last_self_buffer.len_used - last_self_buffer.len_alloc) as usize;
-            let new_size = new_size + (t.capacity() - t.len());
-            t.reserve(new_size);
-            return self.sub_next_self_st(tptoken, out_buffer);
-        }
         // Resize the vec with the buffer to we can see the value
         // We could end up with a buffer of a larger size if we couldn't fit the error string
         // into the out_buffer, so make sure to pick the smaller size
