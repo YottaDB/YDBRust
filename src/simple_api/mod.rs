@@ -943,19 +943,22 @@ impl Key {
     /// }
     /// ```
     pub fn sub_prev_st(&mut self, tptoken: u64, mut out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
-        // Safe to unwrap because there will never be a buffer_structs with size less than 1
-        let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_buffers();
-        let status = unsafe {
-            ydb_subscript_previous_st(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
-                subscripts.as_ptr() as *const _, &mut out_buffer_t)
+        let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
+
+        let status = loop {
+            let status = unsafe {
+                ydb_subscript_previous_st(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
+                    subscripts.as_ptr() as *const _, &mut out_buffer_t)
+            };
+            if status == YDB_ERR_INVSTRLEN {
+                out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
+                out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
+                continue;
+            }
+            break status;
         };
-        if status == YDB_ERR_INVSTRLEN {
-            out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
-            return self.sub_prev_st(tptoken, out_buffer);
-        }
         // Resize the vec with the buffer to we can see the value
         // We could end up with a buffer of a larger size if we couldn't fit the error string
         // into the out_buffer, so make sure to pick the smaller size
