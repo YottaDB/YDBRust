@@ -300,6 +300,7 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
+    // get_st can't use non_allocating call since it needs to distinguish between `out_buffer_t` and `err_buffer_t`
     pub fn get_st(&self, tptoken: u64, mut out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
@@ -354,39 +355,18 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn set_st<U>(&self, tptoken: u64, mut out_buffer: Vec<u8>, new_val: U) -> YDBResult<Vec<u8>>
+    pub fn set_st<U>(&self, tptoken: u64, out_buffer: Vec<u8>, new_val: U) -> YDBResult<Vec<u8>>
             where U: AsRef<[u8]> {
         let new_val = new_val.as_ref();
-        // Safe to unwrap because there will never be a buffer_structs with size less than 1
-        let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
         let new_val_t = ydb_buffer_t {
             buf_addr: new_val.as_ptr() as *const _ as *mut _,
             len_alloc: new_val.len() as u32,
             len_used: new_val.len() as u32,
         };
-
-        // Get pointers to the varname and to the first subscript
-        let (varname, subscripts) = self.get_buffers();
-        // Do the call
-        let status = unsafe {
-            ydb_set_st(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
-                subscripts.as_ptr() as *const _, &new_val_t)
+        let do_call = |tptoken, out_buffer_p, varname_p, len, subscripts_p| {
+            unsafe { ydb_set_st(tptoken, out_buffer_p, varname_p, len, subscripts_p, &new_val_t) }
         };
-        // Handle resizing the buffer, if needed
-        if status == YDB_ERR_INVSTRLEN {
-            out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
-            return self.set_st(tptoken, out_buffer, &new_val);
-        }
-        // Set length of the vec containing the buffer to we can see the value
-        if status != YDB_OK as i32 {
-            // We could end up with a buffer of a larger size if we couldn't fit the error string
-            // into the out_buffer, so make sure to pick the smaller size
-            unsafe {
-                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-            }
-            return Err(YDBError { message: out_buffer, status, tptoken });
-        }
-        Ok(out_buffer)
+        self.non_allocating_call(tptoken, out_buffer, do_call)
     }
     
     /// Retuns the following information in DataReturn about a local or global variable node:
@@ -420,27 +400,12 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn data_st(&self, tptoken: u64, mut out_buffer: Vec<u8>) -> YDBResult<(DataReturn, Vec<u8>)> {
-        // Safe to unwrap because there will never be a buffer_structs with size less than 1
-        let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-
-        // Get pointers to the varname and to the first subscript
-        let (varname, subscripts) = self.get_buffers();
+    pub fn data_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<(DataReturn, Vec<u8>)> {
         let mut retval: u32 = 0;
-        // Do the call
-        let status = unsafe {
-            ydb_data_st(tptoken, &mut out_buffer_t, varname.as_ptr(), self.subscripts.len() as i32,
-                subscripts.as_ptr() as *const _, &mut retval as *mut _)
+        let do_call = |tptoken, out_buffer_p, varname_p, len, subscripts_p| {
+            unsafe { ydb_data_st(tptoken, out_buffer_p, varname_p, len, subscripts_p, &mut retval as *mut _) }
         };
-        // Set length of the vec containing the buffer to we can see the value
-        if status != YDB_OK as i32 {
-            // We could end up with a buffer of a larger size if we couldn't fit the error string
-            // into the out_buffer, so make sure to pick the smaller size
-            unsafe {
-                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-            }
-            return Err(YDBError { message: out_buffer, status, tptoken });
-        }
+        let out_buffer = self.non_allocating_call(tptoken, out_buffer, do_call)?;
         Ok((match retval {
             0 => DataReturn::NoData,
             1 => DataReturn::ValueData,
@@ -480,8 +445,20 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn delete_st(&self, tptoken: u64, mut out_buffer: Vec<u8>, delete_type: DeleteType)
+    pub fn delete_st(&self, tptoken: u64, out_buffer: Vec<u8>, delete_type: DeleteType)
             -> YDBResult<Vec<u8>> {
+        let c_delete_ty = match delete_type {
+            DeleteType::DelNode => YDB_DEL_NODE,
+            DeleteType::DelTree => YDB_DEL_TREE,
+        } as i32;
+        self.non_allocating_call(tptoken, out_buffer, |tptoken, out_buffer_p, varname_p, len, subscripts_p| {
+            unsafe { ydb_delete_st(tptoken, out_buffer_p, varname_p, len, subscripts_p, c_delete_ty) }
+        })
+    }
+
+    // A call that can reallocate the `out_buffer`, but cannot modify `self`.
+    fn non_allocating_call<F>(&self, tptoken: u64, mut out_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
+    where F: FnMut(u64, *mut ydb_buffer_t, *const ydb_buffer_t, i32, *const ydb_buffer_t) -> c_int {
         // Safe to unwrap because there will never be a buffer_structs with size less than 1
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
 
@@ -490,13 +467,7 @@ impl Key {
 
         let status = loop {
             // Do the call
-            let status = unsafe {
-                ydb_delete_st(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
-                    subscripts.as_ptr() as *const _, match delete_type {
-                        DeleteType::DelNode => YDB_DEL_NODE,
-                        DeleteType::DelTree => YDB_DEL_TREE,
-                    } as i32)
-            };
+            let status = func(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32, subscripts.as_ptr() as *const _);
             // Handle resizing the buffer, if needed
             if status == YDB_ERR_INVSTRLEN {
                 out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
