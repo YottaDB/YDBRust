@@ -487,19 +487,23 @@ impl Key {
 
         // Get pointers to the varname and to the first subscript
         let (varname, subscripts) = self.get_buffers();
-        // Do the call
-        let status = unsafe {
-            ydb_delete_st(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
-                subscripts.as_ptr() as *const _, match delete_type {
-                    DeleteType::DelNode => YDB_DEL_NODE,
-                    DeleteType::DelTree => YDB_DEL_TREE,
-                } as i32)
+
+        let status = loop {
+            // Do the call
+            let status = unsafe {
+                ydb_delete_st(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
+                    subscripts.as_ptr() as *const _, match delete_type {
+                        DeleteType::DelNode => YDB_DEL_NODE,
+                        DeleteType::DelTree => YDB_DEL_TREE,
+                    } as i32)
+            };
+            // Handle resizing the buffer, if needed
+            if status == YDB_ERR_INVSTRLEN {
+                out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
+                continue;
+            }
+            break status;
         };
-        // Handle resizing the buffer, if needed
-        if status == YDB_ERR_INVSTRLEN {
-            out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
-            return self.delete_st(tptoken, out_buffer, delete_type);
-        }
         // Set length of the vec containing the buffer to we can see the value
         if status != YDB_OK as i32 {
             // We could end up with a buffer of a larger size if we couldn't fit the error string
