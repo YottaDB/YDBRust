@@ -1006,11 +1006,11 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::YDB_NOTTP;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> YDBResult<()> {
     ///     let mut key = make_key!("^helloSubPrevSelf", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
@@ -1025,6 +1025,26 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
+    ///
+    /// `sub_prev_self_st` can be written (less efficiently) using only safe code:
+    /// ```
+    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::simple_api::{Key, YDBResult};
+    /// # fn main() -> YDBResult<()> {
+    ///
+    /// // set up a node with data at `subPrevSelfUser("a")`
+    /// let mut user = Key::new("subPrevSelfUser", &["a"]);
+    /// user.set_st(YDB_NOTTP, Vec::new(), b"Hello")?;
+    ///
+    /// user[0] = "b".into();
+    /// user[0] = user.sub_prev_st(YDB_NOTTP, Vec::new()).unwrap();
+    ///
+    /// let mut ydb = Key::new("subPrevSelfUser", &["b"]);
+    /// ydb.sub_prev_self_st(YDB_NOTTP, Vec::new())?;
+    ///
+    /// assert_eq!(user[0], ydb[0]);
+    /// # Ok(())
+    /// # }
     pub fn sub_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         self.sub_self_call(tptoken, out_buffer, ydb_subscript_previous_st)
     }
