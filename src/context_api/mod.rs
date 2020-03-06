@@ -368,16 +368,26 @@ impl Context {
     ///
     /// # Examples
     /// ```
+    /// use std::slice;
     /// use std::time::Duration;
     /// use yottadb::YDB_NOTTP;
     /// use yottadb::context_api::{Context, KeyContext};
+    /// use yottadb::simple_api::Key;
     ///
-    /// // acquire a new lock
+    /// // You can use either a `Key` or a `KeyContext` to acquire a lock.
+    /// // This uses a `KeyContext` to show that you need to use `.key` to get the inner `Key`.
     /// let ctx = Context::new();
-    /// let key = KeyContext::variable(&ctx, "lockA");
-    /// ctx.lock(Duration::from_secs(1), &[&key]).unwrap();
+    /// let a = KeyContext::variable(&ctx, "lockA");
     ///
-    /// // release all locks
+    /// // Acquire a new lock
+    /// // using `from_ref` here allows us to use `a` later without moving it
+    /// ctx.lock(Duration::from_secs(1), slice::from_ref(&a.key)).unwrap();
+    ///
+    /// // Acquire multiple locks
+    /// let locks = vec![a.key, Key::variable("lockB")];
+    /// ctx.lock(Duration::from_secs(1), &locks).unwrap();
+    ///
+    /// // Release all locks
     /// ctx.lock(Duration::from_secs(1), &[]).unwrap();
     /// ```
     ///
@@ -386,7 +396,7 @@ impl Context {
     /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
     /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
     /// - [`simple_api::lock_st`](../simple_api/fn.lock_st.html)
-    pub fn lock(&self, timeout: Duration, locks: &[&Key]) -> YDBResult<()> {
+    pub fn lock(&self, timeout: Duration, locks: &[Key]) -> YDBResult<()> {
         use crate::simple_api::lock_st;
 
         let tptoken = self.context.borrow().tptoken;
@@ -398,6 +408,18 @@ impl Context {
     }
     fn borrow_mut(&self) -> RefMut<'_, ContextInternal> {
         self.context.borrow_mut()
+    }
+}
+
+impl std::borrow::Borrow<Key> for KeyContext {
+    fn borrow(&self) -> &Key {
+        &self.key
+    }
+}
+
+impl std::borrow::BorrowMut<Key> for KeyContext {
+    fn borrow_mut(&mut self) -> &mut Key {
+        &mut self.key
     }
 }
 
@@ -1511,7 +1533,7 @@ mod tests {
         let key = KeyContext::variable(&ctx, "ydbCtxLock");
         assert_eq!(lock_count(&key.variable), 0);
         // Acquuire the lock
-        ctx.lock(Duration::from_secs(1), &[&key]).unwrap();
+        ctx.lock(Duration::from_secs(1), std::slice::from_ref(&key.key)).unwrap();
         assert_eq!(lock_count(&key.variable), 1);
         // Release all locks
         ctx.lock(Duration::from_secs(1), &[]).unwrap();

@@ -1549,13 +1549,19 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Resu
 ///
 /// # Examples
 /// ```
+/// use std::slice;
 /// use std::time::Duration;
 /// use yottadb::YDB_NOTTP;
 /// use yottadb::simple_api::{Key, lock_st};
 ///
 /// // acquire a new lock
-/// let key = Key::variable("lockA");
-/// lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &[&key]).unwrap();
+/// let a = Key::variable("lockA");
+/// // using `from_ref` here allows us to use `a` later without moving it
+/// lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), slice::from_ref(&a)).unwrap();
+///
+/// // acquire multiple locks
+/// let locks = vec![a, Key::variable("lockB")];
+/// lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &locks).unwrap();
 ///
 /// // release all locks
 /// lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &[]).unwrap();
@@ -1566,11 +1572,11 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Resu
 /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
 /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
 /// - [`context_api::Context::lock`](../context_api/struct.Context.html#method.lock)
-pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[&Key]) -> YDBResult<Vec<u8>> {
+pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[Key]) -> YDBResult<Vec<u8>> {
     use crate::craw::{YDB_ERR_MAXARGCNT, MAXVPARMS, ydb_lock_st, ydb_call_variadic_plist_func, gparam_list};
 
     let mut err_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
-    let keys: Vec<_> = locks.iter().copied().map(Key::get_buffers).collect();
+    let keys: Vec<_> = locks.iter().map(|k| k.get_buffers()).collect();
 
     type Void = *mut c_void;
     // Setup the initial args.
@@ -1616,20 +1622,19 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
     panic!("ydb_lock does not support architectures other than 32 and 64 bit");
 
     for (var, subscripts) in keys.iter() {
+        if i + 2 >= MAXVPARMS as usize {
+            return Err(YDBError {
+                status: YDB_ERR_MAXARGCNT,
+                message: format!("Expected at most {} arguments, got {}", MAXVPARMS, i).into_bytes(),
+                tptoken,
+            });
+        }
         // we've already used some of the slots for the initial parameters,
         // so just keep a manual count instead of `enumerate`.
         arg[i] = var.as_ptr() as Void;
         arg[i + 1] = subscripts.len() as Void;
         arg[i + 2] = subscripts.as_ptr() as Void;
         i += 3;
-    }
-
-    if i > MAXVPARMS as usize {
-        return Err(YDBError {
-            status: YDB_ERR_MAXARGCNT,
-            message: format!("Expected at most {} arguments, got {}", MAXVPARMS, i).into_bytes(),
-            tptoken,
-        });
     }
 
     let args = gparam_list { n: i as isize, arg };
@@ -1845,15 +1850,26 @@ pub(crate) mod tests {
     #[test]
     #[serial]
     fn ydb_lock_st() {
+        use crate::craw::YDB_ERR_MAXARGCNT;
+
         // Test `ydb_lock`
         let key = Key::variable("ydbLock");
         assert_eq!(lock_count(&key.variable), 0);
-        // Acquuire the lock
-        lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &[&key]).unwrap();
+        // Acquire the lock
+        lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), std::slice::from_ref(&key)).unwrap();
         assert_eq!(lock_count(&key.variable), 1);
         // Release all locks
         lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &[]).unwrap();
         assert_eq!(lock_count(&key.variable), 0);
+
+        // Test for too many locks
+        let mut locks = Vec::new();
+        for c in b'a'..=b'z' {
+            let var = String::from_utf8([c].to_vec()).unwrap();
+            locks.push(Key::variable(var));
+        }
+        let res = lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &locks);
+        assert!(res.unwrap_err().status == YDB_ERR_MAXARGCNT);
     }
 
     #[test]
