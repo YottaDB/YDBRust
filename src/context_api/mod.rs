@@ -358,12 +358,32 @@ impl Context {
     ///
     /// Note that YottaDB locks are per-process, not per-thread.
     ///
+    /// # Limitations
+    ///
+    /// For implementation reasons, there is a hard limit to the number of `Key`s that can be passed in `locks`:
+    // floor( (36 - 4)/3 ) = 10
+    /// - 64-bit: 10 `Key`s
+    // floor( (36 - 7)/3 ) = 9
+    /// - 32-bit: 9  `Key`s
+    ///
+    /// If more than this number of keys are passed, `lock_st` will return `YDB_ERR_MAXARGCNT`.
+    ///
+    /// For implementation reasons, `lock_st` only works on 64-bit platforms, or on 32-bit ARM.
+    ///
+    /// `lock_st` will not be compiled on 16, 8, or 128 bit platforms
+    /// (i.e. will fail with 'cannot find function `lock_st` in module `yottadb::simple_api`').
+    ///
+    /// On non-ARM 32-bit platforms, the compiler will allow `lock_st` to be called,
+    /// but it will have unspecified behavior and has not been tested.
+    /// Use [`KeyContext::lock_incr`] and [`KeyContext::lock_decr`] instead.
+    ///
     /// # Errors
     ///
     /// Possible errors for this function include:
-    /// - YDB_LOCK_TIMEOUT if all locks could not be acquired within the timeout period.
+    /// - `YDB_LOCK_TIMEOUT` if all locks could not be acquired within the timeout period.
     ///   In this case, no locks are acquired.
-    /// - YDB_ERR_TIME2LONG if `timeout` is greater than `YDB_MAX_TIME_NSEC`
+    /// - `YDB_ERR_TIME2LONG` if `timeout` is greater than `YDB_MAX_TIME_NSEC`
+    /// - `YDB_ERR_MAXARGCNT` if too many locks have been passed (see [Limitations](#limitations))
     /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
     ///
     /// # Examples
@@ -396,6 +416,9 @@ impl Context {
     /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
     /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
     /// - [`simple_api::lock_st`](../simple_api/fn.lock_st.html)
+    ///
+    /// [`KeyContext::lock_incr`]: struct.KeyContext.html#method.lock_incr
+    /// [`KeyContext::lock_decr`]: struct.KeyContext.html#method.lock_decr
     pub fn lock(&self, timeout: Duration, locks: &[Key]) -> YDBResult<()> {
         use crate::simple_api::lock_st;
 

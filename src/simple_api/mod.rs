@@ -1539,12 +1539,32 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Resu
 ///
 /// Note that YottaDB locks are per-process, not per-thread.
 ///
+/// # Limitations
+///
+/// For implementation reasons, there is a hard limit to the number of `Key`s that can be passed in `locks`:
+// floor( (36 - 4)/3 ) = 10
+/// - 64-bit: 10 `Key`s
+// floor( (36 - 7)/3 ) = 9
+/// - 32-bit: 9  `Key`s
+///
+/// If more than this number of keys are passed, `lock_st` will return `YDB_ERR_MAXARGCNT`.
+///
+/// For implementation reasons, `lock_st` only works on 64-bit platforms, or on 32-bit ARM.
+///
+/// `lock_st` will not be compiled on 16, 8, or 128 bit platforms
+/// (i.e. will fail with 'cannot find function `lock_st` in module `yottadb::simple_api`').
+///
+/// On non-ARM 32-bit platforms, the compiler will allow `lock_st` to be called,
+/// but it will have unspecified behavior and has not been tested.
+/// Use [`Key::lock_incr_st`] and [`Key::lock_decr_st`] instead.
+///
 /// # Errors
 ///
 /// Possible errors for this function include:
-/// - YDB_LOCK_TIMEOUT if all locks could not be acquired within the timeout period.
+/// - `YDB_LOCK_TIMEOUT` if all locks could not be acquired within the timeout period.
 ///   In this case, no locks are acquired.
-/// - YDB_ERR_TIME2LONG if `timeout` is greater than `YDB_MAX_TIME_NSEC`
+/// - `YDB_ERR_TIME2LONG` if `timeout` is greater than `YDB_MAX_TIME_NSEC`
+/// - `YDB_ERR_MAXARGCNT` if too many locks have been passed (see [Limitations](#limitations))
 /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
 ///
 /// # Examples
@@ -1572,6 +1592,10 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Resu
 /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
 /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
 /// - [`context_api::Context::lock`](../context_api/struct.Context.html#method.lock)
+///
+/// [`Key::lock_incr_st`]: struct.Key.html#method.lock_incr_st
+/// [`Key::lock_decr_st`]: struct.Key.html#method.lock_decr_st
+#[cfg(any(target_pointer_width = "64", target_pointer_width = "32"))]
 pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[Key]) -> YDBResult<Vec<u8>> {
     use crate::craw::{YDB_ERR_MAXARGCNT, MAXVPARMS, ydb_lock_st, ydb_call_variadic_plist_func, gparam_list};
 
@@ -1618,8 +1642,6 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
         arg[6] = keys.len() as Void;
         i = 7;
     }
-    #[cfg(not(any(target_pointer_width = "64", target_pointer_width = "32")))]
-    panic!("ydb_lock does not support architectures other than 32 and 64 bit");
 
     for (var, subscripts) in keys.iter() {
         if i + 2 >= MAXVPARMS as usize {
@@ -1870,6 +1892,23 @@ pub(crate) mod tests {
         }
         let res = lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &locks);
         assert!(res.unwrap_err().status == YDB_ERR_MAXARGCNT);
+
+        // Test for the maximum number of locks
+        locks.clear();
+        #[cfg(target_pointer_width = "64")]
+        let max = 10;
+        #[cfg(target_pointer_width = "32")]
+        let max = 9;
+        for i in 0..max {
+            // YDB variables can't start with a number
+            let mut s = String::from("a");
+            s.push_str(&i.to_string());
+            locks.push(Key::variable(s));
+        }
+        lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &locks).unwrap();
+        for lock in locks {
+            assert_eq!(lock_count(&lock.variable), 1);
+        }
     }
 
     #[test]
