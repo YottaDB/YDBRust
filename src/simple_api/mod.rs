@@ -1479,7 +1479,7 @@ pub fn str2zwr_st(tptoken: u64, mut out_buf: Vec<u8>, original: &[u8]) -> YDBRes
         debug_assert!(needed <= out_buf.capacity());
         return str2zwr_st(tptoken, out_buf, original);
     }
-    // Resize the vec with the buffer to we can see the value
+    // Resize the vec with the buffer so we can see the value
     // We could end up with a buffer of a larger size if we couldn't fit the error string
     // into the out_buffer, so make sure to pick the smaller size
     let used = if status != YDB_OK as i32 {
@@ -1537,7 +1537,7 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Resu
     } else if status == YDB_OK as c_int && out_buffer_t.len_used == 0 {
         out_buf.clear();
     }
-    // Resize the vec with the buffer to we can see the value
+    // Resize the vec with the buffer so we can see the value
     // We could end up with a buffer of a larger size if we couldn't fit the error string
     // into the out_buffer, so make sure to pick the smaller size
     let used = if status != YDB_OK as i32 {
