@@ -301,34 +301,11 @@ impl Key {
     /// }
     /// ```
     // get_st can't use non_allocating_call since it needs to distinguish between `out_buffer_t` and `err_buffer_t`
-    pub fn get_st(&self, tptoken: u64, mut out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
-        // Safe to unwrap because there will never be a buffer_structs with size less than 1
-        let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-        let mut err_buffer_t = out_buffer_t;
-
-        // Get pointers to the varname and to the first subscript
-        let (varname, subscripts) = self.get_buffers();
-        let status = unsafe {
-            ydb_get_st(tptoken, &mut err_buffer_t, varname.as_ptr(), self.subscripts.len() as i32,
-                subscripts.as_ptr() as *const _, &mut out_buffer_t)
+    pub fn get_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+        let do_call = |tptoken, err_buffer_p, varname_p, len, subscripts_p, out_buffer_p| {
+            unsafe { ydb_get_st(tptoken, err_buffer_p, varname_p, len, subscripts_p, out_buffer_p) }
         };
-        if status == YDB_ERR_INVSTRLEN {
-            out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
-            return self.get_st(tptoken, out_buffer);
-        }
-        // Resize the vec with the buffer to we can see the value
-        // We could end up with a buffer of a larger size if we couldn't fit the error string
-        // into the out_buffer, so make sure to pick the smaller size
-        if status != YDB_OK as i32 {
-            unsafe {
-                out_buffer.set_len(min(err_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-            }
-            return Err(YDBError { message: out_buffer, status, tptoken });
-        }
-        unsafe {
-            out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-        }
-        Ok(out_buffer)
+        self.non_allocating_ret_call(tptoken, out_buffer, do_call)
     }
     
     /// Sets the value of a key in the database.
@@ -501,15 +478,20 @@ impl Key {
             break status;
         };
         // Set length of the vec containing the buffer to we can see the value
-        if status != YDB_OK as i32 {
+        let needed_size = if status != YDB_OK as i32 {
             // We could end up with a buffer of a larger size if we couldn't fit the error string
             // into the out_buffer, so make sure to pick the smaller size
-            unsafe {
-                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-            }
-            return Err(YDBError { message: out_buffer, status, tptoken });
+            min(err_buffer_t.len_used, err_buffer_t.len_alloc)
+        } else {
+            min(out_buffer_t.len_used, out_buffer_t.len_alloc)
+        } as usize;
+        unsafe { out_buffer.set_len(needed_size); }
+
+        if status != YDB_OK as i32 {
+            Err(YDBError { message: out_buffer, status, tptoken })
+        } else {
+            Ok(out_buffer)
         }
-        Ok(out_buffer)
     }
 
     /// Converts the value to a number and increments it based on the value specifed by Option.
