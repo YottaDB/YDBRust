@@ -638,21 +638,10 @@ impl Key {
             }
             Ok(n) => n,
         };
-        let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-        let (var, subscripts) = self.get_buffers();
-        let status = unsafe {
-            ydb_lock_incr_st(tptoken, &mut out_buffer_t, timeout_ns, var.as_ptr(), subscripts.len() as c_int, subscripts.as_ptr() as *const _)
+        let do_call = |tptoken, err_buffer_p, varname_p, len, subscripts_p| {
+            unsafe { ydb_lock_incr_st(tptoken, err_buffer_p, timeout_ns, varname_p, len, subscripts_p) }
         };
-
-        let len = min(out_buffer_t.len_used, out_buffer_t.len_alloc);
-        unsafe {
-            out_buffer.set_len(len as usize);
-        }
-        if status != YDB_OK as c_int {
-            Err(YDBError { message: out_buffer, status, tptoken })
-        } else {
-            Ok(out_buffer)
-        }
+        self.non_allocating_call(tptoken, out_buffer, do_call)
     }
     /// Facilitates depth-first traversal of a local or global variable tree, and passes itself in as the output parameter.
     ///
