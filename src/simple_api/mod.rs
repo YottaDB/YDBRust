@@ -864,36 +864,13 @@ impl Key {
     }
 
     // `sub_prev` and `sub_next` use the same memory allocation logic.
-    fn sub_call(&mut self, tptoken: u64, mut out_buffer: Vec<u8>,
+    fn sub_call(&mut self, tptoken: u64, out_buffer: Vec<u8>,
         func: unsafe extern "C" fn(u64, *mut ydb_buffer_t, *const ydb_buffer_t, i32, *const ydb_buffer_t, *mut ydb_buffer_t) -> c_int
     ) -> YDBResult<Vec<u8>> {
-        // Get pointers to the varname and to the first subscript
-        let (varname, subscripts) = self.get_buffers();
-        let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-
-        let status = loop {
-            let status = unsafe {
-                func(tptoken, &mut out_buffer_t, varname.as_ptr(), subscripts.len() as i32,
-                    subscripts.as_ptr() as *const _, &mut out_buffer_t)
-            };
-            if status == YDB_ERR_INVSTRLEN {
-                out_buffer.resize_with(out_buffer_t.len_used as usize, Default::default);
-                out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
-                continue;
-            }
-            break status;
+        let do_call = |tptoken, err_buffer_p, varname_p, len, subscripts_p, out_buffer_p| {
+            unsafe { func(tptoken, err_buffer_p, varname_p, len, subscripts_p, out_buffer_p) }
         };
-        // Resize the vec with the buffer to we can see the value
-        // We could end up with a buffer of a larger size if we couldn't fit the error string
-        // into the out_buffer, so make sure to pick the smaller size
-        let new_buffer_size = min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize;
-        unsafe {
-            out_buffer.set_len(new_buffer_size);
-        }
-        if status != YDB_OK as i32 {
-            return Err(YDBError { message: out_buffer, status, tptoken });
-        }
-        Ok(out_buffer)
+        self.non_allocating_ret_call(tptoken, out_buffer, do_call)
     }
 
     /// Implements breadth-first traversal of a tree by searching for the next subscript, and passes itself in as the output parameter.
