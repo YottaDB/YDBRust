@@ -300,7 +300,6 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    // get_st can't use non_allocating_call since it needs to distinguish between `out_buffer_t` and `err_buffer_t`
     pub fn get_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         let do_call = |tptoken, err_buffer_p, varname_p, len, subscripts_p, out_buffer_p| {
             unsafe { ydb_get_st(tptoken, err_buffer_p, varname_p, len, subscripts_p, out_buffer_p) }
