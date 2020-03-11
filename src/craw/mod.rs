@@ -15,7 +15,11 @@
 //! This contains things like error codes, return values, constants,
 //! new functionality not yet wrapped in the simple API, and other fun
 //! things, but is dangerous to use. Unless you have a good reason, use the
-//! Simple API.
+//! [Simple API].
+//!
+//! # See also
+//! - [Programming in C](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html)
+//! - [Error messages](https://docs.yottadb.com/MessageRecovery/errors.html)
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]

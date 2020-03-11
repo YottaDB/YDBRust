@@ -10,7 +10,7 @@
 *                                                               *
 ****************************************************************/
 
-//! YottaDB is a NoSQL Database suitable for high-performance systems.
+//! [YottaDB] is a NoSQL Database suitable for high-performance systems.
 //!
 //! YottaDB runs in-process, like SQLite, with no need for a daemon.
 //! This crate is a Rust wrapper around the C implementation of YottaDB.
@@ -33,6 +33,7 @@
 //! The context_api is recommended for normal use, but the others are available if your
 //! needs are more specialized.
 //!
+//! [YottaDB]: https://yottadb.com/
 //! [transaction processing]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
 #![deny(missing_docs)]
 
