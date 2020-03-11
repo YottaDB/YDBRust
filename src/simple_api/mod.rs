@@ -2002,6 +2002,17 @@ pub(crate) mod tests {
             unreachable!();
         }, "BATCH", &[]).unwrap_err();
         assert!(err.downcast::<YDBError>().unwrap().status == craw::YDB_ERR_LVUNDEF);
+
+        // TPTOODEEP
+        fn call_forever(tptoken: u64) -> UserResult {
+            tp_st(tptoken, Vec::new(), call_forever, "BATCH", &[])?;
+            Ok(())
+        }
+        let err = call_forever(YDB_NOTTP).unwrap_err();
+        match err.downcast::<YDBError>() {
+            Ok(err) if err.status == craw::YDB_ERR_TPTOODEEP => {},
+            other => panic!("expected ERR_TPTOODEEP, got {:?}", other),
+        }
     }
 
     #[test]
