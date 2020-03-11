@@ -1240,24 +1240,24 @@ pub fn tp_st<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut f: F, trans_id: &str,
         where F: FnMut(u64) -> UserResult {
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
 
-    let mut locals = Vec::with_capacity(locals_to_reset.len());
+    let mut locals: Vec<ConstYDBBuffer> = Vec::with_capacity(locals_to_reset.len());
     for local in locals_to_reset.iter() {
         locals.push(ydb_buffer_t {
             buf_addr: local.as_ptr() as *const _ as *mut _,
             len_alloc: local.len() as u32,
             len_used: local.len() as u32,
-        });
+        }.into());
     }
     let locals_ptr = match locals.len() {
-        0 => ptr::null_mut(),
-        _ => locals.as_mut_ptr(),
+        0 => ptr::null(),
+        _ => locals.as_ptr(),
     };
     let c_str = CString::new(trans_id).unwrap();
     let mut callback_struct = CallBackStruct { cb: &mut f, error: None };
     let arg = &mut callback_struct as *mut _ as *mut c_void;
     let status = unsafe {
         ydb_tp_st(tptoken, &mut out_buffer_t, Some(fn_callback), arg, c_str.as_ptr(),
-            locals.len() as i32, locals_ptr)
+            locals.len() as i32, locals_ptr as *const _)
     };
     if status as u32 == YDB_OK {
         // from Steve:
