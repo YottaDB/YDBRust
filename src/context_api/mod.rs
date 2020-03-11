@@ -352,7 +352,7 @@ impl Context {
     }
     /// Acquires locks specified in `locks` and releases all others.
     ///
-    /// This operation is atomic. If any lock cannot be acquired, no locks are acquired.
+    /// This operation is atomic. If any lock cannot be acquired, all locks are released.
     /// The `timeout` specifies the maximum time to wait before returning an error.
     /// If no locks are specified, all locks are released.
     ///
