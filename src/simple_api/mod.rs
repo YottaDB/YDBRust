@@ -1303,8 +1303,7 @@ pub fn delete_excl_st(tptoken: u64, err_buffer: Vec<u8>, saved_variables: &[&str
 /// Given a binary sequence, serialize it to 'Zwrite format', which is ASCII printable.
 ///
 /// # Errors
-/// - If YDB is in UTF8 mode, will return [`BADCHAR`] on invalid UTF8.
-/// - Another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+/// - [error codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
 ///
 /// # Examples
 ///
@@ -1321,8 +1320,6 @@ pub fn delete_excl_st(tptoken: u64, err_buffer: Vec<u8>, saved_variables: &[&str
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
 /// - [`zwr2str_st`](fn.zwr2str_st.html), which deserializes a buffer in Zwrite format back to the original binary.
-///
-/// [`BADCHAR`]: https://docs.yottadb.com/MessageRecovery/errors.html#badchar
 pub fn str2zwr_st(tptoken: u64, out_buf: Vec<u8>, original: &[u8]) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_str2zwr_st;
 
