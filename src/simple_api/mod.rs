@@ -452,8 +452,8 @@ impl Key {
     //
     // `non_allocating_ret_call` assumes that there are no extant references to `out_buffer`.
     //
-    // `non_allocating_call` assumes that on error, `func` should be called again.
-    // Functions which require `func` to only be called once cannot use `non_allocating_call`.
+    // `non_allocating_ret_call` assumes that on error, `func` should be called again.
+    // Functions which require `func` to only be called once cannot use `non_allocating_ret_call`.
     //
     // This differs from `non_allocating_call` in that it passes an `err_buffer_t` to the closure.
     fn non_allocating_ret_call<F>(&self, tptoken: u64, mut out_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
