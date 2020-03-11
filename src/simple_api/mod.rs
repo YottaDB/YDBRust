@@ -1711,6 +1711,12 @@ pub(crate) mod tests {
 
         // Saving a variable that doesn't exist should do nothing and return YDB_OK.
         delete_excl_st(0, Vec::new(), &["local"]).unwrap();
+
+        // Check for `YDB_ERR_NAMECOUNT2HI` if too many params are passed
+        use crate::craw::{YDB_ERR_NAMECOUNT2HI, YDB_MAX_NAMES};
+        let vars = vec!["hello"; YDB_MAX_NAMES as usize + 1];
+        let err = delete_excl_st(YDB_NOTTP, Vec::new(), &vars).unwrap_err();
+        assert_eq!(err.status, YDB_ERR_NAMECOUNT2HI);
     }
 
     #[test]
