@@ -1598,6 +1598,23 @@ pub fn zwr2str_st(tptoken: u64, mut out_buf: Vec<u8>, serialized: &[u8]) -> Resu
 #[cfg(any(target_pointer_width = "64", target_pointer_width = "32"))]
 pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[Key]) -> YDBResult<Vec<u8>> {
     use crate::craw::{YDB_ERR_MAXARGCNT, MAXVPARMS, ydb_lock_st, ydb_call_variadic_plist_func, gparam_list};
+    // `ydb_lock_st` is hard to work with because it uses variadic arguments.
+    // The only way to pass a variable number of arguments in Rust is to pass a slice
+    // or use a macro (i.e. know the number of arguments ahead of time).
+
+    // To get around this, `lock_st` calls the undocumented `ydb_call_variadic_plist_func` function.
+    // `ydb_call_variadic_plist_func` takes the function to call, and a { len, args } struct.
+    // `args` is required to be stack-allocated and has a maximum capacity of MAXVPARMS.
+
+    // By mistake, each `arg` is typed as being a `void *`.
+    // This means that on 32-bit platforms, 64-bit arguments have to be passed as 2 separate arguments.
+    // This will hopefully be fixed in YDB r1.32 to take a `uint64_t` instead.
+
+    // By mistake, the function passed to `ydb_call_variadic_plist_func`
+    // is typed as taking the number of arguments and then a variable number of args.
+    // This is incorrect; any function can be passed to `ydb_call_variadic_plist_func`
+    // as long as the parameters it takes match the arguments passed.
+    // This is not planned to change in the near future.
 
     let mut err_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
     let keys: Vec<_> = locks.iter().map(|k| k.get_buffers()).collect();
@@ -1661,12 +1678,12 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
 
     let args = gparam_list { n: i as isize, arg };
     let status = unsafe {
-        // the types on `ydb_call_variadic_plist_func` are not correct
-        // additionally, `ydb_lock_st` on its own is a unique zero-sized-type (ZST):
-        // see https://doc.rust-lang.org/reference/types/function-item.html#function-item-types for more details on function types
+        // The types on `ydb_call_variadic_plist_func` are not correct.
+        // Additionally, `ydb_lock_st` on its own is a unique zero-sized-type (ZST):
+        // See https://doc.rust-lang.org/reference/types/function-item.html#function-item-types for more details on function types
         // and https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts for details on ZSTs.
-        // this `as *const ()` turns the unique ZST for `ydb_lock_st` into a proper function pointer
-        // without the `as` cast, `transmute` will return `1_usize` and `ydb_call` will subsequently segfault
+        // This `as *const ()` turns the unique ZST for `ydb_lock_st` into a proper function pointer.
+        // Without the `as` cast, `transmute` will return `1_usize` and `ydb_call` will subsequently segfault.
         let ydb_lock_no_really_trust_me = std::mem::transmute(ydb_lock_st as *const ());
         ydb_call_variadic_plist_func(Some(ydb_lock_no_really_trust_me), &args as *const _ as usize)
     };
