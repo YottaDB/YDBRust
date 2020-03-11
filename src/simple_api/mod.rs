@@ -2039,28 +2039,31 @@ pub(crate) mod tests {
             assert_eq!(s, deserialized);
         }
         #[test]
-        // no Rust Simple API should ever return INVSTRLEN
-        fn no_invstrlen_proptest(key in arb_key(), value: Vec<u8>, b: bool) {
-            fn assert_not_invstrlen<T>(res: YDBResult<T>) {
+        // no Rust Simple API should ever return INVSTRLEN or INSUFFSUBS
+        fn no_invalid_errors_proptest(key in arb_key(), value: Vec<u8>, b: bool) {
+            fn assert_not_invalid<T>(res: YDBResult<T>) {
                 match res {
                     Err(ydberr) if ydberr.status == YDB_ERR_INVSTRLEN => {
+                        panic!("function returned YDB_ERR_INVSTRLEN");
+                    }
+                    Err(ydberr) if ydberr.status == YDB_ERR_INSUFFSUBS => {
                         panic!("function returned YDB_ERR_INVSTRLEN");
                     }
                     _ => {}
                 };
             }
             let tptoken = YDB_NOTTP;
-            assert_not_invstrlen(key.get_st(tptoken, vec![]));
-            assert_not_invstrlen(key.set_st(tptoken, vec![], &value));
-            assert_not_invstrlen(key.data_st(tptoken, vec![]));
-            assert_not_invstrlen(key.delete_st(tptoken, vec![], if b { DeleteType::DelTree } else { DeleteType::DelNode }));
-            assert_not_invstrlen(key.incr_st(tptoken, vec![], if b { Some(&value) } else { None }));
-            assert_not_invstrlen(key.lock_incr_st(tptoken, vec![], Duration::from_secs(0)));
-            assert_not_invstrlen(key.lock_decr_st(tptoken, vec![]));
-            assert_not_invstrlen(key.clone().node_next_self_st(tptoken, vec![]));
-            assert_not_invstrlen(key.clone().node_prev_self_st(tptoken, vec![]));
-            assert_not_invstrlen(key.clone().sub_next_st(tptoken, vec![]));
-            assert_not_invstrlen(key.clone().sub_prev_st(tptoken, vec![]));
+            assert_not_invalid(key.get_st(tptoken, vec![]));
+            assert_not_invalid(key.set_st(tptoken, vec![], &value));
+            assert_not_invalid(key.data_st(tptoken, vec![]));
+            assert_not_invalid(key.delete_st(tptoken, vec![], if b { DeleteType::DelTree } else { DeleteType::DelNode }));
+            assert_not_invalid(key.incr_st(tptoken, vec![], if b { Some(&value) } else { None }));
+            assert_not_invalid(key.lock_incr_st(tptoken, vec![], Duration::from_secs(0)));
+            assert_not_invalid(key.lock_decr_st(tptoken, vec![]));
+            assert_not_invalid(key.clone().node_next_self_st(tptoken, vec![]));
+            assert_not_invalid(key.clone().node_prev_self_st(tptoken, vec![]));
+            assert_not_invalid(key.clone().sub_next_st(tptoken, vec![]));
+            assert_not_invalid(key.clone().sub_prev_st(tptoken, vec![]));
         }
     }
 
