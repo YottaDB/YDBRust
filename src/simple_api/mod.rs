@@ -2019,6 +2019,14 @@ pub(crate) mod tests {
             Ok(err) if err.status == craw::YDB_ERR_TPTOODEEP => {},
             other => panic!("expected ERR_TPTOODEEP, got {:?}", other),
         }
+
+        // Check for `YDB_ERR_NAMECOUNT2HI` if too many params are passed
+        let vars = vec![Vec::from("hello"); craw::YDB_MAX_NAMES as usize + 1];
+        let err = tp_st(YDB_NOTTP, Vec::new(), |_| Ok(()), "BATCH", &vars).unwrap_err();
+        match err.downcast::<YDBError>() {
+            Ok(err) => assert_eq!(err.status, craw::YDB_ERR_NAMECOUNT2HI),
+            other => panic!("expected ERR_TPTOODEEP, got {:?}", other),
+        }
     }
 
     #[test]
