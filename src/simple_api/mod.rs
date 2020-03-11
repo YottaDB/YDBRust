@@ -1236,7 +1236,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t,
 ///
 /// [intrinsics]: index.html#intrinsic-variables
 pub fn tp_st<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut f: F, trans_id: &str,
-             locals_to_reset: &[Vec<u8>]) -> Result<Vec<u8>, Box<dyn Error>>
+             locals_to_reset: &[&str]) -> Result<Vec<u8>, Box<dyn Error>>
         where F: FnMut(u64) -> UserResult {
     let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
 
@@ -1244,7 +1244,7 @@ pub fn tp_st<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut f: F, trans_id: &str,
     for local in locals_to_reset.iter() {
         locals.push(ydb_buffer_t {
             buf_addr: local.as_ptr() as *const _ as *mut _,
-            len_alloc: local.capacity() as u32,
+            len_alloc: local.len() as u32,
             len_used: local.len() as u32,
         });
     }

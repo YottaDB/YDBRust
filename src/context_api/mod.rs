@@ -206,7 +206,7 @@ impl Context {
     /// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
     ///
     /// [intrinsics]: index.html#intrinsic-variables
-    pub fn tp<'a, F>(&'a self, mut f: F, trans_id: &str, locals_to_reset: &[Vec<u8>])
+    pub fn tp<'a, F>(&'a self, mut f: F, trans_id: &str, locals_to_reset: &[&str])
             -> Result<(), Box<dyn Error>>
             where F: FnMut(&'a Self) -> Result<(), Box<dyn Error>> {
 
