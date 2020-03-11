@@ -2031,6 +2031,12 @@ pub(crate) mod tests {
             let deserialized = zwr2str_st(YDB_NOTTP, Vec::new(), &serialized).unwrap();
             assert_eq!(s.as_bytes(), deserialized.as_slice());
         }
+        #[test]
+        fn ydb_zwr2str_st_bytes_proptest(s: Vec<u8>) {
+            let serialized = str2zwr_st(YDB_NOTTP, Vec::new(), &s).unwrap();
+            let deserialized = zwr2str_st(YDB_NOTTP, Vec::new(), &serialized).unwrap();
+            assert_eq!(s, deserialized);
+        }
     }
 
     #[test]
