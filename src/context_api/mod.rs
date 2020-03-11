@@ -13,9 +13,9 @@
 //! Provides a Rust-interface for YottaDB which hides some of the complexity related to
 //! managing error-return buffers and tptokens.
 //!
-//! Most operations are encapsulated in methods in the KeyContext struct. In addition
-//! to easier-to-use get/set/delete/data, iteration helpers are available to iterate
-//! over values in the database in a variety of ways.
+//! Most operations are encapsulated in methods in the [KeyContext](struct.KeyContext.html) struct.
+//! In addition to easier-to-use get/set/delete/data,
+//! iteration helpers are available to iterate over values in the database in a variety of ways.
 //!
 //! # Examples
 //!
@@ -181,7 +181,7 @@ impl Default for Context {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct KeyContext {
     context: Context,
-    /// `KeyContext` implements `Deref<Target =Key>`
+    /// `KeyContext` implements `Deref<Target = Key>`
     pub key: Key,
 }
 
@@ -638,7 +638,7 @@ impl From<(&Context, Key)> for KeyContext {
     }
 }
 
-/// The error type returned by `KeyContext::get_and_parse()`
+/// The error type returned by [`KeyContext::get_and_parse()`](struct.KeyContext.html#method.get_and_parse)
 #[derive(Debug)]
 pub enum ParseError<T> {
     /// There was an error retrieving the value from the database.
