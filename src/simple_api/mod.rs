@@ -301,10 +301,7 @@ impl Key {
     /// }
     /// ```
     pub fn get_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
-        let do_call = |tptoken, err_buffer_p, varname_p, len, subscripts_p, out_buffer_p| {
-            unsafe { ydb_get_st(tptoken, err_buffer_p, varname_p, len, subscripts_p, out_buffer_p) }
-        };
-        self.non_allocating_ret_call(tptoken, out_buffer, do_call)
+        self.direct_unsafe_call(tptoken, out_buffer, ydb_get_st)
     }
     
     /// Sets the value of a key in the database.
@@ -823,8 +820,9 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn sub_next_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
-        self.sub_call(tptoken, out_buffer, ydb_subscript_next_st)
+    #[inline]
+    pub fn sub_next_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+        self.direct_unsafe_call(tptoken, out_buffer, ydb_subscript_next_st)
     }
 
     /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript.
@@ -858,12 +856,15 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn sub_prev_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
-        self.sub_call(tptoken, out_buffer, ydb_subscript_previous_st)
+    #[inline]
+    pub fn sub_prev_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+        self.direct_unsafe_call(tptoken, out_buffer, ydb_subscript_previous_st)
     }
 
-    // `sub_prev` and `sub_next` use the same memory allocation logic.
-    fn sub_call(&mut self, tptoken: u64, out_buffer: Vec<u8>,
+    // The Rust type system does not have a trait that means 'either a closure or an unsafe function'.
+    // This function creates the appropriate closure for a call to `non_allocating_ret_call`.
+    #[inline]
+    fn direct_unsafe_call(&self, tptoken: u64, out_buffer: Vec<u8>,
         func: unsafe extern "C" fn(u64, *mut ydb_buffer_t, *const ydb_buffer_t, i32, *const ydb_buffer_t, *mut ydb_buffer_t) -> c_int
     ) -> YDBResult<Vec<u8>> {
         let do_call = |tptoken, err_buffer_p, varname_p, len, subscripts_p, out_buffer_p| {

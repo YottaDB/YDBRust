@@ -913,7 +913,7 @@ impl KeyContext {
     ///     Ok(())
     /// }
     /// ```
-    pub fn next_sub(&mut self) -> YDBResult<KeyContext> {
+    pub fn next_sub(&self) -> YDBResult<KeyContext> {
         let mut ret = self.clone();
         ret.next_sub_self()?;
         Ok(ret)
@@ -949,7 +949,7 @@ impl KeyContext {
     ///     Ok(())
     /// }
     /// ```
-    pub fn prev_sub(&mut self) -> YDBResult<KeyContext> {
+    pub fn prev_sub(&self) -> YDBResult<KeyContext> {
         let mut ret = self.clone();
         ret.prev_sub_self()?;
         Ok(ret)
