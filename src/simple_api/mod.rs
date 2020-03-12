@@ -2027,6 +2027,16 @@ pub(crate) mod tests {
             Ok(err) => assert_eq!(err.status, craw::YDB_ERR_NAMECOUNT2HI),
             other => panic!("expected ERR_TPTOODEEP, got {:?}", other),
         }
+
+        // Check that TPLEVEL is set properly
+        let tlevel = Key::variable("$TLEVEL");
+        assert_eq!(&tlevel.get_st(YDB_NOTTP, Vec::new()).unwrap(), b"0");
+        tp_st(YDB_NOTTP, Vec::new(), |tptoken| {
+            let val = tlevel.get_st(tptoken, Vec::new()).unwrap();
+            assert_eq!(&val, b"1");
+            Ok(())
+        }, "BATCH", &[]).unwrap();
+        assert_eq!(&tlevel.get_st(YDB_NOTTP, Vec::new()).unwrap(), b"0");
     }
 
     #[test]
