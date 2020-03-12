@@ -1606,11 +1606,11 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
     // `ydb_call_variadic_plist_func` takes the function to call, and a { len, args } struct.
     // `args` is required to be stack-allocated and has a maximum capacity of MAXVPARMS.
 
-    // By mistake, each `arg` is typed as being a `void *`.
-    // This means that on 32-bit platforms, 64-bit arguments have to be passed as 2 separate arguments.
-    // This will hopefully be fixed in YDB r1.32 to take a `uint64_t` instead.
+    // Each `arg` is typed as being a `void *`,
+    // which means that on 32-bit platforms, 64-bit arguments have to be passed as 2 separate arguments.
+    // This will hopefully be changed in YDB r1.32 to take a `uint64_t` instead.
 
-    // By mistake, the function passed to `ydb_call_variadic_plist_func`
+    // The function passed to `ydb_call_variadic_plist_func`
     // is typed as taking the number of arguments and then a variable number of args.
     // This is incorrect; any function can be passed to `ydb_call_variadic_plist_func`
     // as long as the parameters it takes match the arguments passed.
