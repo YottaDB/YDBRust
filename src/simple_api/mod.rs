@@ -1605,6 +1605,9 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
     // To get around this, `lock_st` calls the undocumented `ydb_call_variadic_plist_func` function.
     // `ydb_call_variadic_plist_func` takes the function to call, and a { len, args } struct.
     // `args` is required to be stack-allocated and has a maximum capacity of MAXVPARMS.
+    // Under the covers, this effectively reimplements a user-land `va_list`,
+    // turning a function that takes explicit number of parameters of a known type (`ydb_call_variadic_plist_func`)
+    // into a variadic function call (`ydb_lock_st`).
 
     // Each `arg` is typed as being a `void *`,
     // which means that on 32-bit platforms, 64-bit arguments have to be passed as 2 separate arguments.
