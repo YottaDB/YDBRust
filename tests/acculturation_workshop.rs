@@ -86,7 +86,7 @@ fn trans(i: usize) {
 			delta.set(n.to_string().as_bytes()).unwrap();
 
 			// ^Crab(ms) = ^Crab(lasttime) - n
-			let mut crab = KeyContext::new(&ctx, "^Crab", &[us.as_bytes()]);
+			let crab = KeyContext::new(&ctx, "^Crab", &[us.as_bytes()]);
 			let last_crab = crab.prev_sub().unwrap();
 			let last_crab_val: i64 = String::from_utf8_lossy(&last_crab.get().unwrap())
 				.parse()
@@ -94,7 +94,7 @@ fn trans(i: usize) {
 			crab.set((last_crab_val - n).to_string()).unwrap();
 
 			// ^Horse(ms) = ^Horse(lasttime) + n
-			let mut horse = KeyContext::new(&ctx, "^Horse", &[us]);
+			let horse = KeyContext::new(&ctx, "^Horse", &[us]);
 			let last_horse = horse.prev_sub().unwrap();
 			let last_horse_val: i64 = String::from_utf8_lossy(&last_horse.get().unwrap())
 				.parse()
