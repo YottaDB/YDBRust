@@ -1687,8 +1687,8 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
         // and https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts for details on ZSTs.
         // This `as *const ()` turns the unique ZST for `ydb_lock_st` into a proper function pointer.
         // Without the `as` cast, `transmute` will return `1_usize` and `ydb_call` will subsequently segfault.
-        let ydb_lock_no_really_trust_me = std::mem::transmute(ydb_lock_st as *const ());
-        ydb_call_variadic_plist_func(Some(ydb_lock_no_really_trust_me), &args as *const _ as usize)
+        let ydb_lock_as_vplist_func = std::mem::transmute(ydb_lock_st as *const ());
+        ydb_call_variadic_plist_func(Some(ydb_lock_as_vplist_func), &args as *const _ as usize)
     };
 
     // We could end up with a buffer of a larger size if we couldn't fit the error string
