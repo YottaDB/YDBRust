@@ -457,6 +457,9 @@ impl Key {
     fn non_allocating_ret_call<F>(&self, tptoken: u64, mut out_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
     where F: FnMut(u64, *mut ydb_buffer_t, *const ydb_buffer_t, i32, *const ydb_buffer_t, *mut ydb_buffer_t) -> c_int {
         let mut out_buffer_t = Self::make_out_buffer_t(&mut out_buffer);
+        // NOTE: it is very important that this makes a copy of `out_buffer_t`:
+        // otherwise, on `INVSTRLEN`, when YDB tries to set len_used it will overwrite the necessary
+        // capacity with the length of the string.
         let mut err_buffer_t = out_buffer_t;
 
         // Get pointers to the varname and to the first subscript
