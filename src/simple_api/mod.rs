@@ -300,6 +300,7 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
+    #[inline]
     pub fn get_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         self.direct_unsafe_call(tptoken, out_buffer, ydb_get_st)
     }
@@ -578,6 +579,7 @@ impl Key {
     /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-decr-s-ydb-lock-decr-st)
     /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
     /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
+    #[inline]
     pub fn lock_decr_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         use crate::craw::ydb_lock_decr_st;
         let do_call = |tptoken, err_buffer_p, varname_p, len, subscripts_p| {
@@ -677,6 +679,7 @@ impl Key {
     ///
     /// [how-it-works]: https://yottadb.com/product/how-it-works/
     /// [vars-nodes]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts
+    #[inline]
     pub fn node_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         self.growing_shrinking_call(tptoken, out_buffer, ydb_node_next_st)
     }
@@ -713,6 +716,7 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
+    #[inline]
     pub fn node_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         self.growing_shrinking_call(tptoken, out_buffer, ydb_node_previous_st)
     }
