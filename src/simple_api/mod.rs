@@ -2298,6 +2298,57 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[serial]
+    fn restart_resets_locals() {
+        let a = Key::variable("tpResetsLocals");
+
+        for locals in &[&["*"][..], &[a.variable.as_str()], &[&a.variable, "b", "c"]] {
+            let mut i = 0;
+            println!("locals: {:?}", locals);
+
+            a.set_st(0, Vec::new(), "initial value").unwrap();
+            assert_eq!(&a.get_st(0, Vec::new()).unwrap(), b"initial value");
+
+            // make sure `a` is reset after each call
+            tp_st(0, Vec::new(), |tptoken| {
+                dbg!(i);
+                assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"initial value");
+                a.set_st(tptoken, Vec::new(), "new value").unwrap();
+                assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"new value");
+                if i == 3 {
+                    Ok(TransactionStatus::Ok)
+                } else {
+                    i += 1;
+                    Ok(TransactionStatus::Restart)
+                }
+            }, "BATCH", locals).unwrap();
+        }
+
+        // now make sure that locals are not reset unless specified
+        for locals in &[&["b"][..], &["b", "c", "d"], &[]] {
+            a.set_st(0, Vec::new(), "initial value").unwrap();
+            assert_eq!(&a.get_st(0, Vec::new()).unwrap(), b"initial value");
+
+            let mut i = 0;
+            tp_st(0, Vec::new(), |tptoken| {
+                if i == 0 {
+                    assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"initial value");
+                } else {
+                    assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"new value");
+                }
+                a.set_st(tptoken, Vec::new(), "new value").unwrap();
+                assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"new value");
+                if i == 3 {
+                    Ok(TransactionStatus::Ok)
+                } else {
+                    i += 1;
+                    Ok(TransactionStatus::Restart)
+                }
+            }, "BATCH", locals).unwrap();
+        }
+    }
+
+    #[test]
     #[should_panic]
     fn panic_in_cb() {
         tp_st(0, Vec::with_capacity(10), |_| panic!("oh no!"), "BATCH", &[]).unwrap_err();
