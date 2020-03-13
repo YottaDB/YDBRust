@@ -34,7 +34,7 @@ use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 
 use crate::craw::{YDB_NOTTP, YDB_ERR_NODEEND};
-use crate::simple_api::{tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType};
+use crate::simple_api::{tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType, TransactionStatus};
 
 // Private macro to help make iterators
 macro_rules! implement_iterator {
@@ -203,12 +203,10 @@ impl Context {
     /// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
     ///
     /// [intrinsics]: index.html#intrinsic-variables
-    pub fn tp<'a, F>(
-        &'a self, mut f: F, trans_id: &str, locals_to_reset: &[&str],
-    ) -> Result<(), Box<dyn Error>>
-    where
-        F: FnMut(&'a Self) -> Result<(), Box<dyn Error>>,
-    {
+    pub fn tp<'a, F>(&'a self, mut f: F, trans_id: &str, locals_to_reset: &[&str])
+            -> Result<(), Box<dyn Error>>
+            where F: FnMut(&'a Self) -> Result<TransactionStatus, Box<dyn Error>> {
+
         let tptoken = self.context.borrow().tptoken;
         // allocate a new buffer for errors, since we need context.buffer to pass `self` to f
         let result = tp_st(
@@ -1488,16 +1486,11 @@ mod tests {
     #[test]
     fn test_simple_tp() {
         let ctx = Context::new();
-        ctx.tp(
-            |ctx| {
-                let key = ctx.new_key("^hello");
-                key.set("Hello world!")?;
-                Ok(())
-            },
-            "BATCH",
-            &[],
-        )
-        .unwrap();
+        ctx.tp(|ctx| {
+            let key = ctx.new_key("^hello");
+            key.set("Hello world!")?;
+            Ok(TransactionStatus::Ok)
+        }, "BATCH", &[]).unwrap();
     }
 
     #[test]
@@ -1506,7 +1499,7 @@ mod tests {
         let f = |_| {
             // We expect this to have an error
             String::from("Hello world!").parse::<u64>()?;
-            Ok(())
+            Ok(TransactionStatus::Ok)
         };
         let result = ctx.tp(f, "BATCH", &[]);
         assert!(result.is_err());

@@ -61,12 +61,10 @@ use std::cmp::min;
 use std::fmt;
 use std::error;
 use std::panic;
-use crate::craw::{
-    ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t, ydb_incr_st,
-    ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
-    ydb_tp_st, YDB_OK, YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE,
-    YDB_TP_ROLLBACK,
-};
+use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t,
+    ydb_incr_st, ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
+    ydb_tp_st, YDB_OK,
+    YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE, YDB_TP_ROLLBACK, YDB_TP_RESTART};
 
 const DEFAULT_CAPACITY: usize = 50;
 
@@ -1234,7 +1232,18 @@ impl<S: Into<String>> From<S> for Key {
     }
 }
 
-type UserResult = Result<(), Box<dyn Error>>;
+/// The status returned from a callback passed to `tp_st`
+#[derive(Debug, Copy, Clone)]
+pub enum TransactionStatus {
+    /// Complete the transaction and commit all changes
+    Ok = YDB_OK as isize,
+    /// Undo changes specified in `locals_to_reset`, then restart the transaction
+    Restart = YDB_TP_RESTART as isize,
+    /// Abort the transaction and undo all changes
+    Rollback = YDB_TP_ROLLBACK as isize,
+}
+
+type UserResult = Result<TransactionStatus, Box<dyn Error>>;
 
 enum CallBackError {
     // the callback returned an error
@@ -1264,7 +1273,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
         }
     };
     match retval {
-        Ok(_) => YDB_OK as i32,
+        Ok(status) => status as i32,
         Err(x) => {
             // Try to cast into YDBError; if we can do that, return the error code
             // Else, rollback the transaction
@@ -1282,6 +1291,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// Start a new transaction, where `f` is the transaction to execute.
 ///
 /// The parameter passed to `f` is a `tptoken`.
+/// If `f` returns an `Err`, the transaction will be rolled back.
 ///
 /// `f` must be `FnMut`, not `FnOnce`, since the YottaDB engine may
 /// call f many times if necessary to ensure ACID properties.
@@ -2210,7 +2220,7 @@ pub(crate) mod tests {
             result,
             |tptoken| {
                 key.set_st(tptoken, Vec::new(), "value").unwrap();
-                Ok(())
+                Ok(TransactionStatus::Ok)
             },
             "BATCH",
             &[],
@@ -2241,7 +2251,7 @@ pub(crate) mod tests {
         // TPTOODEEP
         fn call_forever(tptoken: u64) -> UserResult {
             tp_st(tptoken, Vec::new(), call_forever, "BATCH", &[])?;
-            Ok(())
+            Ok(TransactionStatus::Ok)
         }
         let err = call_forever(YDB_NOTTP).unwrap_err();
         match err.downcast::<YDBError>() {
@@ -2251,13 +2261,13 @@ pub(crate) mod tests {
 
         // Check for `YDB_ERR_NAMECOUNT2HI` if too many params are passed
         let vars = vec!["hello"; craw::YDB_MAX_NAMES as usize + 1];
-        let err = tp_st(YDB_NOTTP, Vec::new(), |_| Ok(()), "BATCH", &vars).unwrap_err();
+        let err = tp_st(YDB_NOTTP, Vec::new(), |_| Ok(TransactionStatus::Ok), "BATCH", &vars).unwrap_err();
         match err.downcast::<YDBError>() {
             Ok(err) => assert_eq!(err.status, craw::YDB_ERR_NAMECOUNT2HI),
             other => panic!("expected ERR_TPTOODEEP, got {:?}", other),
         }
 
-        // Check that TPLEVEL is set properly
+        // Check that TLEVEL is set properly
         let tlevel = Key::variable("$TLEVEL");
         assert_eq!(&tlevel.get_st(YDB_NOTTP, Vec::new()).unwrap(), b"0");
         tp_st(
@@ -2266,13 +2276,25 @@ pub(crate) mod tests {
             |tptoken| {
                 let val = tlevel.get_st(tptoken, Vec::new()).unwrap();
                 assert_eq!(&val, b"1");
-                Ok(())
+                Ok(TransactionStatus::Ok)
             },
             "BATCH",
             &[],
         )
         .unwrap();
         assert_eq!(&tlevel.get_st(YDB_NOTTP, Vec::new()).unwrap(), b"0");
+    }
+
+    #[test]
+    fn nested_transaction() {
+        tp_st(0, Vec::new(), |tptoken| {
+            // Some inner transaction that returns a RESTART
+            // The restart is propagated upward by the `?`,
+            // since `tp_st` returns YDBError { status: YDB_TP_RESTART }.
+            let err = tp_st(tptoken, Vec::new(), |_| Ok(TransactionStatus::Restart), "BATCH", &[]).unwrap_err();
+            assert_eq!(err.downcast::<YDBError>().unwrap().status, YDB_TP_RESTART);
+            Ok(TransactionStatus::Ok)
+        }, "BATCH", &[]).unwrap();
     }
 
     #[test]

@@ -10,8 +10,9 @@ use std::time::{Duration, SystemTime};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use rand::Rng;
+use yottadb::{DeleteType, TransactionStatus, YDBError};
 use yottadb::context_api::{Context, KeyContext};
-use yottadb::simple_api::{DeleteType, Key, YDBError};
+use yottadb::simple_api::Key;
 
 static KILL_SWITCHES: [AtomicBool; 5] = [
     AtomicBool::new(false),
@@ -73,41 +74,38 @@ fn trans(i: usize) {
         if KILL_SWITCHES[i].load(Ordering::SeqCst) {
             return;
         }
-        ctx.tp(
-            |ctx| {
-                let us = SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_micros()
-                    .to_string();
-                let n: i64 = rng.gen::<i32>().into();
+		ctx.tp(|ctx| {
+			let us = SystemTime::now()
+				.duration_since(SystemTime::UNIX_EPOCH)
+				.unwrap()
+				.as_micros()
+				.to_string();
+			let n: i64 = rng.gen::<i32>().into();
 
-                // ^Delta(ms) = n
-                let delta = KeyContext::new(&ctx, "^Delta", &[us.as_bytes()]);
-                delta.set(n.to_string().as_bytes()).unwrap();
+			// ^Delta(ms) = n
+			let delta = KeyContext::new(&ctx, "^Delta", &[us.as_bytes()]);
+			delta.set(n.to_string().as_bytes()).unwrap();
 
-                // ^Crab(ms) = ^Crab(lasttime) - n
-                let crab = KeyContext::new(&ctx, "^Crab", &[us.as_bytes()]);
-                let last_crab = crab.prev_sub().unwrap();
-                let last_crab_val: i64 =
-                    String::from_utf8_lossy(&last_crab.get().unwrap()).parse().unwrap();
-                crab.set((last_crab_val - n).to_string()).unwrap();
+			// ^Crab(ms) = ^Crab(lasttime) - n
+			let crab = KeyContext::new(&ctx, "^Crab", &[us.as_bytes()]);
+			let last_crab = crab.prev_sub().unwrap();
+			let last_crab_val: i64 = String::from_utf8_lossy(&last_crab.get().unwrap())
+				.parse()
+				.unwrap();
+			crab.set((last_crab_val - n).to_string()).unwrap();
 
-                // ^Horse(ms) = ^Horse(lasttime) + n
-                let horse = KeyContext::new(&ctx, "^Horse", &[us]);
-                let last_horse = horse.prev_sub().unwrap();
-                let last_horse_val: i64 =
-                    String::from_utf8_lossy(&last_horse.get().unwrap()).parse().unwrap();
-                horse.set((last_horse_val + n).to_string()).unwrap();
+			// ^Horse(ms) = ^Horse(lasttime) + n
+			let horse = KeyContext::new(&ctx, "^Horse", &[us]);
+			let last_horse = horse.prev_sub().unwrap();
+			let last_horse_val: i64 = String::from_utf8_lossy(&last_horse.get().unwrap())
+				.parse()
+				.unwrap();
+			horse.set((last_horse_val + n).to_string()).unwrap();
 
-                Ok(())
-            },
-            "BATCH",
-            &[],
-        )
-        .unwrap();
-        std::thread::sleep(Duration::from_millis(500));
-    }
+			Ok(TransactionStatus::Ok)
+		}, "BATCH", &[]).unwrap();
+		std::thread::sleep(Duration::from_millis(500));
+	}
 }
 
 fn verify() {

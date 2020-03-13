@@ -13,7 +13,7 @@ use std::time::SystemTime;
 
 use threadpool::ThreadPool;
 use yottadb::context_api::Context;
-use yottadb::{YDB_ERR_GVUNDEF, DeleteType, DataReturn, YDBError};
+use yottadb::{YDB_ERR_GVUNDEF, DeleteType, DataReturn, TransactionStatus, YDBError};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let ctx = Context::new();
@@ -229,23 +229,19 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
                     let add_steps = add_steps.parse::<u64>()?;
                     i += add_steps;
                 }
-                ctx.tp(
-                    |_ctx| {
-                        let result_v = match result.get() {
-                            Ok(x) => x,
-                            Err(YDBError { status: YDB_ERR_GVUNDEF, .. }) => Vec::from("0"),
-                            Err(x) => return Err(Box::new(x)),
-                        };
-                        let result_v = String::from_utf8_lossy(&result_v);
-                        let result_v = result_v.parse::<u64>()?;
-                        if result_v < i {
-                            result.set(&Vec::from(i.to_string()))?;
-                        }
-                        Ok(())
-                    },
-                    "BATCH",
-                    &Vec::new(),
-                )?;
+                ctx.tp(|_ctx| {
+                    let result_v = match result.get() {
+                        Ok(x) => x,
+                        Err(YDBError { status: YDB_ERR_GVUNDEF, .. }) => Vec::from("0"),
+                        Err(x) => return Err(Box::new(x)),
+                    };
+                    let result_v = String::from_utf8_lossy(&result_v);
+                    let result_v = result_v.parse::<u64>()?;
+                    if result_v < i {
+                        result.set(&Vec::from(i.to_string()))?;
+                    }
+                    Ok(TransactionStatus::Ok)
+                }, "BATCH", &Vec::new())?;
                 currpath_l[1] = Vec::from("");
                 for subval in currpath_l.iter_subs_values() {
                     let (sub, val) = subval?;
@@ -260,28 +256,24 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
     }
 
     // Update values for total reads, total writes, and highest
-    ctx.tp(
-        |_ctx| {
-            reads.increment(Some(&reads_l.get()?))?;
-            updates.increment(Some(&updates_l.get()?))?;
-            let high = match highest.get() {
-                Ok(x) => x,
-                Err(YDBError { status: YDB_ERR_GVUNDEF, .. }) => Vec::from("0"),
-                Err(x) => return Err(Box::new(x)),
-            };
-            let high = String::from_utf8_lossy(&high);
-            let high = high.parse::<u64>()?;
-            let high_l = highest_l.get()?;
-            let high_l = String::from_utf8_lossy(&high_l);
-            let high_l = high_l.parse::<u64>()?;
-            if high < high_l {
-                highest.set(&Vec::from(high_l.to_string()))?;
-            }
-            Ok(())
-        },
-        "BATCH",
-        &Vec::new(),
-    )?;
+    ctx.tp(|_ctx| {
+        reads.increment(Some(&reads_l.get()?))?;
+        updates.increment(Some(&updates_l.get()?))?;
+        let high = match highest.get() {
+            Ok(x) => x,
+            Err(YDBError { status: YDB_ERR_GVUNDEF, .. }) => Vec::from("0"),
+            Err(x) => return Err(Box::new(x)),
+        };
+        let high = String::from_utf8_lossy(&high);
+        let high = high.parse::<u64>()?;
+        let high_l = highest_l.get()?;
+        let high_l = String::from_utf8_lossy(&high_l);
+        let high_l = high_l.parse::<u64>()?;
+        if high < high_l {
+            highest.set(&Vec::from(high_l.to_string()))?;
+        }
+        Ok(TransactionStatus::Ok)
+    }, "BATCH", &Vec::new())?;
 
     Ok(())
 }
