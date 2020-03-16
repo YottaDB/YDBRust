@@ -33,19 +33,14 @@ fn random_walk() {
     // Select a random operation
     match rng.gen_range(0, 6) {
         0 => key.delete(DeleteType::DelNode).unwrap(),
-        1 => match key.get() {
+        1 | 4 | 5 => match key.get() {
+            // we don't unwrap this because failures are fine
             _ => (),
-        }, // we don't unwrap this because failures are fine
+        },
         2 => key.set(b"Hello world!").unwrap(),
         3 => {
             key.increment(None).unwrap();
         }
-        4 => match key.next_sub_self() {
-            _ => (),
-        },
-        5 => match key.prev_sub_self() {
-            _ => (),
-        },
         6 => {
             key.data().unwrap();
         }

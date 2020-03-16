@@ -371,23 +371,21 @@ impl Key {
             ydb_data_st(tptoken, out_buffer_p, varname_p, len, subscripts_p, &mut retval as *mut _)
         };
         let err_buffer = self.non_allocating_call(tptoken, err_buffer, do_call)?;
-        Ok((
-            match retval {
-                0 => DataReturn::NoData,
-                1 => DataReturn::ValueData,
-                10 => DataReturn::TreeData,
-                11 => DataReturn::ValueTreeData,
-                // If it's not one of these values, there is something wrong with the API
-                //  and we need to address it. Returning an Err here won't make things
-                //  more clear because the error code is not one of YottaDB's
-                _ => panic!(
-                    "Unexpected return from ydb_data_st: {}, ZSTATUS: {}",
-                    retval,
-                    String::from_utf8_lossy(&err_buffer)
-                ),
-            },
-            err_buffer,
-        ))
+        let data_ret = match retval {
+            0 => DataReturn::NoData,
+            1 => DataReturn::ValueData,
+            10 => DataReturn::TreeData,
+            11 => DataReturn::ValueTreeData,
+            // If it's not one of these values, there is something wrong with the API
+            //  and we need to address it. Returning an Err here won't make things
+            //  more clear because the error code is not one of YottaDB's
+            _ => panic!(
+                "Unexpected return from ydb_data_st: {}, ZSTATUS: {}",
+                retval,
+                String::from_utf8_lossy(&err_buffer)
+            ),
+        };
+        Ok((data_ret, err_buffer))
     }
 
     /// Delete nodes in the local or global variable tree or subtree specified.
