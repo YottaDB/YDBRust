@@ -2172,6 +2172,11 @@ pub(crate) mod tests {
                 assert_eq!(err.status, err_code);
             }
 
+            // lock_st
+            let slice = std::slice::from_ref(&key);
+            let res = lock_st(0, Vec::new(), Duration::from_secs(0), slice);
+            assert_eq!(res.unwrap_err().status, err_code);
+
             // node_next_st
             let mut dup = key.clone();
             let err = dup.node_next_self_st(0, Vec::new()).unwrap_err();
