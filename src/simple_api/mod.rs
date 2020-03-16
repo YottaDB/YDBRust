@@ -2287,13 +2287,30 @@ pub(crate) mod tests {
 
     #[test]
     fn nested_transaction() {
+        let mut first_run = true;
         tp_st(0, Vec::new(), |tptoken| {
+            // Save this value because it's about to change
+            let captured_first_run = first_run;
             // Some inner transaction that returns a RESTART
             // The restart is propagated upward by the `?`,
             // since `tp_st` returns YDBError { status: YDB_TP_RESTART }.
-            let err = tp_st(tptoken, Vec::new(), |_| Ok(TransactionStatus::Restart), "BATCH", &[]).unwrap_err();
-            assert_eq!(err.downcast::<YDBError>().unwrap().status, YDB_TP_RESTART);
-            Ok(TransactionStatus::Ok)
+            let res = tp_st(tptoken, Vec::new(), |_| {
+                if first_run {
+                    first_run = false;
+                    Ok(TransactionStatus::Restart)
+                } else {
+                    Ok(TransactionStatus::Ok)
+                }
+            }, "BATCH", &[]);
+            if captured_first_run {
+                let err = res.unwrap_err();
+                let status = err.downcast_ref::<YDBError>().unwrap().status;
+                assert_eq!(status, YDB_TP_RESTART);
+                Err(err)
+            } else {
+                res.unwrap();
+                Ok(TransactionStatus::Ok)
+            }
         }, "BATCH", &[]).unwrap();
     }
 
