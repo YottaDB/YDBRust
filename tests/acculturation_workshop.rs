@@ -63,48 +63,51 @@ fn init() {
 fn trans(i: usize) {
     println!("spawned {}", i);
 
-	let mut rng = rand::thread_rng();
-	let ctx = Context::new();
+    let mut rng = rand::thread_rng();
+    let ctx = Context::new();
 
-	loop {
+    loop {
         // this could probably use Relaxed but I don't care about the performance
         // and I don't want someone to copy it (since Relaxed only works if this
         // is the _only_ communication between threads).
         if KILL_SWITCHES[i].load(Ordering::SeqCst) {
             return;
         }
-		ctx.tp(|ctx| {
-			let us = SystemTime::now()
-				.duration_since(SystemTime::UNIX_EPOCH)
-				.unwrap()
-				.as_micros()
-				.to_string();
-			let n: i64 = rng.gen::<i32>().into();
+        ctx.tp(
+            |ctx| {
+                let us = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros()
+                    .to_string();
+                let n: i64 = rng.gen::<i32>().into();
 
-			// ^Delta(ms) = n
-			let delta = KeyContext::new(&ctx, "^Delta", &[us.as_bytes()]);
-			delta.set(n.to_string().as_bytes()).unwrap();
+                // ^Delta(ms) = n
+                let delta = KeyContext::new(&ctx, "^Delta", &[us.as_bytes()]);
+                delta.set(n.to_string().as_bytes()).unwrap();
 
-			// ^Crab(ms) = ^Crab(lasttime) - n
-			let crab = KeyContext::new(&ctx, "^Crab", &[us.as_bytes()]);
-			let last_crab = crab.prev_sub().unwrap();
-			let last_crab_val: i64 = String::from_utf8_lossy(&last_crab.get().unwrap())
-				.parse()
-				.unwrap();
-			crab.set((last_crab_val - n).to_string()).unwrap();
+                // ^Crab(ms) = ^Crab(lasttime) - n
+                let crab = KeyContext::new(&ctx, "^Crab", &[us.as_bytes()]);
+                let last_crab = crab.prev_sub().unwrap();
+                let last_crab_val: i64 =
+                    String::from_utf8_lossy(&last_crab.get().unwrap()).parse().unwrap();
+                crab.set((last_crab_val - n).to_string()).unwrap();
 
-			// ^Horse(ms) = ^Horse(lasttime) + n
-			let horse = KeyContext::new(&ctx, "^Horse", &[us]);
-			let last_horse = horse.prev_sub().unwrap();
-			let last_horse_val: i64 = String::from_utf8_lossy(&last_horse.get().unwrap())
-				.parse()
-				.unwrap();
-			horse.set((last_horse_val + n).to_string()).unwrap();
+                // ^Horse(ms) = ^Horse(lasttime) + n
+                let horse = KeyContext::new(&ctx, "^Horse", &[us]);
+                let last_horse = horse.prev_sub().unwrap();
+                let last_horse_val: i64 =
+                    String::from_utf8_lossy(&last_horse.get().unwrap()).parse().unwrap();
+                horse.set((last_horse_val + n).to_string()).unwrap();
 
-			Ok(())
-		}, "BATCH", &[]).unwrap();
-		std::thread::sleep(Duration::from_millis(500));
-	}
+                Ok(())
+            },
+            "BATCH",
+            &[],
+        )
+        .unwrap();
+        std::thread::sleep(Duration::from_millis(500));
+    }
 }
 
 fn verify() {
@@ -122,18 +125,21 @@ fn verify() {
     let mut delta_sum: i64 = 0;
     loop {
         match (crab.next_sub_self(), delta.next_sub_self(), horse.next_sub_self()) {
-            (Err(YDBError { status: YDB_ERR_NODEEND, .. }),
-             Err(YDBError { status: YDB_ERR_NODEEND, .. }),
-             Err(YDBError { status: YDB_ERR_NODEEND, .. })) => break,
+            (
+                Err(YDBError { status: YDB_ERR_NODEEND, .. }),
+                Err(YDBError { status: YDB_ERR_NODEEND, .. }),
+                Err(YDBError { status: YDB_ERR_NODEEND, .. }),
+            ) => break,
             (Ok(_), Ok(_), Ok(_)) => {}
             other => {
                 println!("error retrieving values: {:?}", other);
                 process::exit(1);
-             }
+            }
         };
 
         let toString = String::from_utf8_lossy;
-        let (crab_t, delta_t, horse_t) = (toString(&crab[0]), toString(&delta[0]), toString(&horse[0]));
+        let (crab_t, delta_t, horse_t) =
+            (toString(&crab[0]), toString(&delta[0]), toString(&horse[0]));
 
         // confirm that timestamps match
         if crab[0] != delta[0] || delta[0] != horse[0] {

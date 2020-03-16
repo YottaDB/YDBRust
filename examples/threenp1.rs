@@ -1,7 +1,8 @@
 //! Rust implementation of the 3n+1 problem
 //! https://yottadb.com/solving-the-3n1-problem-with-yottadb/
 
-#[macro_use] extern crate yottadb;
+#[macro_use]
+extern crate yottadb;
 extern crate num_cpus;
 extern crate threadpool;
 
@@ -35,19 +36,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let line = line?;
-        let tokens: Vec<usize> = line.split_whitespace()
-            .map(|x| x.parse::<usize>().unwrap())
-            .collect();
+        let tokens: Vec<usize> =
+            line.split_whitespace().map(|x| x.parse::<usize>().unwrap()).collect();
         let (endnum, streams, mut blk) = match tokens.as_slice() {
-            &[] => (0, cpus*2, 0),
-            &[endnum] => (endnum, cpus*2, 0),
+            &[] => (0, cpus * 2, 0),
+            &[endnum] => (endnum, cpus * 2, 0),
             &[endnum, streams] => (endnum, streams, 0),
             &[endnum, streams, blk] => (endnum, streams, blk),
             _ => panic!("Too many parameters passed!"),
         };
 
         print!(" endnum={} streams={}", endnum, streams);
-        let maxblk = (endnum + (streams - 1))/streams;
+        let maxblk = (endnum + (streams - 1)) / streams;
         if blk != 0 && blk <= maxblk {
             print!(" blk={}", blk);
         } else {
@@ -123,12 +123,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         let high = String::from_utf8_lossy(&high);
         let red = reads.get()?;
         let red = String::from_utf8_lossy(&red);
-        print!(" result={} highest={} time={} updates={} reads={}", res, high, time/1000.0, updt, red);
+        print!(
+            " result={} highest={} time={} updates={} reads={}",
+            res,
+            high,
+            time / 1000.0,
+            updt,
+            red
+        );
         let updatecnt = updt.parse::<u64>()? as f64;
         let readcnt = red.parse::<u64>()? as f64;
 
         if time > 0.0 {
-            print!(" updates/s={} reads/s={}", updatecnt/(time/1000.0), readcnt/(time/1000.0));
+            print!(
+                " updates/s={} reads/s={}",
+                updatecnt / (time / 1000.0),
+                readcnt / (time / 1000.0)
+            );
         }
         println!();
     }
@@ -178,7 +189,7 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
         let blkstart = if index == 1 {
             1
         } else {
-            limits[0] = Vec::from((index-1).to_string());
+            limits[0] = Vec::from((index - 1).to_string());
             let v = limits.get()?;
             let v = String::from_utf8_lossy(&v);
             v.parse::<u64>()? + 1
@@ -200,11 +211,7 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
                 }
                 currpath_l[1] = Vec::from(i.to_string());
                 currpath_l.set(&Vec::from(n.to_string()))?;
-                n = if n % 2 == 0 {
-                    n / 2
-                } else {
-                    3*n + 1
-                };
+                n = if n % 2 == 0 { n / 2 } else { 3 * n + 1 };
                 let highest_v = highest_l.get()?;
                 let highest_v = String::from_utf8_lossy(&highest_v);
                 let highest_v = highest_v.parse::<u64>()?;
@@ -222,19 +229,23 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
                     let add_steps = add_steps.parse::<u64>()?;
                     i += add_steps;
                 }
-                ctx.tp(|_ctx| {
-                    let result_v = match result.get() {
-                        Ok(x) => x,
-                        Err(YDBError { status: YDB_ERR_GVUNDEF, .. }) => Vec::from("0"),
-                        Err(x) => return Err(Box::new(x)),
-                    };
-                    let result_v = String::from_utf8_lossy(&result_v);
-                    let result_v = result_v.parse::<u64>()?;
-                    if result_v < i {
-                        result.set(&Vec::from(i.to_string()))?;
-                    }
-                    Ok(())
-                }, "BATCH", &Vec::new())?;
+                ctx.tp(
+                    |_ctx| {
+                        let result_v = match result.get() {
+                            Ok(x) => x,
+                            Err(YDBError { status: YDB_ERR_GVUNDEF, .. }) => Vec::from("0"),
+                            Err(x) => return Err(Box::new(x)),
+                        };
+                        let result_v = String::from_utf8_lossy(&result_v);
+                        let result_v = result_v.parse::<u64>()?;
+                        if result_v < i {
+                            result.set(&Vec::from(i.to_string()))?;
+                        }
+                        Ok(())
+                    },
+                    "BATCH",
+                    &Vec::new(),
+                )?;
                 currpath_l[1] = Vec::from("");
                 for subval in currpath_l.iter_subs_values() {
                     let (sub, val) = subval?;
@@ -249,24 +260,28 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
     }
 
     // Update values for total reads, total writes, and highest
-    ctx.tp(|_ctx| {
-        reads.increment(Some(&reads_l.get()?))?;
-        updates.increment(Some(&updates_l.get()?))?;
-        let high = match highest.get() {
-            Ok(x) => x,
-            Err(YDBError { status: YDB_ERR_GVUNDEF, .. }) => Vec::from("0"),
-            Err(x) => return Err(Box::new(x)),
-        };
-        let high = String::from_utf8_lossy(&high);
-        let high = high.parse::<u64>()?;
-        let high_l = highest_l.get()?;
-        let high_l = String::from_utf8_lossy(&high_l);
-        let high_l = high_l.parse::<u64>()?;
-        if high < high_l {
-            highest.set(&Vec::from(high_l.to_string()))?;
-        }
-        Ok(())
-    }, "BATCH", &Vec::new())?;
+    ctx.tp(
+        |_ctx| {
+            reads.increment(Some(&reads_l.get()?))?;
+            updates.increment(Some(&updates_l.get()?))?;
+            let high = match highest.get() {
+                Ok(x) => x,
+                Err(YDBError { status: YDB_ERR_GVUNDEF, .. }) => Vec::from("0"),
+                Err(x) => return Err(Box::new(x)),
+            };
+            let high = String::from_utf8_lossy(&high);
+            let high = high.parse::<u64>()?;
+            let high_l = highest_l.get()?;
+            let high_l = String::from_utf8_lossy(&high_l);
+            let high_l = high_l.parse::<u64>()?;
+            if high < high_l {
+                highest.set(&Vec::from(high_l.to_string()))?;
+            }
+            Ok(())
+        },
+        "BATCH",
+        &Vec::new(),
+    )?;
 
     Ok(())
 }

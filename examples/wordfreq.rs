@@ -1,7 +1,8 @@
 //! Find the frequency of words in a file
 //! Expects the file to be named `wordfreq_input.txt` in the current directory.
 
- #[macro_use] extern crate yottadb;
+#[macro_use]
+extern crate yottadb;
 
 use std::fs::File;
 use std::io::prelude::*;

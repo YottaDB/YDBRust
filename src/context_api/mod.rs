@@ -49,15 +49,13 @@ macro_rules! implement_iterator {
 
             fn next(&mut self) -> Option<Self::Item> {
                 match self.key.$advance() {
-                    Ok(_) => {
-                        $next(self)
-                    },
+                    Ok(_) => $next(self),
                     Err(YDBError { status: YDB_ERR_NODEEND, .. }) => None,
                     Err(x) => Some(Err(x)),
                 }
             }
         }
-    }
+    };
 }
 
 macro_rules! gen_iter_proto {
@@ -71,7 +69,6 @@ macro_rules! gen_iter_proto {
             }
     }
 }
-
 
 /// Create a [`KeyContext`](context_api/struct.KeyContext.html) with the given subscripts, provided a context.
 ///
@@ -174,11 +171,11 @@ use core::cell::{Ref, RefMut};
 impl Context {
     /// Create a new `Context`
     pub fn new() -> Context {
-        Context{
+        Context {
             context: Rc::new(RefCell::new(ContextInternal {
                 buffer: Some(Vec::with_capacity(1024)),
                 tptoken: YDB_NOTTP,
-            }))
+            })),
         }
     }
 
@@ -206,16 +203,24 @@ impl Context {
     /// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
     ///
     /// [intrinsics]: index.html#intrinsic-variables
-    pub fn tp<'a, F>(&'a self, mut f: F, trans_id: &str, locals_to_reset: &[&str])
-            -> Result<(), Box<dyn Error>>
-            where F: FnMut(&'a Self) -> Result<(), Box<dyn Error>> {
-
+    pub fn tp<'a, F>(
+        &'a self, mut f: F, trans_id: &str, locals_to_reset: &[&str],
+    ) -> Result<(), Box<dyn Error>>
+    where
+        F: FnMut(&'a Self) -> Result<(), Box<dyn Error>>,
+    {
         let tptoken = self.context.borrow().tptoken;
         // allocate a new buffer for errors, since we need context.buffer to pass `self` to f
-        let result = tp_st(tptoken, Vec::with_capacity(50), |tptoken: u64| {
-            self.context.borrow_mut().tptoken = tptoken;
-            f(self)
-        }, trans_id, locals_to_reset);
+        let result = tp_st(
+            tptoken,
+            Vec::with_capacity(50),
+            |tptoken: u64| {
+                self.context.borrow_mut().tptoken = tptoken;
+                f(self)
+            },
+            trans_id,
+            locals_to_reset,
+        );
         self.context.borrow_mut().tptoken = tptoken;
         // discard the new buffer
         result.map(|_| {})
@@ -343,11 +348,11 @@ impl Context {
             Ok(x) => {
                 self.context.borrow_mut().buffer = Some(x);
                 Ok(())
-            },
+            }
             Err(x) => {
                 self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
                 Err(x)
-            },
+            }
         }
     }
     /// Acquires locks specified in `locks` and releases all others.
@@ -424,7 +429,7 @@ impl Context {
 
         let tptoken = self.context.borrow().tptoken;
         let buffer = self.context.borrow_mut().buffer.take().unwrap();
-        self.recover_buffer(lock_st(tptoken, buffer, timeout, locks)) 
+        self.recover_buffer(lock_st(tptoken, buffer, timeout, locks))
     }
     fn borrow(&self) -> Ref<'_, ContextInternal> {
         self.context.borrow()
@@ -490,8 +495,10 @@ impl KeyContext {
     /// - [`Context::new_key()`](struct.Context.html#method.new_key)
     /// - [`impl From<(&Context, Key)> for KeyContext`](struct.KeyContext.html#implementations)
     pub fn new<V, S>(ctx: &Context, variable: V, subscripts: &[S]) -> KeyContext
-            where V: Into<String>,
-                  S: Into<Vec<u8>> + Clone, {
+    where
+        V: Into<String>,
+        S: Into<Vec<u8>> + Clone,
+    {
         Self::with_key(ctx, Key::new(variable, subscripts))
     }
     /// Shortcut for creating a `KeyContext` with no subscripts.
@@ -506,10 +513,7 @@ impl KeyContext {
     /// - [`Context::new_key()`](struct.Context.html#method.new_key)
     /// - [`impl From<(&Context, Key)> for KeyContext`](struct.KeyContext.html#implementations)
     pub fn with_key<K: Into<Key>>(ctx: &Context, key: K) -> Self {
-        Self {
-            context: ctx.clone(),
-            key: key.into(),
-        }
+        Self { context: ctx.clone(), key: key.into() }
     }
     fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
         self.context.recover_buffer(result)
@@ -587,7 +591,8 @@ impl KeyContext {
     /// # }
     /// ```
     pub fn get_and_parse<T: FromStr>(&self) -> Result<T, ParseError<T::Err>> {
-        self.get().map_err(ParseError::YDB)
+        self.get()
+            .map_err(ParseError::YDB)
             .and_then(|bytes| String::from_utf8(bytes).map_err(ParseError::Utf8))
             .and_then(|s| s.parse().map_err(|err| ParseError::Parse(err, s)))
     }
@@ -658,15 +663,15 @@ impl KeyContext {
             Ok((y, x)) => {
                 self.context.borrow_mut().buffer = Some(x);
                 Ok(y)
-            },
+            }
             Err(x) => {
                 self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
                 Err(x)
-            },
+            }
         }
     }
 
-    /// Delete nodes in the local or global variable tree or subtree specified. A value of DelNode or DelTree for DeleteType 
+    /// Delete nodes in the local or global variable tree or subtree specified. A value of DelNode or DelTree for DeleteType
     /// specifies whether to delete just the node at the root, leaving the (sub)tree intact, or to delete the node as well as the (sub)tree.
     ///
     /// # Errors
@@ -1107,129 +1112,177 @@ impl KeyContext {
     gen_iter_proto!(
         /// Iterates over all the values at this level of the database tree and returns the value for
         /// each node.
-        iter_values, ForwardValueIterator
-        );
+        iter_values,
+        ForwardValueIterator
+    );
 
     gen_iter_proto!(
         /// Iterates over all the subscripts at this level of the database tree and returns the
         /// subscript for each node.
-        iter_subs, ForwardSubIterator
-        );
+        iter_subs,
+        ForwardSubIterator
+    );
 
     gen_iter_proto!(
         /// Iterates over all the subscripts at this level of the database tree and returns the subscript and value for each node.
-        iter_subs_values, ForwardSubValueIterator
-        );
+        iter_subs_values,
+        ForwardSubValueIterator
+    );
 
     gen_iter_proto!(
         /// Iterates over all subscripts at this level of the database tree and returns a copy of the key at each subscript.
-        iter_key_subs, ForwardKeySubIterator
-        );
+        iter_key_subs,
+        ForwardKeySubIterator
+    );
 
     gen_iter_proto!(
         /// Iterates over all nodes for the global pointed to by the key and returns the value at each node.
-        iter_nodes, ForwardNodeIterator
-        );
+        iter_nodes,
+        ForwardNodeIterator
+    );
 
     gen_iter_proto!(
         /// Iterates over all nodes for the global pointed to by the key and returns a copy of the key at each node.
-        iter_key_nodes, ForwardKeyNodeIterator
-        );
+        iter_key_nodes,
+        ForwardKeyNodeIterator
+    );
 
     gen_iter_proto!(
         /// Iterates in reverse order over all the values at this level of the database tree and returns the value for
         /// each node.
-        iter_values_reverse, ReverseValueIterator
-        );
+        iter_values_reverse,
+        ReverseValueIterator
+    );
 
     gen_iter_proto!(
         /// Iterates in reverse order over all the subscripts at this level of the database tree and returns the
         /// subscript for each node.
-        iter_subs_reverse, ReverseSubIterator
-        );
+        iter_subs_reverse,
+        ReverseSubIterator
+    );
 
     gen_iter_proto!(
         /// Iterates in reverse order over all the subscripts at this level of the database tree and returns the subscript and value for each node.
-        iter_subs_values_reverse, ReverseSubValueIterator
-        );
+        iter_subs_values_reverse,
+        ReverseSubValueIterator
+    );
 
     gen_iter_proto!(
         /// Iterates in reverse order over all subscripts at this level of the database tree and returns a copy of the key at each subscript.
-        iter_key_subs_reverse, ReverseKeySubIterator
-        );
+        iter_key_subs_reverse,
+        ReverseKeySubIterator
+    );
 
     gen_iter_proto!(
         /// Iterates in reverse order over all nodes for the global pointed to by the key and returns the value at each node.
-        iter_nodes_reverse, ReverseNodeIterator
-        );
+        iter_nodes_reverse,
+        ReverseNodeIterator
+    );
 
     gen_iter_proto!(
         /// Iterates in reverse oder over all nodes for the global pointed to by the key and returns a copy of the key at each node.
-        iter_key_nodes_reverse, ReverseKeyNodeIterator
-        );
+        iter_key_nodes_reverse,
+        ReverseKeyNodeIterator
+    );
 }
 
-implement_iterator!(ForwardValueIterator, next_sub_self, Vec<u8>, |me: &mut ForwardValueIterator| {
-    Some(me.key.get())
-});
+implement_iterator!(
+    ForwardValueIterator,
+    next_sub_self,
+    Vec<u8>,
+    |me: &mut ForwardValueIterator| { Some(me.key.get()) }
+);
 
 implement_iterator!(ForwardSubIterator, next_sub_self, Vec<u8>, |me: &mut ForwardSubIterator| {
     Some(Ok(me.key.last().unwrap().clone()))
 });
 
-implement_iterator!(ForwardSubValueIterator, next_sub_self, (Vec<u8>, Vec<u8>), |me: &mut ForwardSubValueIterator| {
-    let val = me.key.get();
-    if val.is_err() {
-        let err = val.err().unwrap();
-        return Some(Err(err));
+implement_iterator!(
+    ForwardSubValueIterator,
+    next_sub_self,
+    (Vec<u8>, Vec<u8>),
+    |me: &mut ForwardSubValueIterator| {
+        let val = me.key.get();
+        if val.is_err() {
+            let err = val.err().unwrap();
+            return Some(Err(err));
+        }
+        Some(Ok((me.key.last().unwrap().clone(), val.unwrap())))
     }
-    Some(Ok((me.key.last().unwrap().clone(), val.unwrap())))
-});
+);
 
-implement_iterator!(ForwardKeySubIterator, next_sub_self, KeyContext, |me: &mut ForwardKeySubIterator| {
-    Some(Ok(me.key.clone()))
-});
+implement_iterator!(
+    ForwardKeySubIterator,
+    next_sub_self,
+    KeyContext,
+    |me: &mut ForwardKeySubIterator| { Some(Ok(me.key.clone())) }
+);
 
-implement_iterator!(ForwardNodeIterator, next_node_self, Vec<u8>, |me: &mut ForwardNodeIterator| {
-    let data = me.key.data().unwrap();
-    if data != DataReturn::ValueData && data != DataReturn::ValueTreeData {
-        return me.next();
+implement_iterator!(
+    ForwardNodeIterator,
+    next_node_self,
+    Vec<u8>,
+    |me: &mut ForwardNodeIterator| {
+        let data = me.key.data().unwrap();
+        if data != DataReturn::ValueData && data != DataReturn::ValueTreeData {
+            return me.next();
+        }
+        Some(me.key.get())
     }
-    Some(me.key.get())
-});
+);
 
-implement_iterator!(ForwardKeyNodeIterator, next_node_self, KeyContext, |me: &mut ForwardKeyNodeIterator| {
-    Some(Ok(me.key.clone()))
-});
+implement_iterator!(
+    ForwardKeyNodeIterator,
+    next_node_self,
+    KeyContext,
+    |me: &mut ForwardKeyNodeIterator| { Some(Ok(me.key.clone())) }
+);
 
-implement_iterator!(ReverseValueIterator, prev_sub_self, Vec<u8>, |me: &mut ReverseValueIterator| {
-    Some(me.key.get())
-});
+implement_iterator!(
+    ReverseValueIterator,
+    prev_sub_self,
+    Vec<u8>,
+    |me: &mut ReverseValueIterator| { Some(me.key.get()) }
+);
 
 implement_iterator!(ReverseSubIterator, prev_sub_self, Vec<u8>, |me: &mut ReverseSubIterator| {
     Some(Ok(me.key.last().unwrap().clone()))
 });
 
-implement_iterator!(ReverseSubValueIterator, prev_sub_self, (Vec<u8>, Vec<u8>), |me: &mut ReverseSubValueIterator| {
-    let val = me.key.get();
-    if val.is_err() {
-        let err = val.err().unwrap();
-        return Some(Err(err));
+implement_iterator!(
+    ReverseSubValueIterator,
+    prev_sub_self,
+    (Vec<u8>, Vec<u8>),
+    |me: &mut ReverseSubValueIterator| {
+        let val = me.key.get();
+        if val.is_err() {
+            let err = val.err().unwrap();
+            return Some(Err(err));
+        }
+        Some(Ok((me.key.last().unwrap().clone(), val.unwrap())))
     }
-    Some(Ok((me.key.last().unwrap().clone(), val.unwrap())))
-});
+);
 
-implement_iterator!(ReverseKeySubIterator, prev_sub_self, KeyContext, |me: &mut ReverseKeySubIterator| {
-    Some(Ok(me.key.clone()))
-});
+implement_iterator!(
+    ReverseKeySubIterator,
+    prev_sub_self,
+    KeyContext,
+    |me: &mut ReverseKeySubIterator| { Some(Ok(me.key.clone())) }
+);
 
-implement_iterator!(ReverseNodeIterator, prev_node_self, Vec<u8>, |me: &mut ReverseNodeIterator| {
-    Some(me.key.get())
-});
+implement_iterator!(
+    ReverseNodeIterator,
+    prev_node_self,
+    Vec<u8>,
+    |me: &mut ReverseNodeIterator| { Some(me.key.get()) }
+);
 
-implement_iterator!(ReverseKeyNodeIterator, prev_node_self, KeyContext, |me: &mut ReverseKeyNodeIterator| {
-    Some(Ok(me.key.clone()))
-});
+implement_iterator!(
+    ReverseKeyNodeIterator,
+    prev_node_self,
+    KeyContext,
+    |me: &mut ReverseKeyNodeIterator| { Some(Ok(me.key.clone())) }
+);
 
 #[cfg(test)]
 mod tests {
@@ -1435,11 +1488,16 @@ mod tests {
     #[test]
     fn test_simple_tp() {
         let ctx = Context::new();
-        ctx.tp(|ctx| {
-            let key = ctx.new_key("^hello");
-            key.set("Hello world!")?;
-            Ok(())
-        }, "BATCH", &[]).unwrap();
+        ctx.tp(
+            |ctx| {
+                let key = ctx.new_key("^hello");
+                key.set("Hello world!")?;
+                Ok(())
+            },
+            "BATCH",
+            &[],
+        )
+        .unwrap();
     }
 
     #[test]
