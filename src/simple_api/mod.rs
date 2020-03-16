@@ -1622,10 +1622,13 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_get_st_error() {
-        let result = Vec::with_capacity(1);
         let key = Key::variable("^helloDoesntExists");
-        let err = key.get_st(0, result).unwrap_err();
+        let err = key.get_st(0, Vec::new()).unwrap_err();
         assert_eq!(err.status, crate::craw::YDB_ERR_GVUNDEF);
+
+        let key = Key::variable("helloDoesntExists");
+        let err = key.get_st(0, Vec::new()).unwrap_err();
+        assert_eq!(err.status, crate::craw::YDB_ERR_LVUNDEF);
     }
 
     #[test]
