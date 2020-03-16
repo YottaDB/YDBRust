@@ -1426,7 +1426,8 @@ pub fn zwr2str_st(tptoken: u64, out_buf: Vec<u8>, serialized: &[u8]) -> Result<V
 /// [`Key::lock_decr_st`]: struct.Key.html#method.lock_decr_st
 #[cfg(any(target_pointer_width = "64", target_pointer_width = "32"))]
 pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[Key]) -> YDBResult<Vec<u8>> {
-    use crate::craw::{YDB_ERR_MAXARGCNT, MAXVPARMS, ydb_lock_st, ydb_call_variadic_plist_func, gparam_list};
+    use std::convert::TryFrom;
+    use crate::craw::{YDB_ERR_MAXARGCNT, YDB_ERR_TIME2LONG, MAXVPARMS, ydb_lock_st, ydb_call_variadic_plist_func, gparam_list};
     // `ydb_lock_st` is hard to work with because it uses variadic arguments.
     // The only way to pass a variable number of arguments in Rust is to pass a slice
     // or use a macro (i.e. know the number of arguments ahead of time).
@@ -1460,12 +1461,23 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
 
     // we can't just use `as usize` since on 32-bit platforms that will discard the upper half of the value
     // NOTE: this could be wrong if the pointer width is different from `usize`. We don't handle this case.
-    let nanos = timeout.as_nanos();
+    let timeout_ns = match u64::try_from(timeout.as_nanos()) {
+        Ok(n) => n,
+        Err(_) => {
+            // discard any previous error
+            out_buffer.clear();
+            return Err(YDBError {
+                status: YDB_ERR_TIME2LONG,
+                message: out_buffer,
+                tptoken,
+            });
+        }
+    };
     #[cfg(target_pointer_width = "64")]
     {
         arg[0] = tptoken as Void;
         arg[1] = &mut err_buffer_t as *mut _ as Void;
-        arg[2] = nanos as Void;
+        arg[2] = timeout_ns as Void;
         arg[3] = keys.len() as Void;
         i = 4;
     }
@@ -1477,15 +1489,15 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
             arg[1] = (tptoken >> 32) as Void;
             // arg[2] is err_buffer_t, but we need to use 2 slots for it to avoid unaligned accesses :(
             // here's hoping that YDB gets a better API upstream soon ...
-            arg[4] = (nanos & 0xffffffff) as Void;
-            arg[5] = (nanos >> 32) as Void;
+            arg[4] = (timeout_ns & 0xffffffff) as Void;
+            arg[5] = (timeout_ns >> 32) as Void;
         }
         #[cfg(target_endian = "big")]
         {
             arg[0] = (tptoken >> 32) as Void;
             arg[1] = (tptoken & 0xffffffff) as Void;
-            arg[4] = (nanos >> 32) as Void;
-            arg[5] = (nanos & 0xffffffff) as Void;
+            arg[4] = (timeout_ns >> 32) as Void;
+            arg[5] = (timeout_ns & 0xffffffff) as Void;
         }
         arg[2] = &mut err_buffer_t as *mut _ as Void;
         arg[6] = keys.len() as Void;
@@ -1834,7 +1846,7 @@ pub(crate) mod tests {
     #[test]
     #[serial]
     fn ydb_lock_st() {
-        use crate::craw::YDB_ERR_MAXARGCNT;
+        use crate::craw::{YDB_ERR_MAXARGCNT, YDB_ERR_TIME2LONG};
 
         // Test `ydb_lock`
         let key = Key::variable("ydbLock");
@@ -1854,6 +1866,12 @@ pub(crate) mod tests {
         }
         let res = lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &locks);
         assert!(res.unwrap_err().status == YDB_ERR_MAXARGCNT);
+
+        // Test for TIME2LONG
+        for &time in &[std::u64::MAX, std::u32::MAX.into(), (std::u32::MAX / 2).into(), 0xf00_0000_0000_0000] {
+            let res = lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(time), &[]);
+            assert!(res.unwrap_err().status == YDB_ERR_TIME2LONG);
+        }
 
         // Test for the maximum number of locks
         locks.clear();
