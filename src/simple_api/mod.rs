@@ -1991,11 +1991,14 @@ pub(crate) mod tests {
     fn ydb_tp_st() {
         use crate::craw;
 
-        // success
+        // Variables are persisted after a transaction
+        let key = Key::variable("tpPersistence");
         let result = Vec::with_capacity(1);
-        let result = tp_st(0, result, |_| {
+        let result = tp_st(0, result, |tptoken| {
+            key.set_st(tptoken, Vec::new(), "value").unwrap();
             Ok(())
         }, "BATCH", &[]).unwrap();
+        assert_eq!(key.get_st(0, Vec::new()).unwrap(), b"value");
 
         // user error
         let err = tp_st(0, result, |_| {
