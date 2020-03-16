@@ -6,12 +6,13 @@ before_script:
   - apt-get update -qq && apt-get install -y -qq curl libclang-common-6.0-dev clang libsdl2-dev libsdl2-gfx-dev libsdl2-doc libsdl2-ttf-dev
   - curl https://sh.rustup.rs -sSf | sh -s -- -y
   - source /opt/yottadb/current/ydb_env_set
-  - source $HOME/.cargo/env 
+  - source $HOME/.cargo/env
 
 rust-latest:
   stage: build
   image: yottadb/yottadb-base:latest-master
   script:
+    - cargo fmt -- --check
     - cargo clippy -- --deny clippy::all
     - cargo build --verbose
     - cargo test --verbose
