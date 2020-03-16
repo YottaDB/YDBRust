@@ -2321,14 +2321,12 @@ pub(crate) mod tests {
 
         for locals in &[&["*"][..], &[a.variable.as_str()], &[&a.variable, "b", "c"]] {
             let mut i = 0;
-            println!("locals: {:?}", locals);
 
             a.set_st(0, Vec::new(), "initial value").unwrap();
             assert_eq!(&a.get_st(0, Vec::new()).unwrap(), b"initial value");
 
             // make sure `a` is reset after each call
-            tp_st(0, Vec::new(), |tptoken| {
-                dbg!(i);
+            let closure = |tptoken| {
                 assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"initial value");
                 a.set_st(tptoken, Vec::new(), "new value").unwrap();
                 assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"new value");
@@ -2338,7 +2336,8 @@ pub(crate) mod tests {
                     i += 1;
                     Ok(TransactionStatus::Restart)
                 }
-            }, "BATCH", locals).unwrap();
+            };
+            tp_st(0, Vec::new(), closure, "BATCH", locals).unwrap();
         }
 
         // now make sure that locals are not reset unless specified
