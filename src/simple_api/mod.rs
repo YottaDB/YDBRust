@@ -1852,15 +1852,17 @@ pub(crate) mod tests {
     fn ydb_lock_st() {
         use crate::craw::{YDB_ERR_MAXARGCNT, YDB_ERR_TIME2LONG};
 
-        // Test `ydb_lock`
-        let key = Key::variable("ydbLock");
-        assert_eq!(lock_count(&key.variable), 0);
-        // Acquire the lock
-        lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), std::slice::from_ref(&key)).unwrap();
-        assert_eq!(lock_count(&key.variable), 1);
-        // Release all locks
-        lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &[]).unwrap();
-        assert_eq!(lock_count(&key.variable), 0);
+        // Test global and local locks
+        for &lock in &["ydbLock", "^ydbLock"] {
+            let key = Key::variable(lock);
+            assert_eq!(lock_count(&key.variable), 0);
+            // Acquire the lock
+            lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), std::slice::from_ref(&key)).unwrap();
+            assert_eq!(lock_count(&key.variable), 1);
+            // Release all locks
+            lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &[]).unwrap();
+            assert_eq!(lock_count(&key.variable), 0);
+        }
 
         // Test for too many locks
         let mut locks = Vec::new();
