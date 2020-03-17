@@ -1941,14 +1941,19 @@ pub(crate) mod tests {
         key.node_next_self_st(0, result).unwrap();
 
         // YDB_ERR_NODEEND
-        let err = key.node_next_self_st(0, Vec::new()).unwrap_err();
-        assert_eq!(err.status, craw::YDB_ERR_NODEEND);
-        dbg!(&key);
+        // make sure NODEEND is still returned if we call multiple times in a row
+        for _ in 0..10 {
+            let err = key.node_next_self_st(0, Vec::new()).unwrap_err();
+            assert_eq!(err.status, craw::YDB_ERR_NODEEND);
+        }
 
+        // now test it for node_prev_self
         key.node_prev_self_st(0, Vec::new()).unwrap();
         assert_eq!(key[1], b"hyrule");
-        let err = key.node_prev_self_st(0, Vec::new()).unwrap_err();
-        assert_eq!(err.status, craw::YDB_ERR_NODEEND);
+        for _ in 0..10 {
+            let err = key.node_prev_self_st(0, Vec::new()).unwrap_err();
+            assert_eq!(err.status, craw::YDB_ERR_NODEEND);
+        }
     }
 
     #[test]
