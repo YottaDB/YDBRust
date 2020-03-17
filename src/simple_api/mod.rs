@@ -680,6 +680,7 @@ impl Key {
     pub fn node_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         self.growing_shrinking_call(tptoken, out_buffer, ydb_node_previous_st)
     }
+
     fn growing_shrinking_call(&mut self, tptoken: u64, mut err_buffer: Vec<u8>,
         c_func: unsafe extern "C" fn(u64, *mut ydb_buffer_t, *const ydb_buffer_t, c_int, *const ydb_buffer_t, *mut c_int, *mut ydb_buffer_t) -> c_int
     ) -> YDBResult<Vec<u8>> {
@@ -1645,6 +1646,14 @@ pub(crate) mod tests {
         let key = Key::variable("helloDoesntExists");
         let err = key.get_st(0, Vec::new()).unwrap_err();
         assert_eq!(err.status, crate::craw::YDB_ERR_LVUNDEF);
+    }
+
+    #[test]
+    fn ydb_set_st_error() {
+        let key = Key::variable("$ZCHSET");
+        let err = key.set_st(0, Vec::new(), "some val").unwrap_err();
+        assert_eq!(err.status, craw::YDB_ERR_SVNOSET)
+        // other errors tested in `common_errors`
     }
 
     #[test]
