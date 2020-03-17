@@ -1845,6 +1845,12 @@ pub(crate) mod tests {
         key.lock_decr_st(YDB_NOTTP, err_buf).unwrap();
         // Make sure the lock has been released
         assert_eq!(lock_count(&key.variable), 0);
+
+        // Test for TIME2LONG
+        for &time in &[std::u64::MAX, std::u32::MAX.into(), (std::u32::MAX / 2).into(), 0xf00_0000_0000_0000] {
+            let res = key.lock_incr_st(YDB_NOTTP, Vec::new(), Duration::from_secs(time));
+            assert!(res.unwrap_err().status == craw::YDB_ERR_TIME2LONG);
+        }
     }
 
     #[test]
@@ -2211,6 +2217,14 @@ pub(crate) mod tests {
             let slice = std::slice::from_ref(&key);
             let res = lock_st(0, Vec::new(), Duration::from_secs(0), slice);
             assert_eq!(res.unwrap_err().status, err_code);
+
+            // lock_incr_st
+            let err = key.lock_incr_st(0, Vec::new(), Duration::from_secs(1)).unwrap_err();
+            assert_eq!(err.status, err_code);
+
+            // lock_decr_st
+            let err = key.lock_decr_st(0, Vec::new()).unwrap_err();
+            assert_eq!(err.status, err_code);
 
             // node_next_st
             let mut dup = key.clone();
