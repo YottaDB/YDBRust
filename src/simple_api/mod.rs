@@ -14,7 +14,7 @@
 //! raw C API (craw).
 //!
 //! Most operations are encapsulated in methods on the [`Key`][key] struct, and generally
-//! consume a Vec<u8> and return ``Result<Vec<u8>>``. The return Vec<u8> will either contain
+//! consume a Vec<u8> and return [`YDBResult<Vec<u8>>`][YDBResult]. The return Vec<u8> will either contain
 //! the data fetched from the database or an error.
 //!
 //! The Vec<u8> may be resized as part of the call.
@@ -63,6 +63,7 @@
 //! [key]: struct.Key.html
 //! [intrinsics]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
 //! [tlevel]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#tlevel
+//! [YDBResult]: type.YDBResult.html
 
 pub mod call_in;
 
@@ -92,12 +93,19 @@ const DEFAULT_CAPACITY: usize = 50;
 pub struct YDBError {
     /// YottaDB internally uses an error-handling mechanism similar to `errno` and `perror`.
     /// Since, in a threaded context, another error may occur before the application has
-    /// a chance to call `perror()` (in YottaDB, `$ZSTATUS`),
+    /// a chance to call `perror()` (in YottaDB, [`$ZSTATUS`]),
     /// the stringified error must be returned at the same time as the status code.
+    ///
+    /// [`$ZSTATUS`]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#zstatus
     pub message: Vec<u8>,
     /// The status returned by a YottaDB function. This will be a `YDB_ERR_*` constant.
+    ///
+    /// ## See also
+    /// - [ZMessage Codes](https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes)
     pub status: i32,
-    /// The transaction that was in process when the error occurred.
+    /// The [transaction] that was in process when the error occurred.
+    ///
+    /// [transaction]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
     pub tptoken: u64,
 }
 

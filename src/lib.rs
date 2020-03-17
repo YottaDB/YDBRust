@@ -16,14 +16,14 @@
 //! This crate is a Rust wrapper around the C implementation of YottaDB.
 //!
 //! There are three major APIs:
-//! - `craw`, the FFI bindings generated directly by bindgen.
+//! - [`craw`], the FFI bindings generated directly by bindgen.
 //!     These are not recommended for normal use,
 //!     but are available in case the other APIs are missing functionality.
-//! - `simple_api`, a wrapper around the `craw` API
+//! - [`simple_api`], a wrapper around the `craw` API
 //!     which handles resizing buffers and various other recoverable errors.
-//!     The simple API also provides a `YDBError` struct so that errors are
+//!     The simple API also provides a [`YDBError`] struct so that errors are
 //!     returned as `Result` instead of an error code.
-//! - `context_api`, which is a wrapper around the `simple_api` that
+//! - [`context_api`], which is a wrapper around the `simple_api` that
 //!     stores the current tptoken and an error buffer
 //!     so you don't have to keep track of them yourself.
 //!     The reason the context_api is necessary is because this crate binds to
@@ -33,6 +33,10 @@
 //! The context_api is recommended for normal use, but the others are available if your
 //! needs are more specialized.
 //!
+//! [`craw`]: craw/index.html
+//! [`simple_api`]: simple_api/index.html
+//! [`context_api`]: context_api/index.html
+//! [`YDBError`]: simple_api/struct.YDBError.html
 //! [YottaDB]: https://yottadb.com/
 //! [transaction processing]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
 #![deny(missing_docs)]
