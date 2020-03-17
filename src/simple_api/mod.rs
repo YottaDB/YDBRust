@@ -120,38 +120,6 @@ impl fmt::Display for YDBError {
     }
 }
 
-/// Write the message corresponding to a YottaDB error code to `out_buffer`.
-pub fn message_t(tptoken: u64, mut out_buffer: Vec<u8>, status: i32) -> YDBResult<Vec<u8>> {
-    let ret_code = loop {
-        let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
-        let mut err_buffer_t = out_buffer_t;
-        let ret_code =
-            unsafe { ydb_message_t(tptoken, &mut err_buffer_t, status, &mut out_buffer_t) };
-        // Resize the vec with the buffer to we can see the value
-        // We could end up with a buffer of a larger size if we couldn't fit the error string
-        // into the out_buffer, so make sure to pick the smaller size
-        if ret_code == YDB_ERR_INVSTRLEN {
-            out_buffer.resize(out_buffer_t.len_used as usize, Default::default());
-            continue;
-        }
-        if ret_code != YDB_OK as i32 {
-            unsafe {
-                out_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
-            }
-        } else {
-            unsafe {
-                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-            }
-        }
-        break ret_code;
-    };
-    if ret_code != YDB_OK as i32 {
-        Err(YDBError { tptoken, message: out_buffer, status: ret_code })
-    } else {
-        Ok(out_buffer)
-    }
-}
-
 impl error::Error for YDBError {
     fn cause(&self) -> Option<&dyn error::Error> {
         Some(self)
@@ -1624,6 +1592,39 @@ pub fn zwr2str_st(tptoken: u64, out_buf: Vec<u8>, serialized: &[u8]) -> Result<V
     resize_ret_call(tptoken, out_buf, |tptoken, err_buffer_p, out_buffer_p| unsafe {
         ydb_zwr2str_st(tptoken, err_buffer_p, serialized_t.as_ptr(), out_buffer_p)
     })
+}
+
+/// Write the message corresponding to a YottaDB error code to `out_buffer`.
+pub fn message_t(tptoken: u64, mut out_buffer: Vec<u8>, status: i32) -> YDBResult<Vec<u8>> {
+    let ret_code = loop {
+        let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
+        let mut err_buffer_t = out_buffer_t;
+        let ret_code = unsafe {
+            ydb_message_t(tptoken, &mut err_buffer_t, status, &mut out_buffer_t)
+        };
+        // Resize the vec with the buffer to we can see the value
+        // We could end up with a buffer of a larger size if we couldn't fit the error string
+        // into the out_buffer, so make sure to pick the smaller size
+        if ret_code == YDB_ERR_INVSTRLEN {
+            out_buffer.resize(out_buffer_t.len_used as usize, Default::default());
+            continue;
+        }
+        if ret_code != YDB_OK as i32 {
+            unsafe {
+                out_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
+            }
+        } else {
+            unsafe {
+                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            }
+        }
+        break ret_code;
+    };
+    if ret_code != YDB_OK as i32 {
+        Err(YDBError { tptoken, message: out_buffer, status: ret_code })
+    } else {
+        Ok(out_buffer)
+    }
 }
 
 /// Acquires locks specified in `locks` and releases all others.
