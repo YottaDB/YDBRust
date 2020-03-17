@@ -106,11 +106,8 @@ impl fmt::Debug for YDBError {
 
 impl fmt::Display for YDBError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let do_call = |tptoken, err_buffer_p, out_buffer_p| unsafe {
-            ydb_message_t(tptoken, err_buffer_p, self.status, out_buffer_p)
-        };
         let tmp;
-        let message = match resize_ret_call(self.tptoken, Vec::new(), do_call) {
+        let message = match message_t(self.tptoken, Vec::new(), self.status) {
             Ok(buf) => {
                 tmp = buf;
                 String::from_utf8_lossy(&tmp)
@@ -119,7 +116,39 @@ impl fmt::Display for YDBError {
                 std::borrow::Cow::from(format!("<error retrieving error message: {}>", err.status))
             }
         };
-        write!(f, "YDB Error ({}): {}", message, String::from_utf8_lossy(&self.message))
+        write!(f, "YDB Error ({}): {}", message, &String::from_utf8_lossy(&self.message))
+    }
+}
+
+/// Write the message corresponding to a YottaDB error code to `out_buffer`.
+pub fn message_t(tptoken: u64, mut out_buffer: Vec<u8>, status: i32) -> YDBResult<Vec<u8>> {
+    let ret_code = loop {
+        let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
+        let mut err_buffer_t = out_buffer_t;
+        let ret_code =
+            unsafe { ydb_message_t(tptoken, &mut err_buffer_t, status, &mut out_buffer_t) };
+        // Resize the vec with the buffer to we can see the value
+        // We could end up with a buffer of a larger size if we couldn't fit the error string
+        // into the out_buffer, so make sure to pick the smaller size
+        if ret_code == YDB_ERR_INVSTRLEN {
+            out_buffer.resize(out_buffer_t.len_used as usize, Default::default());
+            continue;
+        }
+        if ret_code != YDB_OK as i32 {
+            unsafe {
+                out_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
+            }
+        } else {
+            unsafe {
+                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            }
+        }
+        break ret_code;
+    };
+    if ret_code != YDB_OK as i32 {
+        Err(YDBError { tptoken, message: out_buffer, status: ret_code })
+    } else {
+        Ok(out_buffer)
     }
 }
 
