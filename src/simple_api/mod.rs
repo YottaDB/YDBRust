@@ -1820,8 +1820,10 @@ pub(crate) mod tests {
             assert_eq!(groups.next(), Some("LOCK"));
             let name = groups.next().unwrap();
             if name == var {
-                let count = &groups.next().unwrap()["LEVEL=".len()..];
-                return count.parse().unwrap();
+                let locks = groups.next().unwrap()["LEVEL=".len()..]
+                    .parse().unwrap();
+                assert_ne!(locks, 0);
+                return locks;
             }
             count += 1;
             key[1] = count.to_string().into_bytes();
