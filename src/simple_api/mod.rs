@@ -1603,6 +1603,10 @@ pub(crate) mod tests {
         any::<(String, Vec<Vec<u8>>)>().prop_map(|(var, subs)| Key::new(var, &subs))
     }
 
+    fn arb_keys() -> impl Strategy<Value = Vec<Key>> {
+        proptest::collection::vec(arb_key(), 0..12)
+    }
+
     #[test]
     fn can_make_key() {
         Key::variable("key");
@@ -2096,6 +2100,14 @@ pub(crate) mod tests {
             let serialized = str2zwr_st(YDB_NOTTP, Vec::new(), &s).unwrap();
             let deserialized = zwr2str_st(YDB_NOTTP, Vec::new(), &serialized).unwrap();
             assert_eq!(s, deserialized);
+        }
+        #[test]
+        fn no_invlnpairlist_lock_proptest(timeout: Duration, keys in arb_keys()) {
+            // lock_st should never return `INVLNPAIRLIST`
+            match lock_st(YDB_NOTTP, Vec::new(), timeout, &keys) {
+                Err(YDBError { status: craw::YDB_ERR_INVLNPAIRLIST, .. }) => panic!("lock_st should never return YDB_ERR_INVLNPAIRLIST"),
+                _ => {}
+            }
         }
         #[test]
         // no Rust Simple API should ever return INVSTRLEN or INSUFFSUBS
