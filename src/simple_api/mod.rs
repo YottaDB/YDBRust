@@ -1890,9 +1890,12 @@ pub(crate) mod tests {
             locks.push(Key::variable(s));
         }
         lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &locks).unwrap();
-        for lock in locks {
+        for lock in &locks {
             assert_eq!(lock_count(&lock.variable), 1);
         }
+        locks.push(Key::variable("oneTooMany"));
+        let err = lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &locks).unwrap_err();
+        assert_eq!(err.status, YDB_ERR_MAXARGCNT);
     }
 
     #[test]
