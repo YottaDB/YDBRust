@@ -1883,24 +1883,24 @@ where
 macro_rules! ci_t {
     ($tptoken: expr, $err_buffer: expr, $routine: expr, $($args: expr),* $(,)?) => {{
         let tptoken: u64 = $tptoken;
-        let mut err_buffer: Vec<u8> = $err_buffer;
         let routine: *const c_char = $routine;
+        let mut err_buffer: ::std::vec::Vec<u8> = $err_buffer;
 
         let status = loop {
-            let mut err_buffer_t = Key::make_out_buffer_t(&mut err_buffer);
-            let status = ydb_ci_t(tptoken, &mut err_buffer_t, routine, $($args),*);
+            let mut err_buffer_t = $crate::simple_api::Key::make_out_buffer_t(&mut err_buffer);
+            let status = $crate::craw::ydb_ci_t(tptoken, &mut err_buffer_t, routine, $($args),*);
             // Resize the vec with the buffer to we can see the value
             // We could end up with a buffer of a larger size if we couldn't fit the error string
             // into the out_buffer, so make sure to pick the smaller size
-            if status == YDB_ERR_INVSTRLEN {
-                err_buffer.resize(err_buffer_t.len_used as usize, Default::default());
+            if status == $crate::craw::YDB_ERR_INVSTRLEN {
+                err_buffer.resize(err_buffer_t.len_used as usize, u8::default());
                 continue;
             }
-            err_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
+            err_buffer.set_len(::std::cmp::min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
             break status;
         };
-        if status != YDB_OK as i32 {
-            Err(YDBError { tptoken, message: err_buffer, status })
+        if status != $crate::craw::YDB_OK as i32 {
+            Err($crate::YDBError { tptoken, message: err_buffer, status })
         } else {
             Ok(err_buffer)
         }
