@@ -1627,6 +1627,15 @@ pub fn message_t(tptoken: u64, mut out_buffer: Vec<u8>, status: i32) -> YDBResul
     }
 }
 
+/// Return a string in the format `rustwr <rust wrapper version> <$ZRELEASE>`,
+/// where `$ZRELEASE` is the intrinsic variable containing the version of the underlying C database
+/// and <rust wrapper version> is the version of `yottadb` published to crates.io.
+pub fn release_t(tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<String> {
+    let zrelease = Key::variable("$ZYRELEASE").get_st(tptoken, out_buffer)?;
+    let zrelease = String::from_utf8(zrelease).expect("$ZRELEASE was not valid UTF8");
+    Ok(format!("rustwr {} {}", env!("CARGO_PKG_VERSION"), zrelease))
+}
+
 /// Acquires locks specified in `locks` and releases all others.
 ///
 /// This operation is atomic. If any lock cannot be acquired, all locks are released.
@@ -2756,5 +2765,16 @@ pub(crate) mod tests {
         let err_buf = Vec::with_capacity(10);
         let res = key.get_st(YDB_NOTTP, err_buf);
         assert_eq!(res.unwrap_err().status, YDB_ERR_LVUNDEF);
+    }
+
+    #[test]
+    fn release() {
+        let version = dbg!(release_t(YDB_NOTTP, Vec::new()).unwrap());
+        let mut parts = version.split_whitespace();
+        assert_eq!(parts.next(), Some("rustwr"));
+        assert_eq!(parts.next(), Some(env!("CARGO_PKG_VERSION")));
+        assert_eq!(parts.next(), Some("YottaDB"));
+        assert_eq!(&parts.next().unwrap()[0..1], "r");
+        assert_eq!(parts.count(), 2);
     }
 }
