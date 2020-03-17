@@ -2232,6 +2232,9 @@ pub(crate) mod tests {
             if get {
                 let err = key.get_st(0, Vec::with_capacity(50)).unwrap_err();
                 assert_eq!(err.status, err_code);
+
+                let err = key.set_st(0, Vec::with_capacity(50), b"some val").unwrap_err();
+                assert_eq!(err.status, err_code);
             }
 
             // lock_st
