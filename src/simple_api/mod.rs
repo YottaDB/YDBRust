@@ -1883,12 +1883,12 @@ where
 macro_rules! ci_t {
     ($tptoken: expr, $err_buffer: expr, $routine: expr, $($args: expr),* $(,)?) => {{
         let tptoken: u64 = $tptoken;
-        let routine: *const c_char = $routine;
         let mut err_buffer: ::std::vec::Vec<u8> = $err_buffer;
+        let routine: ::std::ffi::CString = $routine;
 
         let status = loop {
             let mut err_buffer_t = $crate::simple_api::Key::make_out_buffer_t(&mut err_buffer);
-            let status = $crate::craw::ydb_ci_t(tptoken, &mut err_buffer_t, routine, $($args),*);
+            let status = $crate::craw::ydb_ci_t(tptoken, &mut err_buffer_t, routine.as_ptr(), $($args),*);
             // Resize the vec with the buffer to we can see the value
             // We could end up with a buffer of a larger size if we couldn't fit the error string
             // into the out_buffer, so make sure to pick the smaller size
@@ -2095,7 +2095,7 @@ pub(crate) mod tests {
     // Return the number of locks held for `var`
     pub(crate) fn lock_count(var: &str) -> usize {
         use std::os::raw::{c_char, c_ulong};
-        use crate::craw::{ydb_ci_t, ydb_string_t};
+        use crate::craw::ydb_string_t;
 
         fn make_out_str_t(slice: &mut [u8]) -> ydb_string_t {
             ydb_string_t {
@@ -2112,10 +2112,9 @@ pub(crate) mod tests {
         let mut output_var = Vec::from("l");
         let mut output_var_t = make_out_str_t(&mut output_var);
         let mut stored_var_t = make_out_str_t(&mut stored_var);
-        let func_ptr = m_code.as_ptr() as *const c_char;
 
         let mut err_buf = unsafe {
-            ci_t!(YDB_NOTTP, Vec::new(), func_ptr, &mut output_var_t as *mut _, &mut stored_var_t as *mut _)
+            ci_t!(YDB_NOTTP, Vec::new(), m_code, &mut output_var_t as *mut _, &mut stored_var_t as *mut _)
         }.unwrap();
 
         // look for the right key
