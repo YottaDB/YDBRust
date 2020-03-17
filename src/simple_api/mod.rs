@@ -1873,10 +1873,16 @@ where
 
 /// Make a call to `ydb_ci_t`.
 ///
+/// `ci_t` is equivalent to a variadic function with the following signature:
+/// ```ignore
+/// unsafe fn ci_t(tptoken: u64, err_buffer: Vec<u8>, routine: CString, ...) -> YDBResult<Vec<u8>>;
+/// ```
+/// However, since Rust does not allow implementing variadic functions, it is a macro instead.
+///
 /// # Safety
 /// Each argument passed (after `routine`) must correspond to the appropriate argument expected by `routine`.
 /// If `routine` returns a value, the first argument must be a pointer to an out parameter in which to store the value.
-/// All arguments should be [representable as C types][repr-c].
+/// All arguments must be [representable as C types][repr-c].
 ///
 /// [repr-c]: https://doc.rust-lang.org/nomicon/ffi.html#interoperability-with-foreign-code
 #[macro_export]
