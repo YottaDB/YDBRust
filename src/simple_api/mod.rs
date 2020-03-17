@@ -1871,6 +1871,42 @@ where
     }
 }
 
+/// Make a call to `ydb_ci_t`.
+///
+/// # Safety
+/// Each argument passed (after `routine`) must correspond to the appropriate argument expected by `routine`.
+/// If `routine` returns a value, the first argument must be a pointer to an out parameter in which to store the value.
+/// All arguments should be [representable as C types][repr-c].
+///
+/// [repr-c]: https://doc.rust-lang.org/nomicon/ffi.html#interoperability-with-foreign-code
+#[macro_export]
+macro_rules! ci_t {
+    ($tptoken: expr, $err_buffer: expr, $routine: expr, $($args: expr),* $(,)?) => {{
+        let tptoken: u64 = $tptoken;
+        let mut err_buffer: Vec<u8> = $err_buffer;
+        let routine: *const c_char = $routine;
+
+        let status = loop {
+            let mut err_buffer_t = Key::make_out_buffer_t(&mut err_buffer);
+            let status = ydb_ci_t(tptoken, &mut err_buffer_t, routine, $($args),*);
+            // Resize the vec with the buffer to we can see the value
+            // We could end up with a buffer of a larger size if we couldn't fit the error string
+            // into the out_buffer, so make sure to pick the smaller size
+            if status == YDB_ERR_INVSTRLEN {
+                err_buffer.resize(err_buffer_t.len_used as usize, Default::default());
+                continue;
+            }
+            err_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
+            break status;
+        };
+        if status != YDB_OK as i32 {
+            Err(YDBError { tptoken, message: err_buffer, status })
+        } else {
+            Ok(err_buffer)
+        }
+    }}
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use serial_test::serial;
@@ -2071,37 +2107,16 @@ pub(crate) mod tests {
         std::env::set_var("ydb_routines", "examples/m-ffi");
         std::env::set_var("ydb_ci", "examples/m-ffi/zshvar.ci");
 
-        let mut err_buf = Vec::new();
-
         let m_code = CString::new("zshvar").unwrap();
         let mut stored_var = Vec::from("outputvar");
         let mut output_var = Vec::from("l");
         let mut output_var_t = make_out_str_t(&mut output_var);
         let mut stored_var_t = make_out_str_t(&mut stored_var);
-        let status = loop {
-            let mut err_buf_t = Key::make_out_buffer_t(&mut err_buf);
-            let status = unsafe {
-                let func_ptr = m_code.as_ptr() as *const c_char;
-                ydb_ci_t(
-                    YDB_NOTTP,
-                    &mut err_buf_t,
-                    func_ptr,
-                    &mut output_var_t as *mut _,
-                    &mut stored_var_t as *mut _,
-                )
-            };
-            if status == YDB_ERR_INVSTRLEN {
-                err_buf.reserve(err_buf_t.len_used as usize - err_buf.len());
-                continue;
-            }
-            break status;
-        };
-        assert_eq!(
-            status,
-            0,
-            "ydb_ci_t not successful: {}",
-            YDBError { status, tptoken: YDB_NOTTP, message: err_buf }
-        );
+        let func_ptr = m_code.as_ptr() as *const c_char;
+
+        let mut err_buf = unsafe {
+            ci_t!(YDB_NOTTP, Vec::new(), func_ptr, &mut output_var_t as *mut _, &mut stored_var_t as *mut _)
+        }.unwrap();
 
         // look for the right key
         let mut count = 1;
