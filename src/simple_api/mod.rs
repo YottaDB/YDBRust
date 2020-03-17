@@ -1932,13 +1932,23 @@ pub(crate) mod tests {
     #[test]
     fn ydb_node_next_self_extra_node_st() {
         let mut result = Vec::with_capacity(1);
-        let value = Vec::from("Hello world!");
+        let value = b"Hello world!";
         let mut key = make_key!("^helloNodeNext2", "worlds", "shire");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(0, result, value).unwrap();
         key[1] = Vec::from("hyrule");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(0, result, value).unwrap();
         key.truncate(2);
         key.node_next_self_st(0, result).unwrap();
+
+        // YDB_ERR_NODEEND
+        let err = key.node_next_self_st(0, Vec::new()).unwrap_err();
+        assert_eq!(err.status, craw::YDB_ERR_NODEEND);
+        dbg!(&key);
+
+        key.node_prev_self_st(0, Vec::new()).unwrap();
+        assert_eq!(key[1], b"hyrule");
+        let err = key.node_prev_self_st(0, Vec::new()).unwrap_err();
+        assert_eq!(err.status, craw::YDB_ERR_NODEEND);
     }
 
     #[test]
