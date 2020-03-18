@@ -92,33 +92,16 @@ impl fmt::Debug for YDBError {
 
 impl fmt::Display for YDBError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut out_buffer = Vec::with_capacity(DEFAULT_CAPACITY);
-        let message = loop {
-            let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
-            let mut err_buffer_t = out_buffer_t;
-            let ret_code = unsafe {
-                ydb_message_t(self.tptoken, &mut err_buffer_t, self.status, &mut out_buffer_t)
-            };
-            // Resize the vec with the buffer to we can see the value
-            // We could end up with a buffer of a larger size if we couldn't fit the error string
-            // into the out_buffer, so make sure to pick the smaller size
-            if ret_code == YDB_ERR_INVSTRLEN {
-                out_buffer.resize(out_buffer_t.len_used as usize, Default::default());
-                continue;
-            } else if ret_code != YDB_OK as i32 {
-                unsafe {
-                    out_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
-                }
-            } else {
-                unsafe {
-                    out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-                }
+        let do_call = |tptoken, err_buffer_p, out_buffer_p| {
+            unsafe { ydb_message_t(tptoken, err_buffer_p, self.status, out_buffer_p) }
+        };
+        let tmp;
+        let message = match resize_ret_call(self.tptoken, Vec::new(), do_call) {
+            Ok(buf) => {
+                tmp = buf;
+                String::from_utf8_lossy(&tmp)
             }
-            break if ret_code != YDB_OK as i32 {
-                std::borrow::Cow::from(format!("<error retrieving error message: {}>", ret_code))
-            } else {
-                String::from_utf8_lossy(&out_buffer)
-            }
+            Err(err) => std::borrow::Cow::from(format!("<error retrieving error message: {}>", err.status)),
         };
         write!(f, "YDB Error ({}): {}", message, String::from_utf8_lossy(&self.message))
     }
@@ -1646,27 +1629,44 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
 }
 
 #[doc(hidden)]
-pub fn resize_call<F>(tptoken: u64, mut err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
+pub fn resize_call<F>(tptoken: u64, err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
 where F: FnMut(u64, *mut ydb_buffer_t) -> c_int {
+    resize_ret_call(tptoken, err_buffer, |tptoken, err_buffer_p, out_buffer_p| {
+        let status = func(tptoken, err_buffer_p);
+        unsafe { (*out_buffer_p).len_used = (*err_buffer_p).len_used; }
+        status
+    })
+}
+
+/// F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status
+fn resize_ret_call<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
+where F: FnMut(u64, *mut ydb_buffer_t, *mut ydb_buffer_t) -> c_int {
     let status = loop {
-        let mut err_buffer_t = Key::make_out_buffer_t(&mut err_buffer);
-        let status = func(tptoken, &mut err_buffer_t);
+        let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
+        let mut err_buffer_t = out_buffer_t;
+        let status = func(tptoken, &mut err_buffer_t, &mut out_buffer_t);
         // Resize the vec with the buffer to we can see the value
         // We could end up with a buffer of a larger size if we couldn't fit the error string
         // into the out_buffer, so make sure to pick the smaller size
         if status == YDB_ERR_INVSTRLEN {
-            err_buffer.resize(err_buffer_t.len_used as usize, u8::default());
+            out_buffer.resize(out_buffer_t.len_used as usize, 0);
             continue;
         }
-        unsafe {
-            err_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
+        if status != YDB_OK as i32 {
+            unsafe {
+                out_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
+            }
+        } else {
+            unsafe {
+                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            }
         }
         break status;
     };
     if status != YDB_OK as i32 {
-        Err(YDBError { tptoken, message: err_buffer, status })
+        Err(YDBError { tptoken, message: out_buffer, status })
     } else {
-        Ok(err_buffer)
+        Ok(out_buffer)
     }
 }
 
