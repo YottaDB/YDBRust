@@ -1631,15 +1631,12 @@ where F: FnMut(u64, *mut ydb_buffer_t, *mut ydb_buffer_t) -> c_int {
         // Resize the vec with the buffer to we can see the value
         // We could end up with a buffer of a larger size if we couldn't fit the error string
         // into the out_buffer, so make sure to pick the smaller size
-        if status != YDB_OK as i32 {
-            unsafe {
-                out_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
-            }
+        let len = if status != YDB_OK as i32 {
+            min(err_buffer_t.len_used, err_buffer_t.len_alloc)
         } else {
-            unsafe {
-                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-            }
-        }
+            min(out_buffer_t.len_used, out_buffer_t.len_alloc)
+        };
+        unsafe { out_buffer.set_len(len as usize); }
         break status;
     };
     if status != YDB_OK as i32 {
