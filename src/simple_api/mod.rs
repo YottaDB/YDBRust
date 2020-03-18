@@ -1595,36 +1595,10 @@ pub fn zwr2str_st(tptoken: u64, out_buf: Vec<u8>, serialized: &[u8]) -> Result<V
 }
 
 /// Write the message corresponding to a YottaDB error code to `out_buffer`.
-pub fn message_t(tptoken: u64, mut out_buffer: Vec<u8>, status: i32) -> YDBResult<Vec<u8>> {
-    let ret_code = loop {
-        let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
-        let mut err_buffer_t = out_buffer_t;
-        let ret_code = unsafe {
-            ydb_message_t(tptoken, &mut err_buffer_t, status, &mut out_buffer_t)
-        };
-        // Resize the vec with the buffer to we can see the value
-        // We could end up with a buffer of a larger size if we couldn't fit the error string
-        // into the out_buffer, so make sure to pick the smaller size
-        if ret_code == YDB_ERR_INVSTRLEN {
-            out_buffer.resize(out_buffer_t.len_used as usize, Default::default());
-            continue;
-        }
-        if ret_code != YDB_OK as i32 {
-            unsafe {
-                out_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
-            }
-        } else {
-            unsafe {
-                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-            }
-        }
-        break ret_code;
-    };
-    if ret_code != YDB_OK as i32 {
-        Err(YDBError { tptoken, message: out_buffer, status: ret_code })
-    } else {
-        Ok(out_buffer)
-    }
+pub fn message_t(tptoken: u64, out_buffer: Vec<u8>, status: i32) -> YDBResult<Vec<u8>> {
+    resize_ret_call(tptoken, out_buffer, |tptoken, err_buffer_p, out_buffer_p| {
+        unsafe { ydb_message_t(tptoken, err_buffer_p, status, out_buffer_p) }
+    })
 }
 
 /// Return a string in the format `rustwr <rust wrapper version> <$ZRELEASE>`,
@@ -1908,27 +1882,44 @@ macro_rules! ci_t {
 }
 
 #[doc(hidden)]
-pub fn resize_call<F>(tptoken: u64, mut err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
+pub fn resize_call<F>(tptoken: u64, err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
 where F: FnMut(u64, *mut ydb_buffer_t) -> c_int {
+    resize_ret_call(tptoken, err_buffer, |tptoken, err_buffer_p, out_buffer_p| {
+        let status = func(tptoken, err_buffer_p);
+        unsafe { (*out_buffer_p).len_used = (*err_buffer_p).len_used; }
+        status
+    })
+}
+
+/// F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status
+fn resize_ret_call<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
+where F: FnMut(u64, *mut ydb_buffer_t, *mut ydb_buffer_t) -> c_int {
     let status = loop {
-        let mut err_buffer_t = Key::make_out_buffer_t(&mut err_buffer);
-        let status = func(tptoken, &mut err_buffer_t);
+        let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
+        let mut err_buffer_t = out_buffer_t;
+        let status = func(tptoken, &mut err_buffer_t, &mut out_buffer_t);
         // Resize the vec with the buffer to we can see the value
         // We could end up with a buffer of a larger size if we couldn't fit the error string
         // into the out_buffer, so make sure to pick the smaller size
         if status == YDB_ERR_INVSTRLEN {
-            err_buffer.resize(err_buffer_t.len_used as usize, u8::default());
+            out_buffer.resize(out_buffer_t.len_used as usize, 0);
             continue;
         }
-        unsafe {
-            err_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
+        if status != YDB_OK as i32 {
+            unsafe {
+                out_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
+            }
+        } else {
+            unsafe {
+                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
+            }
         }
         break status;
     };
     if status != YDB_OK as i32 {
-        Err(YDBError { tptoken, message: err_buffer, status })
+        Err(YDBError { tptoken, message: out_buffer, status })
     } else {
-        Ok(err_buffer)
+        Ok(out_buffer)
     }
 }
 
