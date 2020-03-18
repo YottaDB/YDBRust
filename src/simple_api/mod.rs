@@ -1881,6 +1881,9 @@ macro_rules! ci_t {
     }}
 }
 
+/// See documentation for `non_allocating_call` for more details.
+///
+/// F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status
 #[doc(hidden)]
 pub fn resize_call<F>(tptoken: u64, err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
 where F: FnMut(u64, *mut ydb_buffer_t) -> c_int {
@@ -1891,20 +1894,27 @@ where F: FnMut(u64, *mut ydb_buffer_t) -> c_int {
     })
 }
 
+/// See documentation for `non_allocating_ret_call` for more details.
+///
 /// F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status
 fn resize_ret_call<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
 where F: FnMut(u64, *mut ydb_buffer_t, *mut ydb_buffer_t) -> c_int {
     let status = loop {
         let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
+        // NOTE: it is very important that this makes a copy of `out_buffer_t`:
+        // otherwise, on `INVSTRLEN`, when YDB tries to set len_used it will overwrite the necessary
+        // capacity with the length of the string.
         let mut err_buffer_t = out_buffer_t;
+        // Do the call
         let status = func(tptoken, &mut err_buffer_t, &mut out_buffer_t);
-        // Resize the vec with the buffer to we can see the value
-        // We could end up with a buffer of a larger size if we couldn't fit the error string
-        // into the out_buffer, so make sure to pick the smaller size
+        // Handle resizing the buffer, if needed
         if status == YDB_ERR_INVSTRLEN {
             out_buffer.resize(out_buffer_t.len_used as usize, 0);
             continue;
         }
+        // Resize the vec with the buffer to we can see the value
+        // We could end up with a buffer of a larger size if we couldn't fit the error string
+        // into the out_buffer, so make sure to pick the smaller size
         if status != YDB_OK as i32 {
             unsafe {
                 out_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
