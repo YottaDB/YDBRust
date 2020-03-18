@@ -1282,11 +1282,8 @@ pub fn tp_st<F>(tptoken: u64, mut err_buffer: Vec<u8>, mut f: F, trans_id: &str,
 /// - The [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-delete-excl-s-ydb-delete-excl-st)
 /// - [Local and global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
 /// - [Instrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
-pub fn delete_excl_st(tptoken: u64, mut err_buffer: Vec<u8>, saved_variables: &[&str]) -> YDBResult<Vec<u8>> {
+pub fn delete_excl_st(tptoken: u64, err_buffer: Vec<u8>, saved_variables: &[&str]) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_delete_excl_st;
-
-    assert!(err_buffer.len() <= err_buffer.capacity());
-    let mut err_buffer_t = Key::make_out_buffer_t(&mut err_buffer);
 
     let varnames: Vec<ConstYDBBuffer> = saved_variables.iter().map(|var| ydb_buffer_t {
         buf_addr: var.as_ptr() as *mut _,
@@ -1294,19 +1291,9 @@ pub fn delete_excl_st(tptoken: u64, mut err_buffer: Vec<u8>, saved_variables: &[
         len_alloc: var.len() as u32,
     }.into()).collect();
 
-    let status = unsafe {
-        ydb_delete_excl_st(tptoken, &mut err_buffer_t, varnames.len() as c_int, varnames.as_ptr() as *const _)
-    };
-
-    let len = min(err_buffer_t.len_used, err_buffer_t.len_alloc);
-    unsafe {
-        err_buffer.set_len(len as usize);
-    }
-    if status != YDB_OK as c_int {
-        Err(YDBError { message: err_buffer, status, tptoken })
-    } else {
-        Ok(err_buffer)
-    }
+    resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| {
+        unsafe { ydb_delete_excl_st(tptoken, err_buffer_p, varnames.len() as c_int, varnames.as_ptr() as *const _) }
+    })
 }
 
 /// Given a binary sequence, serialize it to 'Zwrite format', which is ASCII printable.
