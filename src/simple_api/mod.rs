@@ -73,12 +73,10 @@ use std::cmp::min;
 use std::fmt;
 use std::error;
 use std::panic;
-use crate::craw::{
-    ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t, ydb_incr_st,
-    ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
-    ydb_tp_st, YDB_OK, YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE,
-    YDB_TP_ROLLBACK, YDB_TP_RESTART,
-};
+use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t,
+    ydb_incr_st, ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
+    ydb_tp_st, YDB_OK, ci_name_descriptor,
+    YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE, YDB_TP_ROLLBACK};
 
 const DEFAULT_CAPACITY: usize = 50;
 
@@ -1881,6 +1879,66 @@ macro_rules! ci_t {
     }}
 }
 
+
+/// A call-in descriptor for use with `cip_t`.
+pub struct CIDescriptor(ci_name_descriptor);
+
+impl CIDescriptor {
+    /// Create a new `descriptor` that will call `routine`.
+    pub fn new(routine: CString) -> Self {
+        use crate::craw::ydb_string_t;
+
+        let string = ydb_string_t {
+            length: dbg!(routine.as_bytes().len() as u64),
+            address: routine.into_raw(),
+        };
+        Self(ci_name_descriptor {
+            rtn_name: string,
+            handle: std::ptr::null_mut(),
+        })
+    }
+    // this needs to be public so it can be used in a macro
+    #[doc(hidden)]
+    pub fn as_mut_ptr(&mut self) -> *mut ci_name_descriptor {
+        &mut self.0
+    }
+}
+
+impl Drop for CIDescriptor {
+    fn drop(&mut self) {
+        drop(unsafe {
+            CString::from_raw(self.0.rtn_name.address)
+        })
+    }
+}
+
+/// Make a call to `ydb_cip_t`.
+///
+/// `cip_t` is equivalent to a variadic function with the following signature:
+/// ```ignore
+/// unsafe fn ci_t(tptoken: u64, err_buffer: Vec<u8>, routine: CIDescriptor, ...) -> YDBResult<Vec<u8>>;
+/// ```
+/// However, since Rust does not allow implementing variadic functions, it is a macro instead.
+///
+/// # Safety
+/// Each argument passed (after `routine`) must correspond to the appropriate argument expected by `routine`.
+/// If `routine` returns a value, the first argument must be a pointer to an out parameter in which to store the value.
+/// All arguments must be [representable as C types][repr-c].
+///
+/// [repr-c]: https://doc.rust-lang.org/nomicon/ffi.html#interoperability-with-foreign-code
+#[macro_export]
+macro_rules! cip_t {
+    ($tptoken: expr, $err_buffer: expr, $routine: expr, $($args: expr),* $(,)?) => {{
+        let tptoken: u64 = $tptoken;
+        let err_buffer: ::std::vec::Vec<u8> = $err_buffer;
+        let routine: &mut $crate::simple_api::CIDescriptor = $routine;
+
+        $crate::simple_api::resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| {
+            $crate::craw::ydb_cip_t(tptoken, err_buffer_p, routine.as_mut_ptr(), $($args),*)
+        })
+    }}
+}
+
 /// See documentation for `non_allocating_call` for more details.
 ///
 /// F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status
@@ -2131,7 +2189,7 @@ pub(crate) mod tests {
         }
 
         std::env::set_var("ydb_routines", "examples/m-ffi");
-        std::env::set_var("ydb_ci", "examples/m-ffi/zshvar.ci");
+        std::env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
 
         let m_code = CString::new("zshvar").unwrap();
         let mut stored_var = Vec::from("outputvar");
@@ -2787,5 +2845,16 @@ pub(crate) mod tests {
         assert_eq!(parts.next(), Some("YottaDB"));
         assert_eq!(&parts.next().unwrap()[0..1], "r");
         assert_eq!(parts.count(), 2);
+    }
+
+    #[test]
+    fn cip() {
+        std::env::set_var("ydb_routines", "examples/m-ffi");
+        std::env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
+
+        let mut buf = Vec::with_capacity(100);
+        let mut msg = crate::craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() };
+        let mut descriptor = CIDescriptor::new(CString::new("HelloWorld1").unwrap());
+        unsafe { cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut descriptor, &mut msg as *mut _) }.unwrap();
     }
 }
