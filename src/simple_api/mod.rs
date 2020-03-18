@@ -1645,6 +1645,31 @@ pub fn lock_st(tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: 
     }
 }
 
+#[doc(hidden)]
+pub fn resize_call<F>(tptoken: u64, mut err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
+where F: FnMut(u64, *mut ydb_buffer_t) -> c_int {
+    let status = loop {
+        let mut err_buffer_t = Key::make_out_buffer_t(&mut err_buffer);
+        let status = func(tptoken, &mut err_buffer_t);
+        // Resize the vec with the buffer to we can see the value
+        // We could end up with a buffer of a larger size if we couldn't fit the error string
+        // into the out_buffer, so make sure to pick the smaller size
+        if status == YDB_ERR_INVSTRLEN {
+            err_buffer.resize(err_buffer_t.len_used as usize, u8::default());
+            continue;
+        }
+        unsafe {
+            err_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
+        }
+        break status;
+    };
+    if status != YDB_OK as i32 {
+        Err(YDBError { tptoken, message: err_buffer, status })
+    } else {
+        Ok(err_buffer)
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use serial_test::serial;
