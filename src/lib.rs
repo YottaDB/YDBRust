@@ -94,8 +94,10 @@ mod test {
     // until I figure out M -> C FFI
     #[ignore]
     fn test_invalid_exit() {
-        std::env::set_var("ydb_routines", "examples/m-ffi");
-        std::env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
+        use std::env::set_var;
+        set_var("ydb_routines", "examples/m-ffi");
+        set_var("ydb_ci", "examples/m-ffi/calltab.ci");
+        set_var("ydb_xc_c", "examples/m-ffi/external.xc");
 
         // `INVYDBEXIT` should be returned if `exit` is called through M FFI
         let mut buf  = [0_u8; 1024];
