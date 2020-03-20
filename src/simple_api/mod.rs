@@ -66,7 +66,7 @@
 use std::error::Error;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::os::raw::{c_void, c_int};
 use std::time::Duration;
 use std::cmp::min;
@@ -1606,6 +1606,50 @@ pub fn release_t(tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<String> {
     let zrelease = Key::variable("$ZYRELEASE").get_st(tptoken, out_buffer)?;
     let zrelease = String::from_utf8(zrelease).expect("$ZRELEASE was not valid UTF8");
     Ok(format!("rustwr {} {}", env!("CARGO_PKG_VERSION"), zrelease))
+}
+
+/// The descriptor for a call-in table opened with [`ci_tab_open_t`].
+///
+/// [`ci_tab_open_t`]: ../fn.ci_tab_switch_t.html
+pub struct CallInDescriptor(usize);
+
+/// Open the call-in table stored in `file` and return its file descriptor.
+///
+/// You can later switch the active call-in table by calling [`ci_tab_switch_t`] with the file descriptor.
+///
+/// # See also
+/// - [C SimpleAPI documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-ci-tab-open-ydb-ci-tab-open-t)
+/// - [Call-in interface](https://docs.yottadb.com/ProgrammersGuide/extrout.html#call-in-interface)
+/// - [`ci_t!`] and [`cip_t!`]
+///
+/// [`ci_tab_switch_t`]: fn.ci_tab_switch_t.html
+/// [`ci_t!`]: ../macro.ci_t.html
+/// [`cip_t!`]: ../macro.cip_t.html
+pub fn ci_tab_open_t(tptoken: u64, err_buffer: Vec<u8>, file: &CStr) -> YDBResult<(CallInDescriptor, Vec<u8>)> {
+    use crate::craw::ydb_ci_tab_open_t;
+
+    // this cast is safe because YDB never modifies the string
+    let ptr = file.as_ptr() as *mut _;
+    let mut ret_val: usize = 0;
+    let buf = resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| {
+        unsafe { ydb_ci_tab_open_t(tptoken, err_buffer_p, ptr, &mut ret_val) }
+    })?;
+    Ok((CallInDescriptor(ret_val), buf))
+}
+
+/// Switch the active call-in table to `new_handle`. Returns the previously active table.
+///
+/// `new_handle` is a file descriptor returned by [`ci_tab_open_t`].
+///
+/// [`ci_tab_open_t`]: fn.ci_tab_open_t.html
+pub fn ci_tab_switch_t(tptoken: u64, err_buffer: Vec<u8>, new_handle: CallInDescriptor) -> YDBResult<(usize, Vec<u8>)> {
+    use crate::craw::ydb_ci_tab_switch_t;
+
+    let mut ret_val: usize = 0;
+    let buf = resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| {
+        unsafe { ydb_ci_tab_switch_t(tptoken, err_buffer_p, new_handle.0, &mut ret_val) }
+    })?;
+    Ok((ret_val, buf))
 }
 
 /// Acquires locks specified in `locks` and releases all others.
