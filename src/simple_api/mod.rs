@@ -1622,9 +1622,18 @@ pub struct CallInDescriptor(usize);
 /// - [Call-in interface](https://docs.yottadb.com/ProgrammersGuide/extrout.html#call-in-interface)
 /// - [`ci_t!`] and [`cip_t!`]
 ///
+/// # Errors
+
+// The upstream documentation says
+// > YDB_ERR_PARAMINVALID if the input parameters fname or ret_value are NULL; or
+// PARAMINVALID is not possible because `ptr` and `&mut ret_val` are always non-null.
+
+/// - a negative [error return code] (for example, if the call-in table in the file had parse errors).
+///
 /// [`ci_tab_switch_t`]: fn.ci_tab_switch_t.html
 /// [`ci_t!`]: ../macro.ci_t.html
 /// [`cip_t!`]: ../macro.cip_t.html
+/// [error return code]: https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes
 pub fn ci_tab_open_t(tptoken: u64, err_buffer: Vec<u8>, file: &CStr) -> YDBResult<(CallInDescriptor, Vec<u8>)> {
     use crate::craw::ydb_ci_tab_open_t;
 
@@ -1640,6 +1649,16 @@ pub fn ci_tab_open_t(tptoken: u64, err_buffer: Vec<u8>, file: &CStr) -> YDBResul
 /// Switch the active call-in table to `new_handle`. Returns the previously active table.
 ///
 /// `new_handle` is a file descriptor returned by [`ci_tab_open_t`].
+///
+/// # Errors
+
+// The upstream docs say this:
+// > YDB_ERR_PARAMINVALID if the output parameter ret_old_handle is NULL or if the input parameter new_handle points to an invalid handle (i.e. not returned by a prior ydb_ci_tab_open()/ydb_ci_tab_open_t()) call)
+// YDB_ERR_PARAMINVALID isn't possible because
+// a) we always pass in `&ret_val`, which is non-null, and
+// b) we pass in a handle from `CallInDescriptor`, which can only be created by `ci_tab_open_t`
+
+/// - [a negative error return code](https://docs.yottadb.com/MessageRecovery/errormsgref.html#standard-error-codes)
 ///
 /// [`ci_tab_open_t`]: fn.ci_tab_open_t.html
 pub fn ci_tab_switch_t(tptoken: u64, err_buffer: Vec<u8>, new_handle: CallInDescriptor) -> YDBResult<(usize, Vec<u8>)> {
