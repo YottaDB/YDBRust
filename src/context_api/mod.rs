@@ -198,7 +198,7 @@ impl Context {
     /// The argument passed to `f` is a [transaction processing token][threads and transactions].
     ///
     /// # Rollbacks and Restarts
-    /// Transactions can return a [`TransactionStatus`] if they wish to rollback or restart.
+    /// Application code can return a [`TransactionStatus`] in order to rollback or restart.
     /// `tp_st` behaves as follows:
     /// - If `f` panics, the transaction is rolled back and the panic resumes afterwards.
     /// - If `f` returns `Ok(TransactionStatus)`,
