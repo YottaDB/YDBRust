@@ -1321,6 +1321,48 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// - A `YDBError` returned by a YottaDB function called by `f`.
 /// - Another arbitrary error returned by `f`.
 ///
+/// # Example
+/// Rollback a transaction if an operation fails:
+/// ```
+/// use yottadb::{YDB_NOTTP, TransactionStatus};
+/// use yottadb::simple_api::tp_st;
+///
+/// tp_st(YDB_NOTTP, Vec::new(), |tptoken| {
+///     fallible_operation()?;
+///     Ok(TransactionStatus::Ok)
+/// }, "BATCH", &[]).unwrap();
+///
+/// fn fallible_operation() -> Result<(), &'static str> {
+///     if rand::random() {
+///         Ok(())
+///     } else {
+///         Err("the operation failed")
+///     }
+/// }
+/// ```
+///
+/// Retry a transaction until it succeeds:
+/// ```
+/// use yottadb::{YDB_NOTTP, TransactionStatus};
+/// use yottadb::simple_api::tp_st;
+///
+/// tp_st(YDB_NOTTP, Vec::new(), |tptoken| {
+///     if fallible_operation().is_ok() {
+///         Ok(TransactionStatus::Ok)
+///     } else {
+///         Ok(TransactionStatus::Restart)
+///     }
+/// }, "BATCH", &[]).unwrap();
+///
+/// fn fallible_operation() -> Result<(), ()> {
+///     if rand::random() {
+///         Ok(())
+///     } else {
+///         Err(())
+///     }
+/// }
+/// ```
+///
 /// # See Also
 /// - [`context_api::Context::tp`](../context_api/struct.Context.html#method.tp)
 /// - [More details about the underlying FFI call][C documentation]
@@ -2326,12 +2368,14 @@ pub(crate) mod tests {
                     Ok(TransactionStatus::Ok)
                 }
             }, "BATCH", &[]);
+            // Make sure `RESTART` is returned the first time
             if captured_first_run {
                 let err = res.unwrap_err();
                 let status = err.downcast_ref::<YDBError>().unwrap().status;
                 assert_eq!(status, YDB_TP_RESTART);
                 Err(err)
             } else {
+                // Make sure `OK` is return the second time
                 res.unwrap();
                 Ok(TransactionStatus::Ok)
             }
