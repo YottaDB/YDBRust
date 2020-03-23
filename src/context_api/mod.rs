@@ -191,18 +191,46 @@ impl Context {
 
     /// Start a new transaction, where `f` is the transaction to execute.
     ///
+    /// The parameter `trans_id` is the name logged for the transaction.
+    ///     If `trans_id` has the special value `"BATCH"`, durability is not enforced by YottaDB.
+    ///     See the [C documentation] for details.
+    ///
+    /// The argument passed to `f` is a [transaction processing token][threads and transactions].
+    ///
+    /// # Rollbacks and Restarts
+    /// Transactions can return a [`TransactionStatus`] if they wish to rollback or restart.
+    /// `tp_st` behaves as follows:
+    /// - If `f` panics, the transaction is rolled back and the panic resumes afterwards.
+    /// - If `f` returns `Ok(TransactionStatus)`,
+    ///      the transaction will have the behavior documented under `TransactionStatus` (commit, restart, and rollback, respectively).
+    /// - If `f` returns an `Err(YDBError)`, the status from that error will be returned to the YottaDB engine.
+    ///      As a result, if the status for the `YDBError` is `YDB_TP_RESTART`, the transaction will be restarted.
+    ///      Otherwise, the transaction will be rolled back and the error returned from `tp_st`.
+    /// - If `f` returns any other `Err` variant, the transaction will be rolled back and the error returned from `tp_st`.
+    ///
     /// `f` must be `FnMut`, not `FnOnce`, since the YottaDB engine may
-    /// call f many times if necessary to ensure ACID properties.
+    /// call `f` many times if necessary to ensure ACID properties.
     /// This may affect your application logic; if you need to know how many
     /// times the callback has been executed, get the [intrinsic variable][intrinsics]
     /// [`$trestart`](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#trestart)
     ///
+    /// # Errors
+    /// - YDB_ERR_TPTIMEOUT - The transaction took more than `$zmaxtptime` seconds to execute,
+    ///     where `$zmaxtptime` is an [intrinsic special variable][intrinsics].
+    /// - YDB_TP_ROLLBACK — application logic indicates that the transaction should not be committed.
+    /// - A `YDBError` returned by a YottaDB function called by `f`.
+    /// - Another arbitrary error returned by `f`.
+    ///
     /// # See Also
     /// - [`simple_api::tp_st`](../simple_api/fn.tp_st.html)
-    /// - [More details about the underlying FFI call](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st)
+    /// - [More details about the underlying FFI call][C documentation]
     /// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
+    /// - [Threads and Transaction Processing][threads and transactions]
     ///
+    /// [`TransactionStatus`]: ../simple_api/enum.TransactionStatus.html
     /// [intrinsics]: index.html#intrinsic-variables
+    /// [threads and transactions]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
+    /// [C documentation]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st
     pub fn tp<'a, F>(&'a self, mut f: F, trans_id: &str, locals_to_reset: &[&str])
             -> Result<(), Box<dyn Error>>
             where F: FnMut(&'a Self) -> Result<TransactionStatus, Box<dyn Error>> {
