@@ -1342,10 +1342,9 @@ where
         )
     };
     if status as u32 == YDB_OK {
-        // from Steve:
-        // > there may be a possibility for an error to occur that gets caught
-        // > and handled which appear to use the buffer even though none was
-        // > returned at a high level.
+        // there may be a possibility for an error to occur that gets caught
+        // and handled which appear to use the buffer even though none was
+        // returned at a high level.
         unsafe {
             err_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
         }
