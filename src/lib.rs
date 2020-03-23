@@ -70,6 +70,7 @@ mod test {
     use super::*;
     use std::ffi::CString;
 
+    // These tests are ignored since if they run, all future calls will fail
     #[test]
     #[ignore]
     fn test_exit_before_init() {
@@ -79,7 +80,6 @@ mod test {
     }
 
     #[test]
-    // if this runs, then all future calls will fail
     #[ignore]
     fn test_exit() {
         // Calls should work to start
@@ -91,7 +91,6 @@ mod test {
     }
 
     #[test]
-    // until I figure out M -> C FFI
     #[ignore]
     fn test_invalid_exit() {
         use std::env::set_var;
@@ -100,15 +99,22 @@ mod test {
         set_var("ydb_xc_c", "examples/m-ffi/external.xc");
 
         // `INVYDBEXIT` should be returned if `exit` is called through M FFI
-        let mut buf  = [0_u8; 1024];
-        let address: *mut i8 = &mut buf as *mut [_] as *mut _;
+        let mut buf  = Vec::<u8>::with_capacity(100);
 
-        let mut status = craw::ydb_string_t { address, length: buf.len() as u64 };
+        let mut status = craw::ydb_string_t { address: buf.as_mut_ptr() as *mut _, length: buf.capacity() as u64 };
         let exit = CString::new("ydb_exit").unwrap();
-        let err = unsafe { ci_t!(YDB_NOTTP, Vec::new(), exit, &mut status as *mut _) }.unwrap_err();
+        let err = unsafe {
+            let err = ci_t!(YDB_NOTTP, Vec::new(), exit, &mut status as *mut _).unwrap_err();
+            buf.set_len(status.length as usize);
+            err
+        };
+        assert_eq!(err.status, -craw::YDB_ERR_ZCSTATUSRET);
 
-        println!("{}", String::from_utf8_lossy(&buf as &[_]));
-        assert_eq!(err.status, craw::YDB_ERR_INVYDBEXIT,
-                   "{} != INVYDBEXIT ({})", err.status, String::from_utf8_lossy(&err.message));
+        /* TODO: maybe check if the status returned was YDB_ERR_INVYDBEXIT?
+           It seems that the return value is not set on errors, though.
+        let msg = String::from_utf8_lossy(&buf);
+        println!("{:?}", msg);
+        assert_eq!(craw::YDB_ERR_INVYDBEXIT, msg.parse().expect("status should be valid number"));
+        */
     }
 }
