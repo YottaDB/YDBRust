@@ -1232,7 +1232,9 @@ impl<S: Into<String>> From<S> for Key {
     }
 }
 
-/// The status returned from a callback passed to `tp_st`
+/// The status returned from a callback passed to [`tp_st`]
+///
+/// [`tp_st`]: fn.tp_st.html
 #[derive(Debug, Copy, Clone)]
 pub enum TransactionStatus {
     /// Complete the transaction and commit all changes
@@ -1303,7 +1305,6 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// - If `f` returns `Ok(TransactionStatus)`,
 ///      the transaction will have the behavior documented under `TransactionStatus` (commit, restart, and rollback, respectively).
 /// - If `f` returns an `Err(YDBError)`, the status from that error will be returned to the YottaDB engine.
-// TODO: test this
 ///      As a result, if the status for the `YDBError` is `YDB_TP_RESTART`, the transaction will be restarted.
 ///      Otherwise, the transaction will be rolled back and the error returned from `tp_st`.
 /// - If `f` returns any other `Err` variant, the transaction will be rolled back and the error returned from `tp_st`.
@@ -1312,7 +1313,12 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// call `f` many times if necessary to ensure ACID properties.
 /// This may affect your application logic; if you need to know how many
 /// times the callback has been executed, get the [intrinsic variable][intrinsics]
-/// [`$trestart`](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#trestart)
+/// [`$trestart`](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#trestart).
+///
+/// # Nested transactions
+/// `f` may itself call `tp_st`. Such a call is called a 'nested transaction'.
+/// If `f` receives a `YDBError` with a status of `YDB_TP_RESTART` or `YDB_TP_ROLLBACK` from a nested transaction,
+/// it _must_ propagate that error back to the caller.
 ///
 /// # Errors
 /// - YDB_ERR_TPTIMEOUT - The transaction took more than [`$zmaxtptime`] seconds to execute,

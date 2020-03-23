@@ -212,7 +212,7 @@ impl Context {
     /// call `f` many times if necessary to ensure ACID properties.
     /// This may affect your application logic; if you need to know how many
     /// times the callback has been executed, get the [intrinsic variable][intrinsics]
-    /// [`$trestart`](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#trestart)
+    /// [`$trestart`](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#trestart).
     ///
     /// # Errors
     /// - YDB_ERR_TPTIMEOUT - The transaction took more than [`$zmaxtptime`] seconds to execute,
