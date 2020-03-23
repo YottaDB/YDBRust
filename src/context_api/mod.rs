@@ -221,6 +221,50 @@ impl Context {
     /// - A `YDBError` returned by a YottaDB function called by `f`.
     /// - Another arbitrary error returned by `f`.
     ///
+    /// # Example
+    /// Rollback a transaction if an operation fails:
+    /// ```
+    /// use yottadb::{YDB_NOTTP, TransactionStatus};
+    /// use yottadb::context_api::Context;
+    ///
+    /// let ctx = Context::new();
+    /// ctx.tp(|tptoken| {
+    ///     fallible_operation()?;
+    ///     Ok(TransactionStatus::Ok)
+    /// }, "BATCH", &[]).unwrap();
+    ///
+    /// fn fallible_operation() -> Result<(), &'static str> {
+    ///     if rand::random() {
+    ///         Ok(())
+    ///     } else {
+    ///         Err("the operation failed")
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Retry a transaction until it succeeds:
+    /// ```
+    /// use yottadb::{YDB_NOTTP, TransactionStatus};
+    /// use yottadb::context_api::Context;
+    ///
+    /// let ctx = Context::new();
+    /// ctx.tp(|tptoken| {
+    ///     if fallible_operation().is_ok() {
+    ///         Ok(TransactionStatus::Ok)
+    ///     } else {
+    ///         Ok(TransactionStatus::Restart)
+    ///     }
+    /// }, "BATCH", &[]).unwrap();
+    ///
+    /// fn fallible_operation() -> Result<(), ()> {
+    ///     if rand::random() {
+    ///         Ok(())
+    ///     } else {
+    ///         Err(())
+    ///     }
+    /// }
+    /// ```
+    ///
     /// # See Also
     /// - [`simple_api::tp_st`](../simple_api/fn.tp_st.html)
     /// - [More details about the underlying FFI call][C documentation]
