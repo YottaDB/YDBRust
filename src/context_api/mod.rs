@@ -215,7 +215,7 @@ impl Context {
     /// [`$trestart`](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#trestart)
     ///
     /// # Errors
-    /// - YDB_ERR_TPTIMEOUT - The transaction took more than `$zmaxtptime` seconds to execute,
+    /// - YDB_ERR_TPTIMEOUT - The transaction took more than [`$zmaxtptime`] seconds to execute,
     ///     where `$zmaxtptime` is an [intrinsic special variable][intrinsics].
     /// - YDB_TP_ROLLBACK — application logic indicates that the transaction should not be committed.
     /// - A `YDBError` returned by a YottaDB function called by `f`.
@@ -227,6 +227,7 @@ impl Context {
     /// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
     /// - [Threads and Transaction Processing][threads and transactions]
     ///
+    /// [`$zmaxtptime`]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#zmaxtptime
     /// [`TransactionStatus`]: ../simple_api/enum.TransactionStatus.html
     /// [intrinsics]: index.html#intrinsic-variables
     /// [threads and transactions]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
