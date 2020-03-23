@@ -1321,16 +1321,28 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// - A `YDBError` returned by a YottaDB function called by `f`.
 /// - Another arbitrary error returned by `f`.
 ///
-/// # Example
+/// # Examples
 /// Rollback a transaction if an operation fails:
 /// ```
 /// use yottadb::{YDB_NOTTP, TransactionStatus};
-/// use yottadb::simple_api::tp_st;
+/// use yottadb::simple_api::{Key, tp_st};
 ///
-/// tp_st(YDB_NOTTP, Vec::new(), |tptoken| {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let var = Key::variable("tpRollbackTest");
+/// var.set_st(YDB_NOTTP, Vec::new(), "initial value")?;
+/// let maybe_err = tp_st(YDB_NOTTP, Vec::new(), |tptoken| {
 ///     fallible_operation()?;
+///     var.set_st(tptoken, Vec::new(), "new value")?;
 ///     Ok(TransactionStatus::Ok)
-/// }, "BATCH", &[]).unwrap();
+/// }, "BATCH", &[]);
+/// let expected_val: &[_] = if maybe_err.is_ok() {
+///     b"new value"
+/// } else {
+///     b"initial value"
+/// };
+/// assert_eq!(var.get_st(YDB_NOTTP, Vec::new())?, expected_val);
+/// # Ok(())
+/// # }
 ///
 /// fn fallible_operation() -> Result<(), &'static str> {
 ///     if rand::random() {

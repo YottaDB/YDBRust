@@ -221,17 +221,29 @@ impl Context {
     /// - A `YDBError` returned by a YottaDB function called by `f`.
     /// - Another arbitrary error returned by `f`.
     ///
-    /// # Example
+    /// # Examples
     /// Rollback a transaction if an operation fails:
     /// ```
     /// use yottadb::{YDB_NOTTP, TransactionStatus};
-    /// use yottadb::context_api::Context;
+    /// use yottadb::context_api::{Context, KeyContext};
     ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let ctx = Context::new();
-    /// ctx.tp(|tptoken| {
+    /// let var = KeyContext::variable(&ctx, "tpRollbackTest");
+    /// var.set("initial value")?;
+    /// let maybe_err = ctx.tp(|tptoken| {
     ///     fallible_operation()?;
+    ///     var.set("new value")?;
     ///     Ok(TransactionStatus::Ok)
-    /// }, "BATCH", &[]).unwrap();
+    /// }, "BATCH", &[]);
+    /// let expected_val: &[_] = if maybe_err.is_ok() {
+    ///     b"new value"
+    /// } else {
+    ///     b"initial value"
+    /// };
+    /// assert_eq!(var.get_st(YDB_NOTTP, Vec::new())?, expected_val);
+    /// # Ok(())
+    /// # }
     ///
     /// fn fallible_operation() -> Result<(), &'static str> {
     ///     if rand::random() {
