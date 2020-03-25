@@ -1625,15 +1625,18 @@ pub fn message_t(tptoken: u64, out_buffer: Vec<u8>, status: i32) -> YDBResult<Ve
     })
 }
 
-/// Return a string in the format `rustwr <rust wrapper version> <$ZRELEASE>`,
-/// where `$ZRELEASE` is the intrinsic variable containing the version of the underlying C database
-/// and <rust wrapper version> is the version of `yottadb` published to crates.io.
+/// Return a string in the format `rustwr <rust wrapper version> <$ZYRELEASE>`
+///
+/// [`$ZYRELEASE`] is the [intrinsic variable] containing the version of the underlying C database
+/// and `<rust wrapper version>` is the version of `yottadb` published to crates.io.
 ///
 /// # Errors
 /// No errors should occur in normal operation.
 /// However, in case of system failure, an [error code] may be returned.
 ///
 /// [error code]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code
+/// [intrinsic variable]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
+/// [`$ZYRELEASE`]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#zyrelease
 ///
 /// # Example
 /// ```
@@ -1984,7 +1987,7 @@ where
     }
 }
 
-/// Make a call to `ydb_ci_t`.
+/// Make an FFI call to M.
 ///
 /// `ci_t` is equivalent to a variadic function with the following signature:
 /// ```ignore
@@ -2000,6 +2003,7 @@ where
 /// # See also
 /// - [C to M FFI](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#calling-m-routines)
 /// - [The M documentation on call-ins](https://docs.yottadb.com/ProgrammersGuide/extrout.html#calls-from-external-routines-call-ins)
+/// - [`cip_t!`](macro.cip_t.html), which allows caching the `routine` lookup, making future calls faster.
 ///
 /// # Example
 /// Call the M routine described by `HelloWorld1` in the call-in table.
@@ -2035,11 +2039,13 @@ macro_rules! ci_t {
     }}
 }
 
-/// A call-in descriptor for use with `cip_t`.
+/// A call-in descriptor for use with [`cip_t!`].
 ///
 /// This represents an M function described in a call-in table.
 /// The descriptor is lazily initialized on the first call to `cip_t!`,
 /// and future calls will be much faster to execute.
+///
+/// [`cip_t!`]: ../macro.cip_t.html
 pub struct CallInDescriptor(ci_name_descriptor);
 
 impl CallInDescriptor {
@@ -2066,13 +2072,17 @@ impl Drop for CallInDescriptor {
     }
 }
 
-/// Make a call to `ydb_cip_t`.
+/// Make a FFI call to M using a cached function descriptor.
 ///
 /// `cip_t` is equivalent to a variadic function with the following signature:
 /// ```ignore
-/// unsafe fn ci_t(tptoken: u64, err_buffer: Vec<u8>, routine: CIDescriptor, ...) -> YDBResult<Vec<u8>>;
+/// unsafe fn ci_t(tptoken: u64, err_buffer: Vec<u8>, routine: CallInDescriptor, ...) -> YDBResult<Vec<u8>>;
 /// ```
 /// However, since Rust does not allow implementing variadic functions, it is a macro instead.
+///
+/// # See also
+/// - [`CallInDescriptor`](simple_api/struct.CallInDescriptor.html)
+/// - [`ci_t!`](macro.ci_t.html), which has more information about call-ins in YottaDB.
 ///
 /// # Safety
 /// Each argument passed (after `routine`) must correspond to the appropriate argument expected by `routine`.
