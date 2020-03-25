@@ -107,7 +107,7 @@ mod test {
             ydb_string_t { address: buf.as_mut_ptr() as *mut _, length: buf.capacity() as u64 };
         let exit = CString::new("ydb_exit").unwrap();
         unsafe {
-            ci_t!(YDB_NOTTP, Vec::new(), exit, &mut status as *mut ydb_string_t).unwrap();
+            ci_t!(YDB_NOTTP, Vec::new(), &exit, &mut status as *mut ydb_string_t).unwrap();
             buf.set_len(status.length as usize);
         }
 

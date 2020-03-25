@@ -1928,7 +1928,7 @@ where
 ///
 /// `ci_t` is equivalent to a variadic function with the following signature:
 /// ```ignore
-/// unsafe fn ci_t(tptoken: u64, err_buffer: Vec<u8>, routine: CString, ...) -> YDBResult<Vec<u8>>;
+/// unsafe fn ci_t(tptoken: u64, err_buffer: Vec<u8>, routine: &CStr, ...) -> YDBResult<Vec<u8>>;
 /// ```
 /// However, since Rust does not allow implementing variadic functions, it is a macro instead.
 ///
@@ -1943,7 +1943,7 @@ macro_rules! ci_t {
     ($tptoken: expr, $err_buffer: expr, $routine: expr, $($args: expr),* $(,)?) => {{
         let tptoken: u64 = $tptoken;
         let err_buffer: ::std::vec::Vec<u8> = $err_buffer;
-        let routine: ::std::ffi::CString = $routine;
+        let routine: &::std::ffi::CStr = $routine;
 
         $crate::simple_api::resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| {
             $crate::craw::ydb_ci_t(tptoken, err_buffer_p, routine.as_ptr(), $($args),*)
@@ -2215,7 +2215,7 @@ pub(crate) mod tests {
             ci_t!(
                 YDB_NOTTP,
                 Vec::new(),
-                m_code,
+                &m_code,
                 &mut output_var_t as *mut _,
                 &mut stored_var_t as *mut _
             )
