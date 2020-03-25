@@ -76,7 +76,7 @@ use std::panic;
 use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t,
     ydb_incr_st, ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
     ydb_tp_st, YDB_OK, ci_name_descriptor,
-    YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE, YDB_TP_ROLLBACK};
+    YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE, YDB_TP_RESTART, YDB_TP_ROLLBACK};
 
 const DEFAULT_CAPACITY: usize = 50;
 
@@ -1862,7 +1862,10 @@ pub fn lock_st(
 /// See documentation for `non_allocating_call` for more details.
 ///
 /// F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status
-fn resize_call<F>(tptoken: u64, err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
+// This has to be public so that it can be used by `ci_t!`.
+// However, it is not a supported part of the API.
+#[doc(hidden)]
+pub fn resize_call<F>(tptoken: u64, err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
 where
     F: FnMut(u64, *mut ydb_buffer_t) -> c_int,
 {
@@ -2000,58 +2003,6 @@ macro_rules! cip_t {
             $crate::craw::ydb_cip_t(tptoken, err_buffer_p, routine.as_mut_ptr(), $($args),*)
         })
     }}
-}
-
-/// See documentation for `non_allocating_call` for more details.
-///
-/// F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status
-#[doc(hidden)]
-pub fn resize_call<F>(tptoken: u64, err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
-where F: FnMut(u64, *mut ydb_buffer_t) -> c_int {
-    resize_ret_call(tptoken, err_buffer, |tptoken, err_buffer_p, out_buffer_p| {
-        let status = func(tptoken, err_buffer_p);
-        unsafe { (*out_buffer_p).len_used = (*err_buffer_p).len_used; }
-        status
-    })
-}
-
-/// See documentation for `non_allocating_ret_call` for more details.
-///
-/// F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status
-fn resize_ret_call<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
-where F: FnMut(u64, *mut ydb_buffer_t, *mut ydb_buffer_t) -> c_int {
-    let status = loop {
-        let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
-        // NOTE: it is very important that this makes a copy of `out_buffer_t`:
-        // otherwise, on `INVSTRLEN`, when YDB tries to set len_used it will overwrite the necessary
-        // capacity with the length of the string.
-        let mut err_buffer_t = out_buffer_t;
-        // Do the call
-        let status = func(tptoken, &mut err_buffer_t, &mut out_buffer_t);
-        // Handle resizing the buffer, if needed
-        if status == YDB_ERR_INVSTRLEN {
-            out_buffer.resize(out_buffer_t.len_used as usize, 0);
-            continue;
-        }
-        // Resize the vec with the buffer to we can see the value
-        // We could end up with a buffer of a larger size if we couldn't fit the error string
-        // into the out_buffer, so make sure to pick the smaller size
-        if status != YDB_OK as i32 {
-            unsafe {
-                out_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
-            }
-        } else {
-            unsafe {
-                out_buffer.set_len(min(out_buffer_t.len_used, out_buffer_t.len_alloc) as usize);
-            }
-        }
-        break status;
-    };
-    if status != YDB_OK as i32 {
-        Err(YDBError { tptoken, message: out_buffer, status })
-    } else {
-        Ok(out_buffer)
-    }
 }
 
 #[cfg(test)]
