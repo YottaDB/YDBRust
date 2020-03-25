@@ -42,7 +42,10 @@ pub mod craw;
 pub mod simple_api;
 
 pub use craw::{YDB_NOTTP, YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
-pub use simple_api::{CallInDescriptor, CallInTableDescriptor, DataReturn, DeleteType, TransactionStatus, YDBError, YDBResult};
+pub use simple_api::{
+    CallInDescriptor, CallInTableDescriptor, DataReturn, DeleteType, TransactionStatus, YDBError,
+    YDBResult,
+};
 
 use std::os::raw::c_int;
 /// Cleans up the process connection/access to all databases and all yottadb data structures.
