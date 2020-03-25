@@ -73,10 +73,12 @@ use std::cmp::min;
 use std::fmt;
 use std::error;
 use std::panic;
-use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t,
-    ydb_incr_st, ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
-    ydb_tp_st, YDB_OK, ci_name_descriptor,
-    YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE, YDB_TP_RESTART, YDB_TP_ROLLBACK};
+use crate::craw::{
+    ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t, ydb_incr_st,
+    ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
+    ydb_tp_st, YDB_OK, ci_name_descriptor, YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE,
+    YDB_DEL_NODE, YDB_TP_RESTART, YDB_TP_ROLLBACK,
+};
 
 const DEFAULT_CAPACITY: usize = 50;
 
@@ -1594,8 +1596,8 @@ pub fn zwr2str_st(tptoken: u64, out_buf: Vec<u8>, serialized: &[u8]) -> Result<V
 
 /// Write the message corresponding to a YottaDB error code to `out_buffer`.
 pub fn message_t(tptoken: u64, out_buffer: Vec<u8>, status: i32) -> YDBResult<Vec<u8>> {
-    resize_ret_call(tptoken, out_buffer, |tptoken, err_buffer_p, out_buffer_p| {
-        unsafe { ydb_message_t(tptoken, err_buffer_p, status, out_buffer_p) }
+    resize_ret_call(tptoken, out_buffer, |tptoken, err_buffer_p, out_buffer_p| unsafe {
+        ydb_message_t(tptoken, err_buffer_p, status, out_buffer_p)
     })
 }
 
@@ -1634,14 +1636,16 @@ pub struct CallInDescriptor(usize);
 /// [`ci_t!`]: ../macro.ci_t.html
 /// [`cip_t!`]: ../macro.cip_t.html
 /// [error return code]: https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes
-pub fn ci_tab_open_t(tptoken: u64, err_buffer: Vec<u8>, file: &CStr) -> YDBResult<(CallInDescriptor, Vec<u8>)> {
+pub fn ci_tab_open_t(
+    tptoken: u64, err_buffer: Vec<u8>, file: &CStr,
+) -> YDBResult<(CallInDescriptor, Vec<u8>)> {
     use crate::craw::ydb_ci_tab_open_t;
 
     // this cast is safe because YDB never modifies the string
     let ptr = file.as_ptr() as *mut _;
     let mut ret_val: usize = 0;
-    let buf = resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| {
-        unsafe { ydb_ci_tab_open_t(tptoken, err_buffer_p, ptr, &mut ret_val) }
+    let buf = resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| unsafe {
+        ydb_ci_tab_open_t(tptoken, err_buffer_p, ptr, &mut ret_val)
     })?;
     Ok((CallInDescriptor(ret_val), buf))
 }
@@ -1661,12 +1665,14 @@ pub fn ci_tab_open_t(tptoken: u64, err_buffer: Vec<u8>, file: &CStr) -> YDBResul
 /// - [a negative error return code](https://docs.yottadb.com/MessageRecovery/errormsgref.html#standard-error-codes)
 ///
 /// [`ci_tab_open_t`]: fn.ci_tab_open_t.html
-pub fn ci_tab_switch_t(tptoken: u64, err_buffer: Vec<u8>, new_handle: CallInDescriptor) -> YDBResult<(usize, Vec<u8>)> {
+pub fn ci_tab_switch_t(
+    tptoken: u64, err_buffer: Vec<u8>, new_handle: CallInDescriptor,
+) -> YDBResult<(usize, Vec<u8>)> {
     use crate::craw::ydb_ci_tab_switch_t;
 
     let mut ret_val: usize = 0;
-    let buf = resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| {
-        unsafe { ydb_ci_tab_switch_t(tptoken, err_buffer_p, new_handle.0, &mut ret_val) }
+    let buf = resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| unsafe {
+        ydb_ci_tab_switch_t(tptoken, err_buffer_p, new_handle.0, &mut ret_val)
     })?;
     Ok((ret_val, buf))
 }
@@ -1945,7 +1951,6 @@ macro_rules! ci_t {
     }}
 }
 
-
 /// A call-in descriptor for use with `cip_t`.
 pub struct CIDescriptor(ci_name_descriptor);
 
@@ -1958,10 +1963,7 @@ impl CIDescriptor {
             length: dbg!(routine.as_bytes().len() as u64),
             address: routine.into_raw(),
         };
-        Self(ci_name_descriptor {
-            rtn_name: string,
-            handle: std::ptr::null_mut(),
-        })
+        Self(ci_name_descriptor { rtn_name: string, handle: std::ptr::null_mut() })
     }
     // this needs to be public so it can be used in a macro
     #[doc(hidden)]
@@ -1972,9 +1974,7 @@ impl CIDescriptor {
 
 impl Drop for CIDescriptor {
     fn drop(&mut self) {
-        drop(unsafe {
-            CString::from_raw(self.0.rtn_name.address)
-        })
+        drop(unsafe { CString::from_raw(self.0.rtn_name.address) })
     }
 }
 
@@ -2212,8 +2212,15 @@ pub(crate) mod tests {
         let mut stored_var_t = make_out_str_t(&mut stored_var);
 
         let mut err_buf = unsafe {
-            ci_t!(YDB_NOTTP, Vec::new(), m_code, &mut output_var_t as *mut _, &mut stored_var_t as *mut _)
-        }.unwrap();
+            ci_t!(
+                YDB_NOTTP,
+                Vec::new(),
+                m_code,
+                &mut output_var_t as *mut _,
+                &mut stored_var_t as *mut _
+            )
+        }
+        .unwrap();
 
         // look for the right key
         let mut count = 1;
@@ -2869,6 +2876,7 @@ pub(crate) mod tests {
         let mut buf = Vec::with_capacity(100);
         let mut msg = crate::craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() };
         let mut descriptor = CIDescriptor::new(CString::new("HelloWorld1").unwrap());
-        unsafe { cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut descriptor, &mut msg as *mut _) }.unwrap();
+        unsafe { cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut descriptor, &mut msg as *mut _) }
+            .unwrap();
     }
 }

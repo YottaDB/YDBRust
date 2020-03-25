@@ -101,9 +101,10 @@ mod test {
         set_var("ydb_xc_c", "examples/m-ffi/external.xc");
 
         // `INVYDBEXIT` should be returned if `exit` is called through M FFI
-        let mut buf  = Vec::<u8>::with_capacity(1000);
+        let mut buf = Vec::<u8>::with_capacity(1000);
 
-        let mut status = ydb_string_t { address: buf.as_mut_ptr() as *mut _, length: buf.capacity() as u64 };
+        let mut status =
+            ydb_string_t { address: buf.as_mut_ptr() as *mut _, length: buf.capacity() as u64 };
         let exit = CString::new("ydb_exit").unwrap();
         unsafe {
             ci_t!(YDB_NOTTP, Vec::new(), exit, &mut status as *mut ydb_string_t).unwrap();
