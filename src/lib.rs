@@ -61,6 +61,12 @@ use std::os::raw::c_int;
 ///
 /// Possible errors for this function include:
 /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+///
+/// # Example
+// this is no_run because otherwise all other tests will get YDB_ERR_CALLINAFTERXIT
+/// ```no_run
+/// yottadb::ydb_exit();
+/// ```
 pub fn ydb_exit() -> c_int {
     unsafe { craw::ydb_exit() }
 }

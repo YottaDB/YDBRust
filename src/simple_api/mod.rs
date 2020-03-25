@@ -1595,6 +1595,30 @@ pub fn zwr2str_st(tptoken: u64, out_buf: Vec<u8>, serialized: &[u8]) -> Result<V
 }
 
 /// Write the message corresponding to a YottaDB error code to `out_buffer`.
+///
+/// # Errors
+/// - `YDB_ERR_UNKNOWNSYSERR` if `status` is an unrecognized status code
+///
+/// # See also
+/// - [`impl Display for YDBError`][`impl Display`], which should meet most use cases for `message_t`.
+/// - [Function return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#function-return-codes)
+/// - [ZMessage codes](https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes)
+/// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-message-ydb-message-t)
+///
+/// [`impl Display`]: struct.YDBError.html#impl-Display
+///
+/// # Example
+/// Look up the error message for an undefined local variable:
+/// ```
+/// use yottadb::{YDB_NOTTP, YDB_ERR_LVUNDEF};
+/// use yottadb::simple_api::{self, Key};
+/// let key = Key::variable("oopsNotDefined");
+/// let err = key.get_st(YDB_NOTTP, Vec::new()).unwrap_err();
+/// assert_eq!(err.status, YDB_ERR_LVUNDEF);
+/// let buf = simple_api::message_t(YDB_NOTTP, Vec::new(), err.status).unwrap();
+/// let msg = String::from_utf8(buf).unwrap();
+/// assert!(msg.contains("Undefined local variable"));
+/// ```
 pub fn message_t(tptoken: u64, out_buffer: Vec<u8>, status: i32) -> YDBResult<Vec<u8>> {
     resize_ret_call(tptoken, out_buffer, |tptoken, err_buffer_p, out_buffer_p| unsafe {
         ydb_message_t(tptoken, err_buffer_p, status, out_buffer_p)
@@ -1604,6 +1628,18 @@ pub fn message_t(tptoken: u64, out_buffer: Vec<u8>, status: i32) -> YDBResult<Ve
 /// Return a string in the format `rustwr <rust wrapper version> <$ZRELEASE>`,
 /// where `$ZRELEASE` is the intrinsic variable containing the version of the underlying C database
 /// and <rust wrapper version> is the version of `yottadb` published to crates.io.
+///
+/// # Errors
+/// No errors should occur in normal operation.
+/// However, in case of system failure, an [error code] may be returned.
+///
+/// [error code]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code
+///
+/// # Example
+/// ```
+/// use yottadb::{simple_api, YDB_NOTTP};
+/// let release = simple_api::release_t(YDB_NOTTP, Vec::new()).unwrap();
+/// ```
 pub fn release_t(tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<String> {
     let zrelease = Key::variable("$ZYRELEASE").get_st(tptoken, out_buffer)?;
     let zrelease = String::from_utf8(zrelease).expect("$ZRELEASE was not valid UTF8");
@@ -1623,6 +1659,7 @@ pub struct CallInTableDescriptor(usize);
 /// - [C SimpleAPI documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-ci-tab-open-ydb-ci-tab-open-t)
 /// - [Call-in interface](https://docs.yottadb.com/ProgrammersGuide/extrout.html#call-in-interface)
 /// - [`ci_t!`] and [`cip_t!`]
+/// - [`ci_tab_switch_t`](fn.ci_tab_switch_t.html)
 ///
 /// # Errors
 
@@ -1636,6 +1673,17 @@ pub struct CallInTableDescriptor(usize);
 /// [`ci_t!`]: ../macro.ci_t.html
 /// [`cip_t!`]: ../macro.cip_t.html
 /// [error return code]: https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes
+///
+/// # Example
+/// ```
+/// # fn main() -> yottadb::YDBResult<()> {
+/// use std::ffi::CString;
+/// use yottadb::{simple_api, YDB_NOTTP};
+///
+/// let file = CString::new("examples/m-ffi/calltab.ci").unwrap();
+/// let descriptor = simple_api::ci_tab_open_t(YDB_NOTTP, Vec::new(), &file)?;
+/// # Ok(())
+/// # }
 pub fn ci_tab_open_t(
     tptoken: u64, err_buffer: Vec<u8>, file: &CStr,
 ) -> YDBResult<(CallInTableDescriptor, Vec<u8>)> {
@@ -1665,6 +1713,18 @@ pub fn ci_tab_open_t(
 /// - [a negative error return code](https://docs.yottadb.com/MessageRecovery/errormsgref.html#standard-error-codes)
 ///
 /// [`ci_tab_open_t`]: fn.ci_tab_open_t.html
+///
+/// # Example
+/// ```
+/// # fn main() -> yottadb::YDBResult<()> {
+/// use std::ffi::CString;
+/// use yottadb::{simple_api, YDB_NOTTP};
+/// let file = CString::new("examples/m-ffi/calltab.ci").unwrap();
+/// let (descriptor, err_buf) = simple_api::ci_tab_open_t(YDB_NOTTP, Vec::new(), &file)?;
+/// let old_ci_table = simple_api::ci_tab_switch_t(YDB_NOTTP, err_buf, descriptor)?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn ci_tab_switch_t(
     tptoken: u64, err_buffer: Vec<u8>, new_handle: CallInTableDescriptor,
 ) -> YDBResult<(usize, Vec<u8>)> {
@@ -1937,6 +1997,30 @@ where
 /// If `routine` returns a value, the first argument must be a pointer to an out parameter in which to store the value.
 /// All arguments must be [representable as C types][repr-c].
 ///
+/// # See also
+/// - [C to M FFI](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#calling-m-routines)
+/// - [The M documentation on call-ins](https://docs.yottadb.com/ProgrammersGuide/extrout.html#calls-from-external-routines-call-ins)
+///
+/// # Example
+/// Call the M routine described by `HelloWorld1` in the call-in table.
+/// See also `examples/m-ffi/helloworld1.m` and `examples/m-ffi/calltab.ci`.
+/// ```
+/// use std::env;
+/// use std::ffi::CString;
+/// use yottadb::{craw, ci_t, YDB_NOTTP};
+///
+/// env::set_var("ydb_routines", "examples/m-ffi");
+/// env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
+///
+/// let mut buf = Vec::<u8>::with_capacity(100);
+/// let mut msg = craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut i8 };
+/// let routine = CString::new("HelloWorld1").unwrap();
+/// unsafe {
+///     ci_t!(YDB_NOTTP, Vec::with_capacity(100), &routine, &mut msg as *mut _).unwrap();
+///     buf.set_len(msg.length as usize);
+/// }
+/// assert_eq!(&buf, b"entry called");
+/// ```
 /// [repr-c]: https://doc.rust-lang.org/nomicon/ffi.html#interoperability-with-foreign-code
 #[macro_export]
 macro_rules! ci_t {
@@ -1996,6 +2080,27 @@ impl Drop for CallInDescriptor {
 /// All arguments must be [representable as C types][repr-c].
 ///
 /// [repr-c]: https://doc.rust-lang.org/nomicon/ffi.html#interoperability-with-foreign-code
+///
+/// # Example
+/// Call the M routine described by `HelloWorld1` in the call-in table.
+/// See also `examples/m-ffi/helloworld1.m` and `examples/m-ffi/calltab.ci`.
+/// ```
+/// use std::env;
+/// use std::ffi::CString;
+/// use yottadb::{craw, cip_t, CallInDescriptor, YDB_NOTTP};
+///
+/// env::set_var("ydb_routines", "examples/m-ffi");
+/// env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
+///
+/// let mut buf = Vec::<u8>::with_capacity(100);
+/// let mut msg = craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut i8 };
+/// let mut routine = CallInDescriptor::new(CString::new("HelloWorld1").unwrap());
+/// unsafe {
+///     cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut msg as *mut _).unwrap();
+///     buf.set_len(msg.length as usize);
+/// }
+/// assert_eq!(&buf, b"entry called");
+/// ```
 #[macro_export]
 macro_rules! cip_t {
     ($tptoken: expr, $err_buffer: expr, $routine: expr, $($args: expr),* $(,)?) => {{
