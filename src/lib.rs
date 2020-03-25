@@ -94,27 +94,25 @@ mod test {
     #[ignore]
     fn test_invalid_exit() {
         use std::env::set_var;
+        use crate::craw::ydb_string_t;
+
         set_var("ydb_routines", "examples/m-ffi");
         set_var("ydb_ci", "examples/m-ffi/calltab.ci");
         set_var("ydb_xc_c", "examples/m-ffi/external.xc");
 
         // `INVYDBEXIT` should be returned if `exit` is called through M FFI
-        let mut buf  = Vec::<u8>::with_capacity(100);
+        let mut buf  = Vec::<u8>::with_capacity(1000);
 
-        let mut status = craw::ydb_string_t { address: buf.as_mut_ptr() as *mut _, length: buf.capacity() as u64 };
+        let mut status = ydb_string_t { address: buf.as_mut_ptr() as *mut _, length: buf.capacity() as u64 };
         let exit = CString::new("ydb_exit").unwrap();
-        let err = unsafe {
-            let err = ci_t!(YDB_NOTTP, Vec::new(), exit, &mut status as *mut _).unwrap_err();
+        unsafe {
+            ci_t!(YDB_NOTTP, Vec::new(), exit, &mut status as *mut ydb_string_t).unwrap();
             buf.set_len(status.length as usize);
-            err
-        };
-        assert_eq!(err.status, -craw::YDB_ERR_ZCSTATUSRET);
+        }
 
-        /* TODO: maybe check if the status returned was YDB_ERR_INVYDBEXIT?
-           It seems that the return value is not set on errors, though.
         let msg = String::from_utf8_lossy(&buf);
         println!("{:?}", msg);
-        assert_eq!(craw::YDB_ERR_INVYDBEXIT, msg.parse().expect("status should be valid number"));
-        */
+        let status = msg.split(',').next().unwrap().parse().expect("status should be valid number");
+        assert_eq!(-craw::YDB_ERR_INVYDBEXIT, status);
     }
 }

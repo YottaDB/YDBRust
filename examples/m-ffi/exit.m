@@ -1,2 +1,2 @@
- SET status=$&c.yexit
- QUIT status
+ DO &c.yexit
+ QUIT $ZSTATUS
