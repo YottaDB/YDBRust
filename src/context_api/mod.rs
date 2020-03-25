@@ -288,10 +288,12 @@ impl Context {
     /// [intrinsics]: index.html#intrinsic-variables
     /// [threads and transactions]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
     /// [C documentation]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st
-    pub fn tp<'a, F>(&'a self, mut f: F, trans_id: &str, locals_to_reset: &[&str])
-            -> Result<(), Box<dyn Error>>
-            where F: FnMut(&'a Self) -> Result<TransactionStatus, Box<dyn Error>> {
-
+    pub fn tp<'a, F>(
+        &'a self, mut f: F, trans_id: &str, locals_to_reset: &[&str],
+    ) -> Result<(), Box<dyn Error>>
+    where
+        F: FnMut(&'a Self) -> Result<TransactionStatus, Box<dyn Error>>,
+    {
         let tptoken = self.context.borrow().tptoken;
         // allocate a new buffer for errors, since we need context.buffer to pass `self` to f
         let result = tp_st(
@@ -1571,11 +1573,16 @@ mod tests {
     #[test]
     fn test_simple_tp() {
         let ctx = Context::new();
-        ctx.tp(|ctx| {
-            let key = ctx.new_key("^hello");
-            key.set("Hello world!")?;
-            Ok(TransactionStatus::Ok)
-        }, "BATCH", &[]).unwrap();
+        ctx.tp(
+            |ctx| {
+                let key = ctx.new_key("^hello");
+                key.set("Hello world!")?;
+                Ok(TransactionStatus::Ok)
+            },
+            "BATCH",
+            &[],
+        )
+        .unwrap();
     }
 
     #[test]

@@ -61,10 +61,12 @@ use std::cmp::min;
 use std::fmt;
 use std::error;
 use std::panic;
-use crate::craw::{ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t,
-    ydb_incr_st, ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
-    ydb_tp_st, YDB_OK,
-    YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE, YDB_TP_ROLLBACK, YDB_TP_RESTART};
+use crate::craw::{
+    ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t, ydb_incr_st,
+    ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
+    ydb_tp_st, YDB_OK, YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE,
+    YDB_TP_ROLLBACK, YDB_TP_RESTART,
+};
 
 const DEFAULT_CAPACITY: usize = 50;
 
@@ -1392,9 +1394,12 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// [intrinsics]: index.html#intrinsic-variables
 /// [threads and transactions]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
 /// [C documentation]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st
-pub fn tp_st<F>(tptoken: u64, mut err_buffer: Vec<u8>, mut f: F, trans_id: &str,
-             locals_to_reset: &[&str]) -> Result<Vec<u8>, Box<dyn Error>>
-        where F: FnMut(u64) -> UserResult {
+pub fn tp_st<F>(
+    tptoken: u64, mut err_buffer: Vec<u8>, mut f: F, trans_id: &str, locals_to_reset: &[&str],
+) -> Result<Vec<u8>, Box<dyn Error>>
+where
+    F: FnMut(u64) -> UserResult,
+{
     let mut err_buffer_t = Key::make_out_buffer_t(&mut err_buffer);
 
     let mut locals: Vec<ConstYDBBuffer> = Vec::with_capacity(locals_to_reset.len());
@@ -2345,7 +2350,8 @@ pub(crate) mod tests {
 
         // Check for `YDB_ERR_NAMECOUNT2HI` if too many params are passed
         let vars = vec!["hello"; craw::YDB_MAX_NAMES as usize + 1];
-        let err = tp_st(YDB_NOTTP, Vec::new(), |_| Ok(TransactionStatus::Ok), "BATCH", &vars).unwrap_err();
+        let err = tp_st(YDB_NOTTP, Vec::new(), |_| Ok(TransactionStatus::Ok), "BATCH", &vars)
+            .unwrap_err();
         match err.downcast::<YDBError>() {
             Ok(err) => assert_eq!(err.status, craw::YDB_ERR_NAMECOUNT2HI),
             other => panic!("expected ERR_TPTOODEEP, got {:?}", other),
@@ -2372,32 +2378,45 @@ pub(crate) mod tests {
     #[test]
     fn nested_transaction() {
         let mut first_run = true;
-        tp_st(0, Vec::new(), |tptoken| {
-            // Save this value because it's about to change
-            let captured_first_run = first_run;
-            // Some inner transaction that returns a RESTART
-            // The restart is propagated upward by the `?`,
-            // since `tp_st` returns YDBError { status: YDB_TP_RESTART }.
-            let res = tp_st(tptoken, Vec::new(), |_| {
-                if first_run {
-                    first_run = false;
-                    Ok(TransactionStatus::Restart)
+        tp_st(
+            0,
+            Vec::new(),
+            |tptoken| {
+                // Save this value because it's about to change
+                let captured_first_run = first_run;
+                // Some inner transaction that returns a RESTART
+                // The restart is propagated upward by the `?`,
+                // since `tp_st` returns YDBError { status: YDB_TP_RESTART }.
+                let res = tp_st(
+                    tptoken,
+                    Vec::new(),
+                    |_| {
+                        if first_run {
+                            first_run = false;
+                            Ok(TransactionStatus::Restart)
+                        } else {
+                            Ok(TransactionStatus::Ok)
+                        }
+                    },
+                    "BATCH",
+                    &[],
+                );
+                // Make sure `RESTART` is returned the first time
+                if captured_first_run {
+                    let err = res.unwrap_err();
+                    let status = err.downcast_ref::<YDBError>().unwrap().status;
+                    assert_eq!(status, YDB_TP_RESTART);
+                    Err(err)
                 } else {
+                    // Make sure `OK` is return the second time
+                    res.unwrap();
                     Ok(TransactionStatus::Ok)
                 }
-            }, "BATCH", &[]);
-            // Make sure `RESTART` is returned the first time
-            if captured_first_run {
-                let err = res.unwrap_err();
-                let status = err.downcast_ref::<YDBError>().unwrap().status;
-                assert_eq!(status, YDB_TP_RESTART);
-                Err(err)
-            } else {
-                // Make sure `OK` is return the second time
-                res.unwrap();
-                Ok(TransactionStatus::Ok)
-            }
-        }, "BATCH", &[]).unwrap();
+            },
+            "BATCH",
+            &[],
+        )
+        .unwrap();
     }
 
     #[test]
@@ -2432,21 +2451,28 @@ pub(crate) mod tests {
             assert_eq!(&a.get_st(0, Vec::new()).unwrap(), b"initial value");
 
             let mut i = 0;
-            tp_st(0, Vec::new(), |tptoken| {
-                if i == 0 {
-                    assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"initial value");
-                } else {
+            tp_st(
+                0,
+                Vec::new(),
+                |tptoken| {
+                    if i == 0 {
+                        assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"initial value");
+                    } else {
+                        assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"new value");
+                    }
+                    a.set_st(tptoken, Vec::new(), "new value").unwrap();
                     assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"new value");
-                }
-                a.set_st(tptoken, Vec::new(), "new value").unwrap();
-                assert_eq!(&a.get_st(tptoken, Vec::new()).unwrap(), b"new value");
-                if i == 3 {
-                    Ok(TransactionStatus::Ok)
-                } else {
-                    i += 1;
-                    Ok(TransactionStatus::Restart)
-                }
-            }, "BATCH", locals).unwrap();
+                    if i == 3 {
+                        Ok(TransactionStatus::Ok)
+                    } else {
+                        i += 1;
+                        Ok(TransactionStatus::Restart)
+                    }
+                },
+                "BATCH",
+                locals,
+            )
+            .unwrap();
         }
     }
 
