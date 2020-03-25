@@ -1612,8 +1612,8 @@ pub fn release_t(tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<String> {
 
 /// The descriptor for a call-in table opened with [`ci_tab_open_t`].
 ///
-/// [`ci_tab_open_t`]: ../fn.ci_tab_switch_t.html
-pub struct CallInDescriptor(usize);
+/// [`ci_tab_open_t`]: ../fn.ci_tab_open_t.html
+pub struct CallInTableDescriptor(usize);
 
 /// Open the call-in table stored in `file` and return its file descriptor.
 ///
@@ -1638,7 +1638,7 @@ pub struct CallInDescriptor(usize);
 /// [error return code]: https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes
 pub fn ci_tab_open_t(
     tptoken: u64, err_buffer: Vec<u8>, file: &CStr,
-) -> YDBResult<(CallInDescriptor, Vec<u8>)> {
+) -> YDBResult<(CallInTableDescriptor, Vec<u8>)> {
     use crate::craw::ydb_ci_tab_open_t;
 
     // this cast is safe because YDB never modifies the string
@@ -1647,7 +1647,7 @@ pub fn ci_tab_open_t(
     let buf = resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| unsafe {
         ydb_ci_tab_open_t(tptoken, err_buffer_p, ptr, &mut ret_val)
     })?;
-    Ok((CallInDescriptor(ret_val), buf))
+    Ok((CallInTableDescriptor(ret_val), buf))
 }
 
 /// Switch the active call-in table to `new_handle`. Returns the previously active table.
@@ -1666,7 +1666,7 @@ pub fn ci_tab_open_t(
 ///
 /// [`ci_tab_open_t`]: fn.ci_tab_open_t.html
 pub fn ci_tab_switch_t(
-    tptoken: u64, err_buffer: Vec<u8>, new_handle: CallInDescriptor,
+    tptoken: u64, err_buffer: Vec<u8>, new_handle: CallInTableDescriptor,
 ) -> YDBResult<(usize, Vec<u8>)> {
     use crate::craw::ydb_ci_tab_switch_t;
 
@@ -1952,9 +1952,13 @@ macro_rules! ci_t {
 }
 
 /// A call-in descriptor for use with `cip_t`.
-pub struct CIDescriptor(ci_name_descriptor);
+///
+/// This represents an M function described in a call-in table.
+/// The descriptor is lazily initialized on the first call to `cip_t!`,
+/// and future calls will be much faster to execute.
+pub struct CallInDescriptor(ci_name_descriptor);
 
-impl CIDescriptor {
+impl CallInDescriptor {
     /// Create a new `descriptor` that will call `routine`.
     pub fn new(routine: CString) -> Self {
         use crate::craw::ydb_string_t;
@@ -1972,7 +1976,7 @@ impl CIDescriptor {
     }
 }
 
-impl Drop for CIDescriptor {
+impl Drop for CallInDescriptor {
     fn drop(&mut self) {
         drop(unsafe { CString::from_raw(self.0.rtn_name.address) })
     }
@@ -1997,7 +2001,7 @@ macro_rules! cip_t {
     ($tptoken: expr, $err_buffer: expr, $routine: expr, $($args: expr),* $(,)?) => {{
         let tptoken: u64 = $tptoken;
         let err_buffer: ::std::vec::Vec<u8> = $err_buffer;
-        let routine: &mut $crate::simple_api::CIDescriptor = $routine;
+        let routine: &mut $crate::simple_api::CallInDescriptor = $routine;
 
         $crate::simple_api::resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| {
             $crate::craw::ydb_cip_t(tptoken, err_buffer_p, routine.as_mut_ptr(), $($args),*)
@@ -2875,7 +2879,7 @@ pub(crate) mod tests {
 
         let mut buf = Vec::with_capacity(100);
         let mut msg = crate::craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() };
-        let mut descriptor = CIDescriptor::new(CString::new("HelloWorld1").unwrap());
+        let mut descriptor = CallInDescriptor::new(CString::new("HelloWorld1").unwrap());
         unsafe { cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut descriptor, &mut msg as *mut _) }
             .unwrap();
     }
