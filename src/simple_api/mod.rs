@@ -1600,6 +1600,7 @@ pub fn zwr2str_st(tptoken: u64, out_buf: Vec<u8>, serialized: &[u8]) -> Result<V
 /// - `YDB_ERR_UNKNOWNSYSERR` if `status` is an unrecognized status code
 ///
 /// # See also
+/// - [`context_api::Context::message_t`](../context_api/struct.Context.html#method.message)
 /// - [`impl Display for YDBError`][`impl Display`], which should meet most use cases for `message_t`.
 /// - [Function return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#function-return-codes)
 /// - [ZMessage codes](https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes)

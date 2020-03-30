@@ -536,6 +536,46 @@ impl Context {
     }
 }
 
+/// Utility functions
+impl Context {
+    /// Return the message corresponding to a YottaDB error code
+    ///
+    /// # Errors
+    /// - `YDB_ERR_UNKNOWNSYSERR` if `status` is an unrecognized status code
+    ///
+    /// # See also
+    /// - [`simple_api::message_t`](../simple_api/fn.message_t.html)
+    /// - [`impl Display for YDBError`][`impl Display`], which should meet most use cases for `message_t`.
+    /// - [Function return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#function-return-codes)
+    /// - [ZMessage codes](https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes)
+    /// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-message-ydb-message-t)
+    ///
+    /// [`impl Display`]: struct.YDBError.html#impl-Display
+    ///
+    /// # Example
+    /// Look up the error message for an undefined local variable:
+    /// ```
+    /// use yottadb::{YDB_NOTTP, YDB_ERR_LVUNDEF};
+    /// use yottadb::context_api::{Context, KeyContext};
+    ///
+    /// let ctx = Context::new();
+    /// let key = KeyContext::variable(&ctx, "oopsNotDefined");
+    ///
+    /// let err = key.get().unwrap_err();
+    /// assert_eq!(err.status, YDB_ERR_LVUNDEF);
+    ///
+    /// let buf = ctx.message(err.status).unwrap();
+    /// let msg = String::from_utf8(buf).unwrap();
+    /// assert!(msg.contains("Undefined local variable"));
+    /// ```
+    pub fn message(&self, status: i32) -> YDBResult<Vec<u8>> {
+        use crate::simple_api::message_t;
+
+        let tptoken = self.context.borrow().tptoken;
+        message_t(tptoken, Vec::new(), status)
+    }
+}
+
 impl std::borrow::Borrow<Key> for KeyContext {
     fn borrow(&self) -> &Key {
         &self.key
