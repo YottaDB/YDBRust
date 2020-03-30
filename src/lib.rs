@@ -43,8 +43,8 @@ pub mod simple_api;
 
 pub use craw::{YDB_NOTTP, YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
 pub use simple_api::{
-    CallInDescriptor, CallInTableDescriptor, DataReturn, DeleteType, TransactionStatus, YDBError,
-    YDBResult,
+    call_in::{CallInDescriptor, CallInTableDescriptor},
+    DataReturn, DeleteType, TransactionStatus, YDBError, YDBResult,
 };
 
 use std::os::raw::c_int;

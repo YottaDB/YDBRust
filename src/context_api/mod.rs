@@ -38,9 +38,11 @@
 //! }
 //! ```
 //!
+
+mod call_in;
+
 use std::cell::RefCell;
 use std::error::Error;
-use std::ffi::CStr;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::ops::{Deref, DerefMut};
@@ -48,8 +50,7 @@ use std::time::Duration;
 
 use crate::craw::{YDB_NOTTP, YDB_ERR_NODEEND};
 use crate::simple_api::{
-    self, tp_st, Key, YDBResult, YDBError, CallInTableDescriptor, DataReturn, DeleteType,
-    TransactionStatus,
+    self, tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType, TransactionStatus,
 };
 
 // Private macro to help make iterators
@@ -573,10 +574,8 @@ impl Context {
     /// assert!(msg.contains("Undefined local variable"));
     /// ```
     pub fn message(&self, status: i32) -> YDBResult<Vec<u8>> {
-        use simple_api::message_t;
-
         let tptoken = self.context.borrow().tptoken;
-        message_t(tptoken, Vec::new(), status)
+        simple_api::message_t(tptoken, Vec::new(), status)
     }
     /// Return a string in the format `rustwr <rust wrapper version> <$ZYRELEASE>`
     ///
@@ -601,85 +600,8 @@ impl Context {
     /// # }
     /// ```
     pub fn release(&self) -> YDBResult<String> {
-        use simple_api::release_t;
-
         let tptoken = self.context.borrow().tptoken;
-        release_t(tptoken, Vec::new())
-    }
-    /// Open the call-in table stored in `file` and return its file descriptor.
-    ///
-    /// You can later switch the active call-in table by calling [`ci_tab_switch_t`] with the file descriptor.
-    ///
-    /// # See also
-    /// - [C SimpleAPI documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-ci-tab-open-ydb-ci-tab-open-t)
-    /// - [Call-in interface](https://docs.yottadb.com/ProgrammersGuide/extrout.html#call-in-interface)
-    /// - [`ci_t!`] and [`cip_t!`]
-    /// - [`ci_tab_switch_t`](fn.ci_tab_switch_t.html)
-    ///
-    /// # Errors
-
-    // See `simple_api` for why this never returns PARAMINVALID
-
-    /// - a negative [error return code] (for example, if the call-in table in the file had parse errors).
-    ///
-    /// [`ci_tab_switch_t`]: fn.ci_tab_switch_t.html
-    /// [`ci_t!`]: ../macro.ci_t.html
-    /// [`cip_t!`]: ../macro.cip_t.html
-    /// [error return code]: https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes
-    ///
-    /// # Example
-    /// ```
-    /// # fn main() -> yottadb::YDBResult<()> {
-    /// use std::ffi::CString;
-    /// use yottadb::context_api::Context;
-    ///
-    /// let ctx = Context::new();
-    /// let file = CString::new("examples/m-ffi/calltab.ci").unwrap();
-    /// let descriptor = ctx.ci_tab_open(&file)?;
-    /// # Ok(())
-    /// # }
-    pub fn ci_tab_open(&self, file: &CStr) -> YDBResult<CallInTableDescriptor> {
-        let tptoken = self.context.borrow().tptoken;
-        let buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let (descriptor, buffer) = simple_api::ci_tab_open_t(tptoken, buffer, file)?;
-        self.context.borrow_mut().buffer = Some(buffer);
-        Ok(descriptor)
-    }
-    /// Switch the active call-in table to `new_handle`. Returns the previously active table.
-    ///
-    /// `new_handle` is a file descriptor returned by [`ci_tab_open_t`].
-    ///
-    /// # Errors
-
-    // See docs for `simple_api` for why we never return `PARAMINVALID`.
-
-    /// - [a negative error return code](https://docs.yottadb.com/MessageRecovery/errormsgref.html#standard-error-codes)
-    ///
-    /// [`ci_tab_open_t`]: fn.ci_tab_open_t.html
-    ///
-    /// # Example
-    /// ```
-    /// # fn main() -> yottadb::YDBResult<()> {
-    /// use std::ffi::CString;
-    /// use yottadb::context_api::Context;
-    ///
-    /// let ctx = Context::new();
-    /// let file = CString::new("examples/m-ffi/calltab.ci").unwrap();
-    /// let descriptor = ctx.ci_tab_open(&file)?;
-    /// let old_ci_table = ctx.ci_tab_switch(descriptor)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn ci_tab_switch(
-        &self, new_handle: CallInTableDescriptor,
-    ) -> YDBResult<CallInTableDescriptor> {
-        use simple_api::ci_tab_switch_t;
-
-        let tptoken = self.context.borrow().tptoken;
-        let buffer = self.context.borrow_mut().buffer.take().unwrap();
-        let (descriptor, buffer) = ci_tab_switch_t(tptoken, buffer, new_handle)?;
-        self.context.borrow_mut().buffer = Some(buffer);
-        Ok(descriptor)
+        simple_api::release_t(tptoken, Vec::new())
     }
 }
 
