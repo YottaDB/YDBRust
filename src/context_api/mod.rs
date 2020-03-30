@@ -618,9 +618,7 @@ impl Context {
     ///
     /// # Errors
 
-    // The upstream documentation says
-    // > YDB_ERR_PARAMINVALID if the input parameters fname or ret_value are NULL; or
-    // PARAMINVALID is not possible because `ptr` and `&mut ret_val` are always non-null.
+    // See `simple_api` for why this never returns PARAMINVALID
 
     /// - a negative [error return code] (for example, if the call-in table in the file had parse errors).
     ///
@@ -672,7 +670,9 @@ impl Context {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn ci_tab_switch(&self, new_handle: CallInTableDescriptor) -> YDBResult<usize> {
+    pub fn ci_tab_switch(
+        &self, new_handle: CallInTableDescriptor,
+    ) -> YDBResult<CallInTableDescriptor> {
         use simple_api::ci_tab_switch_t;
 
         let tptoken = self.context.borrow().tptoken;

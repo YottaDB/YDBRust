@@ -1731,14 +1731,14 @@ pub fn ci_tab_open_t(
 /// ```
 pub fn ci_tab_switch_t(
     tptoken: u64, err_buffer: Vec<u8>, new_handle: CallInTableDescriptor,
-) -> YDBResult<(usize, Vec<u8>)> {
+) -> YDBResult<(CallInTableDescriptor, Vec<u8>)> {
     use crate::craw::ydb_ci_tab_switch_t;
 
     let mut ret_val: usize = 0;
     let buf = resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| unsafe {
         ydb_ci_tab_switch_t(tptoken, err_buffer_p, new_handle.0, &mut ret_val)
     })?;
-    Ok((ret_val, buf))
+    Ok((CallInTableDescriptor(ret_val), buf))
 }
 
 /// Acquires locks specified in `locks` and releases all others.
