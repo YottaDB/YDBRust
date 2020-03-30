@@ -574,6 +574,34 @@ impl Context {
         let tptoken = self.context.borrow().tptoken;
         message_t(tptoken, Vec::new(), status)
     }
+    /// Return a string in the format `rustwr <rust wrapper version> <$ZYRELEASE>`
+    ///
+    /// [`$ZYRELEASE`] is the [intrinsic variable] containing the version of the underlying C database
+    /// and `<rust wrapper version>` is the version of `yottadb` published to crates.io.
+    ///
+    /// # Errors
+    /// No errors should occur in normal operation.
+    /// However, in case of system failure, an [error code] may be returned.
+    ///
+    /// [error code]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code
+    /// [intrinsic variable]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
+    /// [`$ZYRELEASE`]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#zyrelease
+    ///
+    /// # Example
+    /// ```
+    /// # fn main() -> yottadb::YDBResult<()> {
+    /// use yottadb::context_api::Context;
+    /// let ctx = Context::new();
+    /// let release = ctx.release()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn release(&self) -> YDBResult<String> {
+        use crate::simple_api::release_t;
+
+        let tptoken = self.context.borrow().tptoken;
+        release_t(tptoken, Vec::new())
+    }
 }
 
 impl std::borrow::Borrow<Key> for KeyContext {
