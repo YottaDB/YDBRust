@@ -11,7 +11,13 @@ use super::{resize_call, YDBResult};
 
 /// The descriptor for a call-in table opened with [`ci_tab_open_t`].
 ///
+/// `CallInTableDescriptor::default()` returns a table which,
+/// when called with [`ci_tab_switch_t`], uses the environment variable `ydb_ci`.
+/// This is also the table that is used if `ci_tab_switch_t` is never called.
+///
 /// [`ci_tab_open_t`]: fn.ci_tab_open_t.html
+/// [`ci_tab_switch_t`]: fn.ci_tab_switch_t.html
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct CallInTableDescriptor(usize);
 
 /// Open the call-in table stored in `file` and return its file descriptor.
@@ -166,11 +172,15 @@ impl CallInDescriptor {
     pub fn new(routine: CString) -> Self {
         use crate::craw::ydb_string_t;
 
-        let string = ydb_string_t {
-            length: dbg!(routine.as_bytes().len() as u64),
-            address: routine.into_raw(),
-        };
+        let string =
+            ydb_string_t { length: routine.as_bytes().len() as u64, address: routine.into_raw() };
         Self(ci_name_descriptor { rtn_name: string, handle: std::ptr::null_mut() })
+    }
+    /// Consume this descriptor and return the original routine
+    pub fn into_cstr(self) -> CString {
+        let cstr = unsafe { CString::from_raw(self.0.rtn_name.address) };
+        std::mem::forget(self);
+        cstr
     }
     // this needs to be public so it can be used in a macro
     #[doc(hidden)]
@@ -181,6 +191,7 @@ impl CallInDescriptor {
 
 impl Drop for CallInDescriptor {
     fn drop(&mut self) {
+        // TODO: this is doing the same thing as `into_cstr`
         drop(unsafe { CString::from_raw(self.0.rtn_name.address) })
     }
 }
@@ -235,4 +246,153 @@ macro_rules! cip_t {
             $crate::craw::ydb_cip_t(tptoken, err_buffer_p, routine.as_mut_ptr(), $($args),*)
         })
     }}
+}
+
+#[cfg(test)]
+mod test {
+    use serial_test::serial;
+    use std::env;
+    use std::ffi::CString;
+    use super::*;
+    use crate::craw::{self, ydb_string_t, ydb_long_t};
+    use crate::YDB_NOTTP;
+
+    fn call<F: FnOnce() -> T, T>(f: F) -> T {
+        env::set_var("ydb_routines", "examples/m-ffi");
+        env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
+        f()
+    }
+
+    // no arguments already tested by doc-test
+    #[test]
+    fn string_args() {
+        call(|| {
+            let mut routine = CallInDescriptor::new(CString::new("HelloWorld2").unwrap());
+
+            let mut ret_buf = Vec::<u8>::with_capacity(100);
+            let mut ret_msg =
+                ydb_string_t { length: 100, address: ret_buf.as_mut_ptr() as *mut i8 };
+
+            let buf1 = b"parm1";
+            let mut msg1 = ydb_string_t { length: 5, address: buf1.as_ptr() as *mut i8 };
+
+            let buf2 = b"parm2";
+            let mut msg2 = ydb_string_t { length: 5, address: buf2.as_ptr() as *mut i8 };
+
+            let buf3 = b"parm3";
+            let mut msg3 = ydb_string_t { length: 5, address: buf3.as_ptr() as *mut i8 };
+
+            unsafe {
+                cip_t!(
+                    YDB_NOTTP,
+                    Vec::with_capacity(100),
+                    &mut routine,
+                    &mut ret_msg,
+                    &mut msg1 as *mut _,
+                    &mut msg2 as *mut _,
+                    &mut msg3 as *mut _
+                )
+                .unwrap();
+                ret_buf.set_len(ret_msg.length as usize);
+            };
+            assert_eq!(&ret_buf, b"parm3parm2parm1");
+        });
+    }
+    #[test]
+    fn int_args() {
+        call(|| {
+            use crate::craw::ydb_long_t;
+
+            let mut routine = CallInDescriptor::new(CString::new("Add").unwrap());
+            let a = 1 as ydb_long_t;
+            let b = 2 as ydb_long_t;
+            let mut out = 0;
+            unsafe {
+                cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap();
+            }
+            assert_eq!(out, 3);
+            // make sure it works if called multiple times
+            unsafe {
+                cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap();
+            }
+            assert_eq!(out, 3);
+            // make sure it works with `ci_t`
+            let mut routine = routine.into_cstr();
+            unsafe {
+                ci_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap();
+            }
+            assert_eq!(out, 3);
+        });
+    }
+    #[test]
+    fn no_callin_env_var() {
+        // NOTE: this does NOT set ydb_ci
+        env::set_var("ydb_routines", "examples/m-ffi");
+
+        let file = CString::new("examples/m-ffi/calltab.ci").unwrap();
+        let (descriptor, err_buf) = ci_tab_open_t(YDB_NOTTP, Vec::new(), &file).unwrap();
+        ci_tab_switch_t(YDB_NOTTP, err_buf, descriptor).unwrap();
+
+        // same as doc-test for `ci_t`
+        let mut buf = Vec::<u8>::with_capacity(100);
+        let mut msg = ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut i8 };
+        let routine = CString::new("HelloWorld1").unwrap();
+        unsafe {
+            ci_t!(YDB_NOTTP, Vec::with_capacity(100), &routine, &mut msg as *mut _).unwrap();
+            buf.set_len(msg.length as usize);
+        }
+        assert_eq!(&buf, b"entry called");
+    }
+    #[test]
+    #[serial]
+    fn tab_open_switch() {
+        // NOTE: this does NOT set ydb_ci
+        env::set_var("ydb_routines", "examples/m-ffi");
+
+        let small_file = CString::new("examples/m-ffi/small_calltab.ci").unwrap();
+        let mut routine = CallInDescriptor::new(CString::new("Add").unwrap());
+        let a = 1 as ydb_long_t;
+        let b = 2 as ydb_long_t;
+        let mut out = 0;
+
+        // first try a table that doesn't have `Add`
+        let (small_fd, _) = ci_tab_open_t(YDB_NOTTP, Vec::new(), &small_file).unwrap();
+        ci_tab_switch_t(YDB_NOTTP, Vec::new(), small_fd).unwrap();
+
+        let err = unsafe {
+            cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap_err()
+        };
+        assert_eq!(err.status, -craw::YDB_ERR_CINOENTRY);
+        assert_eq!(out, 0);
+
+        // now try a table that does
+        let big_file = CString::new("examples/m-ffi/calltab.ci").unwrap();
+        let (big_fd, _) = ci_tab_open_t(YDB_NOTTP, Vec::new(), &big_file).unwrap();
+        let (small_fd, _) = ci_tab_switch_t(YDB_NOTTP, Vec::new(), big_fd).unwrap();
+
+        unsafe {
+            cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap()
+        };
+        assert_eq!(out, 3);
+
+        // make sure the call works even though the calltable has been changed back
+        out = 0;
+        ci_tab_switch_t(YDB_NOTTP, Vec::new(), small_fd).unwrap();
+        unsafe {
+            cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap()
+        };
+        assert_eq!(out, 3);
+
+        // make sure the old descriptor still works and updates the `Add` function name when called with `ci_t`
+        let mut routine = routine.into_cstr();
+        out = 0;
+        let err = unsafe {
+            ci_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap_err()
+        };
+        assert_eq!(err.status, -craw::YDB_ERR_CINOENTRY);
+        assert_eq!(out, 0);
+
+        // switch back the calltable to use an environment variable now that we're done
+        ci_tab_switch_t(YDB_NOTTP, Vec::new(), CallInTableDescriptor::default()).unwrap();
+    }
 }
