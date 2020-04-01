@@ -10,7 +10,7 @@
 ;								;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Hello world rtn driven from Go
+; Hello world rtn driven from Rust
 entry(p1,p2,p3)
 	if ("parm1"'=p1)!("parm2"'=p2)!("parm3"'=p3) do
 	. write "FAIL: parameters not as expected"
