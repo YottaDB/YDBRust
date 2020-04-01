@@ -57,7 +57,7 @@ use std::os::raw::c_int;
 /// A typical application should not need to call `yottadb::exit()`
 /// since YottaDB will automatically clean up on process termination.
 ///
-/// This has no effect on any `Key`s, which will be automatically dropped when they go out of scope.
+/// This has no effect on any [`Key`]s, which will be automatically dropped when they go out of scope.
 ///
 /// # Errors
 /// - `YDB_ERR_INVYDBEXIT` if `exit()` is called through M FFI (e.g. through `simple_api::ci_t`)
@@ -70,6 +70,7 @@ use std::os::raw::c_int;
 /// ```no_run
 /// yottadb::ydb_exit();
 /// ```
+/// [`Key`]: simple_api/struct.Key.html
 pub fn ydb_exit() -> c_int {
     unsafe { craw::ydb_exit() }
 }
