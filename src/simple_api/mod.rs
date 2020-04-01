@@ -262,10 +262,11 @@ impl Key {
     /// Key::new("hello", &[&b"hi"[..]]);
     /// ```
     ///
-    /// This is being [tracked upstream][from-arr-issue] and will hopefully be fixed soon.
+    /// This has been [fixed on nightly][from-arr-issue] and will land on stable on [June 4th][release-date].
     ///
     /// [vars]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values
     /// [from-arr-issue]: https://github.com/rust-lang/rust/issues/67963
+    /// [release-date]: https://forge.rust-lang.org/#current-release-versions
     pub fn new<V, S>(variable: V, subscripts: &[S]) -> Key
     where
         V: Into<String>,
