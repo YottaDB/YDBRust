@@ -2762,16 +2762,4 @@ pub(crate) mod tests {
         assert_eq!(&parts.next().unwrap()[0..1], "r");
         assert_eq!(parts.count(), 2);
     }
-
-    #[test]
-    fn cip() {
-        std::env::set_var("ydb_routines", "examples/m-ffi");
-        std::env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
-
-        let mut buf = Vec::with_capacity(100);
-        let mut msg = crate::craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() };
-        let mut descriptor = CallInDescriptor::new(CString::new("HelloWorld1").unwrap());
-        unsafe { cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut descriptor, &mut msg as *mut _) }
-            .unwrap();
-    }
 }
