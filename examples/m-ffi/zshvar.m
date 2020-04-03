@@ -9,7 +9,6 @@
 ;       the license, please stop and do not read further.       ;
 ;                                                               ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 zshvar(arg,var)
 	; Make ZSHOW functionality accessible to non-M programs
 	; Note: no error checking done
