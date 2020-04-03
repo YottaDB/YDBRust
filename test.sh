@@ -12,6 +12,8 @@
 #                                                               #
 #################################################################
 
+set -e
+
 tests/copyright.sh
 cargo fmt -- --check
 cargo clippy -- --deny clippy::all
