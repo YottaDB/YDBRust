@@ -12,6 +12,14 @@
 #                                                               #
 #################################################################
 
+# If this is running in CI, it's in a fresh clone of the repo,
+# so `git diff HEAD` will always say there were no changes
+if [ -n "$CONTINUOUS_INTEGRATION" ]; then
+	COMMIT=HEAD~
+else
+	COMMIT=HEAD
+fi
+
 MISSING_COPYRIGHT="$(git diff --name-only HEAD | xargs grep -L "Copyright (c) .*$(date +%Y) YottaDB" -L)"
 if [ -n "$MISSING_COPYRIGHT" ]; then
     echo "the following files do not have an up-to-date copyright:"

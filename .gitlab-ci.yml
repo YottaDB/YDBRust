@@ -24,7 +24,7 @@ rust-latest:
   stage: build
   image: yottadb/yottadb-base:latest-master
   script:
-    - tests/copyright.sh
+    - CONTINUOUS_INTEGRATION=1 tests/copyright.sh
     - cargo fmt -- --check
     - cargo clippy -- --deny clippy::all
     - cargo build --verbose
