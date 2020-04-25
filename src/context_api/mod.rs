@@ -47,6 +47,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::ops::{Deref, DerefMut};
 use std::time::Duration;
+use std::fmt;
 
 use crate::craw::{YDB_NOTTP, YDB_ERR_NODEEND};
 use crate::simple_api::{
@@ -651,6 +652,27 @@ pub enum ParseError<T> {
     ///
     /// The `T` is the type of `FromStr::Err` for the value being parsed.
     Parse(T, String),
+}
+
+impl<T: fmt::Display> fmt::Display for ParseError<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParseError::YDB(err) => write!(f, "{}", err),
+            ParseError::Utf8(utf8) => write!(f, "{}", utf8),
+            ParseError::Parse(err, _) => write!(f, "{}", err),
+        }
+    }
+}
+
+impl<T: Error + 'static> Error for ParseError<T> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        let err = match self {
+            ParseError::YDB(err) => err as &dyn Error,
+            ParseError::Utf8(not_utf8) => not_utf8,
+            ParseError::Parse(not_valid, _) => not_valid,
+        };
+        Some(err)
+    }
 }
 
 impl KeyContext {
@@ -1736,6 +1758,20 @@ mod tests {
         key.set("127.0.0.1").unwrap();
         let _: std::net::IpAddr = key.get_and_parse().unwrap();
         key.delete(DeleteType::DelNode).unwrap();
+    }
+    #[test]
+    fn get_and_parse_tp() {
+        let ctx = Context::new();
+        let func = |ctx| {
+            let _: usize = KeyContext::variable(ctx, "getParseTp").get_and_parse()?;
+            panic!();
+        };
+        let err = ctx.tp(func, "BATCH", &[]).unwrap_err();
+        let ydb_err = match *err.downcast::<ParseError<<usize as FromStr>::Err>>().unwrap() {
+            ParseError::YDB(ydb) => ydb,
+            _ => panic!(),
+        };
+        assert_eq!(ydb_err.status, crate::craw::YDB_ERR_LVUNDEF);
     }
     #[test]
     fn prev_node_self() -> Result<(), Box<dyn Error>> {
