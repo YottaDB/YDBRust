@@ -1555,7 +1555,7 @@ mod tests {
 
     make_loop_test!(test_iter_values, iter_values, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
-    }, 
+    },
     0 => "Song of Ice and Fire",
     1 => "Elder Scrolls",
     2 => "Tolkien"
@@ -1563,7 +1563,7 @@ mod tests {
 
     make_loop_test!(test_iter_subs, iter_subs, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
-    }, 
+    },
     0 => "high garden",
     1 => "mundus",
     2 => "shire"
@@ -1572,7 +1572,7 @@ mod tests {
     make_loop_test!(test_iter_subs_values, iter_subs_values, |(x, y): (Vec<u8>, Vec<u8>)| {
         (String::from_utf8_lossy(&x).into_owned(),
         String::from_utf8_lossy(&y).into_owned())
-    }, 
+    },
     0 => (String::from("high garden"), String::from("Song of Ice and Fire")),
     1 => (String::from("mundus"), String::from("Elder Scrolls")),
     2 => (String::from("shire"), String::from("Tolkien"))
@@ -1580,7 +1580,7 @@ mod tests {
 
     make_loop_test!(test_iter_key_subs, iter_key_subs, |x: KeyContext| {
         (String::from_utf8_lossy(x.key.variable.as_bytes()).into_owned(), String::from_utf8_lossy(&x[0]).into_owned())
-    }, 
+    },
     0 => (String::from("testiterkeysubs"), String::from("high garden")),
     1 => (String::from("testiterkeysubs"), String::from("mundus")),
     2 => (String::from("testiterkeysubs"), String::from("shire"))
@@ -1588,7 +1588,7 @@ mod tests {
 
     make_loop_test!(test_iter_nodes, iter_nodes, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
-    }, 
+    },
     0 => "Song of Ice and Fire",
     1 => "Elder Scrolls",
     2 => "Tolkien"
@@ -1596,7 +1596,7 @@ mod tests {
 
     make_loop_test!(test_iter_key_nodes, iter_key_nodes, |x: KeyContext| {
         (String::from_utf8_lossy(x.key.variable.as_bytes()).into_owned(), String::from_utf8_lossy(&x[0]).into_owned())
-    }, 
+    },
     0 => (String::from("testiterkeynodes"), String::from("high garden")),
     1 => (String::from("testiterkeynodes"), String::from("mundus")),
     2 => (String::from("testiterkeynodes"), String::from("shire"))
@@ -1604,7 +1604,7 @@ mod tests {
 
     make_loop_test!(test_iter_values_reverse, iter_values_reverse, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
-    }, 
+    },
     2 => "Song of Ice and Fire",
     1 => "Elder Scrolls",
     0 => "Tolkien"
@@ -1612,7 +1612,7 @@ mod tests {
 
     make_loop_test!(test_iter_subs_reverse, iter_subs_reverse, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
-    }, 
+    },
     2 => "high garden",
     1 => "mundus",
     0 => "shire"
@@ -1621,7 +1621,7 @@ mod tests {
     make_loop_test!(test_iter_subs_values_reverse, iter_subs_values_reverse, |(x, y): (Vec<u8>, Vec<u8>)| {
         (String::from_utf8_lossy(&x).into_owned(),
         String::from_utf8_lossy(&y).into_owned())
-    }, 
+    },
     2 => (String::from("high garden"), String::from("Song of Ice and Fire")),
     1 => (String::from("mundus"), String::from("Elder Scrolls")),
     0 => (String::from("shire"), String::from("Tolkien"))
@@ -1629,7 +1629,7 @@ mod tests {
 
     make_loop_test!(test_iter_key_subs_reverse, iter_key_subs_reverse, |x: KeyContext| {
         (String::from_utf8_lossy(x.key.variable.as_bytes()).into_owned(), String::from_utf8_lossy(&x[0]).into_owned())
-    }, 
+    },
     2 => (String::from("testiterkeysubsreverse"), String::from("high garden")),
     1 => (String::from("testiterkeysubsreverse"), String::from("mundus")),
     0 => (String::from("testiterkeysubsreverse"), String::from("shire"))
@@ -1637,7 +1637,7 @@ mod tests {
 
     make_loop_test!(test_iter_nodes_reverse, iter_nodes_reverse, |x: Vec<u8>| {
         String::from_utf8_lossy(&x).into_owned()
-    }, 
+    },
     2 => "Song of Ice and Fire",
     1 => "Elder Scrolls",
     0 => "Tolkien"
@@ -1645,7 +1645,7 @@ mod tests {
 
     make_loop_test!(test_iter_key_nodes_reverse, iter_key_nodes_reverse, |x: KeyContext| {
         (String::from_utf8_lossy(x.key.variable.as_bytes()).into_owned(), String::from_utf8_lossy(&x[0]).into_owned())
-    }, 
+    },
     2 => (String::from("testiterkeynodesreverse"), String::from("high garden")),
     1 => (String::from("testiterkeynodesreverse"), String::from("mundus")),
     0 => (String::from("testiterkeynodesreverse"), String::from("shire"))
