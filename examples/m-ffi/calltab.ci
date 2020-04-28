@@ -6,3 +6,4 @@ HelloWorld2 : ydb_string_t * entry^helloworld2(I:ydb_string_t *, I:ydb_string_t 
 Add : ydb_long_t * entry^add(I:ydb_long_t, I:ydb_long_t)
 TestMGoTimers : void run^TestMiscGoTimers()
 CallMTStrTest: ydb_string_t * retStr^CallMTStrTest()
+noop : void noop()

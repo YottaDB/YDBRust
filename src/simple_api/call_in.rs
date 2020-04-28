@@ -159,7 +159,7 @@ pub fn ci_tab_switch_t(
 /// [repr-c]: https://doc.rust-lang.org/nomicon/ffi.html#interoperability-with-foreign-code
 #[macro_export]
 macro_rules! ci_t {
-    ($tptoken: expr, $err_buffer: expr, $routine: expr, $($args: expr),* $(,)?) => {{
+    ($tptoken: expr, $err_buffer: expr, $routine: expr $(, $args: expr)* $(,)?) => {{
         let tptoken: u64 = $tptoken;
         let err_buffer: ::std::vec::Vec<u8> = $err_buffer;
         let routine: &::std::ffi::CStr = $routine;
@@ -334,6 +334,15 @@ mod test {
                 ci_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap();
             }
             assert_eq!(out, 3);
+        });
+    }
+    #[test]
+    fn no_args() {
+        call(|| {
+            let mut routine = CStr::from_bytes_with_nul(b"noop\0").unwrap();
+            unsafe {
+                ci_t!(YDB_NOTTP, Vec::new(), &mut routine).unwrap();
+            }
         });
     }
     #[test]
