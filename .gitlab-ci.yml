@@ -20,6 +20,15 @@ before_script:
   - source /opt/yottadb/current/ydb_env_set
   - source $HOME/.cargo/env
 
+rust-compat:
+  stage: build
+  image: yottadb/yottadb-base:latest-master
+  script:
+    - rustup toolchain install 1.34.0
+    - rustup default 1.34.0
+    - cargo build --verbose
+    - cargo test --verbose
+
 rust-latest:
   stage: build
   image: yottadb/yottadb-base:latest-master
