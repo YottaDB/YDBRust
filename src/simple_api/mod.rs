@@ -142,7 +142,7 @@ pub type YDBResult<T> = Result<T, YDBError>;
 
 /// A transaction processing token, used by yottadb to ensure ACID properties.
 ///
-/// The only valid values for a TpToken are the default (`YDB_NOTTP`)
+/// The only valid values for a TpToken are the default (`TpToken::default()`)
 /// or a token passed in from [`tp_st`](fn.tp_st.html).
 ///
 /// TpTokens can be converted to `u64`, but not vice-versa.
@@ -316,15 +316,15 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult};
     ///
     /// fn main() -> YDBResult<()> {
     ///     let mut key = make_key!("^hello");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello world!")?;
-    ///     output_buffer = key.get_st(YDB_NOTTP, output_buffer)?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello world!")?;
+    ///     output_buffer = key.get_st(TpToken::default(), output_buffer)?;
     ///
     ///     assert_eq!(&output_buffer, b"Hello world!");
     ///
@@ -348,14 +348,14 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult};
     ///
     /// fn main() -> YDBResult<()> {
     ///     let mut key = make_key!("^hello");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     key.set_st(YDB_NOTTP, output_buffer, b"Hello world!")?;
+    ///     key.set_st(TpToken::default(), output_buffer, b"Hello world!")?;
     ///
     ///     Ok(())
     /// }
@@ -393,14 +393,14 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult, DataReturn};
     ///
     /// fn main() -> YDBResult<()> {
     ///     let mut key = make_key!("^helloValueDoesntExist");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     let (output, output_buffer) = key.data_st(YDB_NOTTP, output_buffer)?;
+    ///     let (output, output_buffer) = key.data_st(TpToken::default(), output_buffer)?;
     ///
     ///     assert_eq!(DataReturn::NoData, output);
     ///
@@ -444,14 +444,14 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult, DeleteType};
     ///
     /// fn main() -> YDBResult<()> {
     ///     let mut key = make_key!("^hello");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.delete_st(YDB_NOTTP, output_buffer, DeleteType::DelTree)?;
+    ///     output_buffer = key.delete_st(TpToken::default(), output_buffer, DeleteType::DelTree)?;
     ///
     ///     Ok(())
     /// }
@@ -551,7 +551,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
@@ -559,12 +559,12 @@ impl Key {
     ///     let mut key = make_key!("^helloIncrementDocTest");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "0")?;
-    ///     output_buffer = key.get_st(YDB_NOTTP, output_buffer)?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "0")?;
+    ///     output_buffer = key.get_st(TpToken::default(), output_buffer)?;
     ///     let before: i32 = String::from_utf8_lossy(&output_buffer).parse()?;
-    ///     output_buffer = key.incr_st(YDB_NOTTP, output_buffer, None)?;
+    ///     output_buffer = key.incr_st(TpToken::default(), output_buffer, None)?;
     ///     let now: i32  = String::from_utf8_lossy(&output_buffer).parse()?;
-    ///     output_buffer = key.get_st(YDB_NOTTP, output_buffer)?;
+    ///     output_buffer = key.get_st(TpToken::default(), output_buffer)?;
     ///     let after: i32 = String::from_utf8_lossy(&output_buffer).parse()?;
     ///
     ///     assert!(before < now);
@@ -624,13 +624,13 @@ impl Key {
     ///
     /// ```
     /// # fn main() -> Result<(), yottadb::YDBError> {
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::Key;
     /// use std::time::Duration;
     ///
     /// let key = Key::variable("lockDecrStTest");
-    /// key.lock_incr_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1))?;
-    /// key.lock_decr_st(YDB_NOTTP, Vec::new())?;
+    /// key.lock_incr_st(TpToken::default(), Vec::new(), Duration::from_secs(1))?;
+    /// key.lock_decr_st(TpToken::default(), Vec::new())?;
     /// # Ok(())
     /// # }
     /// ```
@@ -666,12 +666,12 @@ impl Key {
     ///
     /// ```
     /// # fn main() -> Result<(), yottadb::YDBError> {
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::Key;
     /// use std::time::Duration;
     ///
     /// let key = Key::variable("lockIncrStTest");
-    /// key.lock_incr_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1))?;
+    /// key.lock_incr_st(TpToken::default(), Vec::new(), Duration::from_secs(1))?;
     /// # Ok(())
     /// # }
     /// ```
@@ -714,7 +714,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
@@ -722,12 +722,12 @@ impl Key {
     ///     let mut key = make_key!("^helloNodeNextSelf", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello")?;
     ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello")?;
     ///     // Lose the subscript, or pretend we are starting at ""
     ///     key[0].clear();
-    ///     output_buffer = key.node_next_self_st(YDB_NOTTP, output_buffer)?;
+    ///     output_buffer = key.node_next_self_st(TpToken::default(), output_buffer)?;
     ///
     ///     assert_eq!(&key[0], b"a");
     ///
@@ -756,7 +756,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
@@ -764,12 +764,12 @@ impl Key {
     ///     let mut key = make_key!("^helloNodePrevSelf", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello")?;
     ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, "Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello")?;
     ///     // We need to start at node beyond the node we are looking for; just add some Z's
     ///     key[0] = Vec::from("z");
-    ///     output_buffer = key.node_prev_self_st(YDB_NOTTP, output_buffer)?;
+    ///     output_buffer = key.node_prev_self_st(TpToken::default(), output_buffer)?;
     ///
     ///     assert_eq!(key[0], b"b");
     ///
@@ -888,7 +888,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
@@ -896,12 +896,12 @@ impl Key {
     ///     let mut key = make_key!("^helloSubNext", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     // Start at a, next subscript will be b
     ///     key[0] = Vec::from("a");
-    ///     output_buffer = key.sub_next_st(YDB_NOTTP, output_buffer)?;
+    ///     output_buffer = key.sub_next_st(TpToken::default(), output_buffer)?;
     ///
     ///     assert_eq!(&output_buffer, b"b");
     ///
@@ -925,7 +925,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
@@ -933,11 +933,11 @@ impl Key {
     ///     let mut key = make_key!("^helloSubPrev", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     // Starting at b, the previous subscript should be a
-    ///     output_buffer = key.sub_prev_st(YDB_NOTTP, output_buffer)?;
+    ///     output_buffer = key.sub_prev_st(TpToken::default(), output_buffer)?;
     ///
     ///     assert_eq!(&output_buffer, b"a");
     ///
@@ -981,7 +981,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
@@ -989,12 +989,12 @@ impl Key {
     ///     let mut key = make_key!("^helloSubNextSelf", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     // Starting at a, the next sub should be b
     ///     key[0] = Vec::from("a");
-    ///     output_buffer = key.sub_next_self_st(YDB_NOTTP, output_buffer)?;
+    ///     output_buffer = key.sub_next_self_st(TpToken::default(), output_buffer)?;
     ///
     ///     assert_eq!(&key[0], b"b");
     ///
@@ -1004,19 +1004,19 @@ impl Key {
     ///
     /// `sub_next_self_st` can be written (less efficiently) using only safe code:
     /// ```
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// # fn main() -> YDBResult<()> {
     ///
     /// // set up a node with data at `subNextSelfUser("b")`
     /// let mut user = Key::new("subNextSelfUser", &["b"]);
-    /// user.set_st(YDB_NOTTP, Vec::new(), b"Hello")?;
+    /// user.set_st(TpToken::default(), Vec::new(), b"Hello")?;
     ///
     /// user[0] = "a".into();
-    /// user[0] = user.sub_next_st(YDB_NOTTP, Vec::new())?;
+    /// user[0] = user.sub_next_st(TpToken::default(), Vec::new())?;
     ///
     /// let mut ydb = Key::new("subNextSelfUser", &["a"]);
-    /// ydb.sub_next_self_st(YDB_NOTTP, Vec::new())?;
+    /// ydb.sub_next_self_st(TpToken::default(), Vec::new())?;
     ///
     /// assert_eq!(user[0], ydb[0]);
     /// # Ok(())
@@ -1040,7 +1040,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
@@ -1048,11 +1048,11 @@ impl Key {
     ///     let mut key = make_key!("^helloSubPrevSelf", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(YDB_NOTTP, output_buffer, b"Hello")?;
+    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     // Starting at b, previous should be a
-    ///     output_buffer = key.sub_prev_self_st(YDB_NOTTP, output_buffer)?;
+    ///     output_buffer = key.sub_prev_self_st(TpToken::default(), output_buffer)?;
     ///
     ///     assert_eq!(&key[0], b"a");
     ///
@@ -1062,19 +1062,19 @@ impl Key {
     ///
     /// `sub_prev_self_st` can be written (less efficiently) using only safe code:
     /// ```
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// # fn main() -> YDBResult<()> {
     ///
     /// // set up a node with data at `subPrevSelfUser("a")`
     /// let mut user = Key::new("subPrevSelfUser", &["a"]);
-    /// user.set_st(YDB_NOTTP, Vec::new(), b"Hello")?;
+    /// user.set_st(TpToken::default(), Vec::new(), b"Hello")?;
     ///
     /// user[0] = "b".into();
-    /// user[0] = user.sub_prev_st(YDB_NOTTP, Vec::new()).unwrap();
+    /// user[0] = user.sub_prev_st(TpToken::default(), Vec::new()).unwrap();
     ///
     /// let mut ydb = Key::new("subPrevSelfUser", &["b"]);
-    /// ydb.sub_prev_self_st(YDB_NOTTP, Vec::new())?;
+    /// ydb.sub_prev_self_st(TpToken::default(), Vec::new())?;
     ///
     /// assert_eq!(user[0], ydb[0]);
     /// # Ok(())
@@ -1385,13 +1385,13 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// # Examples
 /// Rollback a transaction if an operation fails:
 /// ```
-/// use yottadb::{YDB_NOTTP, TransactionStatus};
+/// use yottadb::{TpToken, TransactionStatus};
 /// use yottadb::simple_api::{Key, tp_st};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let var = Key::variable("tpRollbackTest");
-/// var.set_st(YDB_NOTTP, Vec::new(), "initial value")?;
-/// let maybe_err = tp_st(YDB_NOTTP, Vec::new(), |tptoken| {
+/// var.set_st(TpToken::default(), Vec::new(), "initial value")?;
+/// let maybe_err = tp_st(TpToken::default(), Vec::new(), |tptoken| {
 ///     fallible_operation()?;
 ///     var.set_st(tptoken, Vec::new(), "new value")?;
 ///     Ok(TransactionStatus::Ok)
@@ -1401,7 +1401,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// } else {
 ///     b"initial value"
 /// };
-/// assert_eq!(var.get_st(YDB_NOTTP, Vec::new())?, expected_val);
+/// assert_eq!(var.get_st(TpToken::default(), Vec::new())?, expected_val);
 /// # Ok(())
 /// # }
 ///
@@ -1416,10 +1416,10 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 ///
 /// Retry a transaction until it succeeds:
 /// ```
-/// use yottadb::{YDB_NOTTP, TransactionStatus};
+/// use yottadb::{TpToken, TransactionStatus};
 /// use yottadb::simple_api::tp_st;
 ///
-/// tp_st(YDB_NOTTP, Vec::new(), |tptoken| {
+/// tp_st(TpToken::default(), Vec::new(), |tptoken| {
 ///     if fallible_operation().is_ok() {
 ///         Ok(TransactionStatus::Ok)
 ///     } else {
@@ -1522,26 +1522,26 @@ where
 ///
 /// ```
 /// # fn main() -> yottadb::YDBResult<()> {
-/// use yottadb::{YDB_NOTTP, YDB_ERR_LVUNDEF};
+/// use yottadb::{TpToken, YDB_ERR_LVUNDEF};
 /// use yottadb::simple_api::{Key, delete_excl_st};
 ///
 /// // Create three variables and set all
 /// let a = Key::variable("deleteExclTestA");
-/// a.set_st(YDB_NOTTP, Vec::new(), "test data")?;
+/// a.set_st(TpToken::default(), Vec::new(), "test data")?;
 /// let b = Key::variable("deleteExclTestB");
-/// b.set_st(YDB_NOTTP, Vec::new(), "test data 2")?;
+/// b.set_st(TpToken::default(), Vec::new(), "test data 2")?;
 /// let c = Key::variable("deleteExclTestC");
-/// c.set_st(YDB_NOTTP, Vec::new(), "test data 3")?;
+/// c.set_st(TpToken::default(), Vec::new(), "test data 3")?;
 ///
 /// // Delete all variables except `a`
-/// delete_excl_st(YDB_NOTTP, Vec::new(), &[&a.variable])?;
-/// assert_eq!(a.get_st(YDB_NOTTP, Vec::new())?, b"test data");
-/// assert_eq!(b.get_st(YDB_NOTTP, Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
-/// assert_eq!(c.get_st(YDB_NOTTP, Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
+/// delete_excl_st(TpToken::default(), Vec::new(), &[&a.variable])?;
+/// assert_eq!(a.get_st(TpToken::default(), Vec::new())?, b"test data");
+/// assert_eq!(b.get_st(TpToken::default(), Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
+/// assert_eq!(c.get_st(TpToken::default(), Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
 ///
 /// // Delete `a` too
-/// delete_excl_st(YDB_NOTTP, Vec::new(), &[])?;
-/// assert_eq!(a.get_st(YDB_NOTTP, Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
+/// delete_excl_st(TpToken::default(), Vec::new(), &[])?;
+/// assert_eq!(a.get_st(TpToken::default(), Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
 ///
 /// # Ok(())
 /// # }
@@ -1589,8 +1589,8 @@ pub fn delete_excl_st(
 /// # use yottadb::YDBError;
 /// # fn main() -> Result<(), YDBError> {
 /// use yottadb::simple_api::str2zwr_st;
-/// use yottadb::YDB_NOTTP;
-/// assert_eq!(str2zwr_st(YDB_NOTTP, Vec::new(), "💖".as_bytes())?, b"\"\xf0\"_$C(159,146,150)");
+/// use yottadb::TpToken;
+/// assert_eq!(str2zwr_st(TpToken::default(), Vec::new(), "💖".as_bytes())?, b"\"\xf0\"_$C(159,146,150)");
 /// # Ok(())
 /// # }
 /// ```
@@ -1619,8 +1619,8 @@ pub fn str2zwr_st(tptoken: TpToken, out_buf: Vec<u8>, original: &[u8]) -> YDBRes
 /// # use yottadb::YDBError;
 /// # fn main() -> Result<(), YDBError> {
 /// use yottadb::simple_api::zwr2str_st;
-/// use yottadb::YDB_NOTTP;
-/// let out_buf = zwr2str_st(YDB_NOTTP, Vec::new(), b"\"\xf0\"_$C(159,146,150)")?;
+/// use yottadb::TpToken;
+/// let out_buf = zwr2str_st(TpToken::default(), Vec::new(), b"\"\xf0\"_$C(159,146,150)")?;
 /// assert_eq!(out_buf.as_slice(), "💖".as_bytes());
 /// # Ok(())
 /// # }
@@ -1657,12 +1657,12 @@ pub fn zwr2str_st(
 /// # Example
 /// Look up the error message for an undefined local variable:
 /// ```
-/// use yottadb::{YDB_NOTTP, YDB_ERR_LVUNDEF};
+/// use yottadb::{TpToken, YDB_ERR_LVUNDEF};
 /// use yottadb::simple_api::{self, Key};
 /// let key = Key::variable("oopsNotDefined");
-/// let err = key.get_st(YDB_NOTTP, Vec::new()).unwrap_err();
+/// let err = key.get_st(TpToken::default(), Vec::new()).unwrap_err();
 /// assert_eq!(err.status, YDB_ERR_LVUNDEF);
-/// let buf = simple_api::message_t(YDB_NOTTP, Vec::new(), err.status).unwrap();
+/// let buf = simple_api::message_t(TpToken::default(), Vec::new(), err.status).unwrap();
 /// let msg = String::from_utf8(buf).unwrap();
 /// assert!(msg.contains("Undefined local variable"));
 /// ```
@@ -1687,8 +1687,8 @@ pub fn message_t(tptoken: TpToken, out_buffer: Vec<u8>, status: i32) -> YDBResul
 ///
 /// # Example
 /// ```
-/// use yottadb::{simple_api, YDB_NOTTP};
-/// let release = simple_api::release_t(YDB_NOTTP, Vec::new()).unwrap();
+/// use yottadb::{simple_api, TpToken};
+/// let release = simple_api::release_t(TpToken::default(), Vec::new()).unwrap();
 /// ```
 pub fn release_t(tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<String> {
     let zrelease = Key::variable("$ZYRELEASE").get_st(tptoken, out_buffer)?;
@@ -1736,20 +1736,20 @@ pub fn release_t(tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<String> {
 /// ```
 /// use std::slice;
 /// use std::time::Duration;
-/// use yottadb::YDB_NOTTP;
+/// use yottadb::TpToken;
 /// use yottadb::simple_api::{Key, lock_st};
 ///
 /// // acquire a new lock
 /// let a = Key::variable("lockA");
 /// // using `from_ref` here allows us to use `a` later without moving it
-/// lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), slice::from_ref(&a)).unwrap();
+/// lock_st(TpToken::default(), Vec::new(), Duration::from_secs(1), slice::from_ref(&a)).unwrap();
 ///
 /// // acquire multiple locks
 /// let locks = vec![a, Key::variable("lockB")];
-/// lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &locks).unwrap();
+/// lock_st(TpToken::default(), Vec::new(), Duration::from_secs(1), &locks).unwrap();
 ///
 /// // release all locks
-/// lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1), &[]).unwrap();
+/// lock_st(TpToken::default(), Vec::new(), Duration::from_secs(1), &[]).unwrap();
 /// ```
 ///
 /// # See also

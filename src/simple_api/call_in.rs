@@ -59,10 +59,10 @@ pub struct CallInTableDescriptor(usize);
 /// ```
 /// # fn main() -> yottadb::YDBResult<()> {
 /// use std::ffi::CString;
-/// use yottadb::{simple_api::call_in, YDB_NOTTP};
+/// use yottadb::{simple_api::call_in, TpToken};
 ///
 /// let file = CString::new("examples/m-ffi/calltab.ci").unwrap();
-/// let descriptor = call_in::ci_tab_open_t(YDB_NOTTP, Vec::new(), &file)?;
+/// let descriptor = call_in::ci_tab_open_t(TpToken::default(), Vec::new(), &file)?;
 /// # Ok(())
 /// # }
 pub fn ci_tab_open_t(
@@ -99,10 +99,10 @@ pub fn ci_tab_open_t(
 /// ```
 /// # fn main() -> yottadb::YDBResult<()> {
 /// use std::ffi::CString;
-/// use yottadb::{simple_api::call_in, YDB_NOTTP};
+/// use yottadb::{simple_api::call_in, TpToken};
 /// let file = CString::new("examples/m-ffi/calltab.ci").unwrap();
-/// let (descriptor, err_buf) = call_in::ci_tab_open_t(YDB_NOTTP, Vec::new(), &file)?;
-/// let old_ci_table = call_in::ci_tab_switch_t(YDB_NOTTP, err_buf, descriptor)?;
+/// let (descriptor, err_buf) = call_in::ci_tab_open_t(TpToken::default(), Vec::new(), &file)?;
+/// let old_ci_table = call_in::ci_tab_switch_t(TpToken::default(), err_buf, descriptor)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -142,7 +142,7 @@ pub fn ci_tab_switch_t(
 /// ```
 /// use std::env;
 /// use std::ffi::CString;
-/// use yottadb::{craw, ci_t, YDB_NOTTP};
+/// use yottadb::{craw, ci_t, TpToken};
 ///
 /// env::set_var("ydb_routines", "examples/m-ffi");
 /// env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
@@ -151,7 +151,7 @@ pub fn ci_tab_switch_t(
 /// let mut msg = craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut i8 };
 /// let routine = CString::new("HelloWorld1").unwrap();
 /// unsafe {
-///     ci_t!(YDB_NOTTP, Vec::with_capacity(100), &routine, &mut msg as *mut _).unwrap();
+///     ci_t!(TpToken::default(), Vec::with_capacity(100), &routine, &mut msg as *mut _).unwrap();
 ///     buf.set_len(msg.length as usize);
 /// }
 /// assert_eq!(&buf, b"entry called");
@@ -233,7 +233,7 @@ impl Drop for CallInDescriptor {
 /// ```
 /// use std::env;
 /// use std::ffi::CString;
-/// use yottadb::{craw, cip_t, CallInDescriptor, YDB_NOTTP};
+/// use yottadb::{craw, cip_t, CallInDescriptor, TpToken};
 ///
 /// env::set_var("ydb_routines", "examples/m-ffi");
 /// env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
@@ -242,7 +242,7 @@ impl Drop for CallInDescriptor {
 /// let mut msg = craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut i8 };
 /// let mut routine = CallInDescriptor::new(CString::new("HelloWorld1").unwrap());
 /// unsafe {
-///     cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut msg as *mut _).unwrap();
+///     cip_t!(TpToken::default(), Vec::with_capacity(100), &mut routine, &mut msg as *mut _).unwrap();
 ///     buf.set_len(msg.length as usize);
 /// }
 /// assert_eq!(&buf, b"entry called");

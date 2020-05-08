@@ -273,7 +273,7 @@ impl Context {
     /// # Examples
     /// Rollback a transaction if an operation fails:
     /// ```
-    /// use yottadb::{YDB_NOTTP, TransactionStatus};
+    /// use yottadb::{TpToken, TransactionStatus};
     /// use yottadb::context_api::{Context, KeyContext};
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -290,7 +290,7 @@ impl Context {
     /// } else {
     ///     b"initial value"
     /// };
-    /// assert_eq!(var.get_st(YDB_NOTTP, Vec::new())?, expected_val);
+    /// assert_eq!(var.get_st(TpToken::default(), Vec::new())?, expected_val);
     /// # Ok(())
     /// # }
     ///
@@ -305,7 +305,7 @@ impl Context {
     ///
     /// Retry a transaction until it succeeds:
     /// ```
-    /// use yottadb::{YDB_NOTTP, TransactionStatus};
+    /// use yottadb::{TpToken, TransactionStatus};
     /// use yottadb::context_api::Context;
     ///
     /// let ctx = Context::new();
@@ -374,7 +374,7 @@ impl Context {
     ///
     /// ```
     /// # fn main() -> yottadb::YDBResult<()> {
-    /// use yottadb::{YDB_NOTTP, YDB_ERR_LVUNDEF};
+    /// use yottadb::{TpToken, YDB_ERR_LVUNDEF};
     /// use yottadb::context_api::{Context, KeyContext};
     ///
     /// // Create three variables and set all
@@ -424,7 +424,7 @@ impl Context {
     /// # use yottadb::YDBError;
     /// # fn main() -> Result<(), YDBError> {
     /// use yottadb::context_api::Context;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     ///
     /// let ctx = Context::new();
     /// assert_eq!(ctx.str2zwr("💖".as_bytes())?, b"\"\xf0\"_$C(159,146,150)");
@@ -457,7 +457,7 @@ impl Context {
     /// ```
     /// # use yottadb::YDBError;
     /// # fn main() -> Result<(), YDBError> {
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::context_api::Context;
     ///
     /// let ctx = Context::new();
@@ -529,7 +529,7 @@ impl Context {
     /// ```
     /// use std::slice;
     /// use std::time::Duration;
-    /// use yottadb::YDB_NOTTP;
+    /// use yottadb::TpToken;
     /// use yottadb::context_api::{Context, KeyContext};
     /// use yottadb::simple_api::Key;
     ///
@@ -592,7 +592,7 @@ impl Context {
     /// # Example
     /// Look up the error message for an undefined local variable:
     /// ```
-    /// use yottadb::{YDB_NOTTP, YDB_ERR_LVUNDEF};
+    /// use yottadb::{TpToken, YDB_ERR_LVUNDEF};
     /// use yottadb::context_api::{Context, KeyContext};
     ///
     /// let ctx = Context::new();
