@@ -1940,34 +1940,34 @@ pub(crate) mod tests {
         let key = Key::variable("^basicSetGet");
 
         // Try setting a value
-        result = key.set_st(0, result, b"Hello world!").unwrap();
+        result = key.set_st(YDB_NOTTP, result, b"Hello world!").unwrap();
         // Then try getting the value we set
-        result = key.get_st(0, result).unwrap();
+        result = key.get_st(YDB_NOTTP, result).unwrap();
         assert_eq!(result, b"Hello world!");
 
         // Try an error where the error message is shorter than the retrieved value
         let val: &[_] = &[b'a'; 1000];
-        key.set_st(0, result, &val).unwrap();
+        key.set_st(YDB_NOTTP, result, &val).unwrap();
         // Then try getting the value we set
-        result = key.get_st(0, Vec::new()).unwrap();
+        result = key.get_st(YDB_NOTTP, Vec::new()).unwrap();
         assert_eq!(result, val);
     }
 
     #[test]
     fn ydb_get_st_error() {
         let key = Key::variable("^helloDoesntExists");
-        let err = key.get_st(0, Vec::new()).unwrap_err();
+        let err = key.get_st(YDB_NOTTP, Vec::new()).unwrap_err();
         assert_eq!(err.status, crate::craw::YDB_ERR_GVUNDEF);
 
         let key = Key::variable("helloDoesntExists");
-        let err = key.get_st(0, Vec::new()).unwrap_err();
+        let err = key.get_st(YDB_NOTTP, Vec::new()).unwrap_err();
         assert_eq!(err.status, crate::craw::YDB_ERR_LVUNDEF);
     }
 
     #[test]
     fn ydb_set_st_error() {
         let key = Key::variable("$ZCHSET");
-        let err = key.set_st(0, Vec::new(), "some val").unwrap_err();
+        let err = key.set_st(YDB_NOTTP, Vec::new(), "some val").unwrap_err();
         assert_eq!(err.status, craw::YDB_ERR_SVNOSET)
         // other errors tested in `common_errors`
     }
@@ -1978,29 +1978,29 @@ pub(crate) mod tests {
         let mut key = Key::variable("testDataSt");
 
         // should be empty to start
-        let (retval, err_buf) = key.data_st(0, err_buf).unwrap();
+        let (retval, err_buf) = key.data_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(retval, DataReturn::NoData);
 
         // set the node
-        let err_buf = key.set_st(0, err_buf, "some data").unwrap();
-        let (retval, err_buf) = key.data_st(0, err_buf).unwrap();
+        let err_buf = key.set_st(YDB_NOTTP, err_buf, "some data").unwrap();
+        let (retval, err_buf) = key.data_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(retval, DataReturn::ValueData);
 
         // set node and child
         key.push("some subscript".into());
-        let err_buf = key.set_st(0, err_buf, "subscript data").unwrap();
+        let err_buf = key.set_st(YDB_NOTTP, err_buf, "subscript data").unwrap();
         key.pop();
-        let (retval, err_buf) = key.data_st(0, err_buf).unwrap();
+        let (retval, err_buf) = key.data_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(retval, DataReturn::ValueTreeData);
 
         // delete the node, keep the child
-        let err_buf = key.delete_st(0, err_buf, DeleteType::DelNode).unwrap();
-        let (retval, err_buf) = key.data_st(0, err_buf).unwrap();
+        let err_buf = key.delete_st(YDB_NOTTP, err_buf, DeleteType::DelNode).unwrap();
+        let (retval, err_buf) = key.data_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(retval, DataReturn::TreeData);
 
         // delete the tree
-        let err_buf = key.delete_st(0, err_buf, DeleteType::DelTree).unwrap();
-        let (retval, _) = key.data_st(0, err_buf).unwrap();
+        let err_buf = key.delete_st(YDB_NOTTP, err_buf, DeleteType::DelTree).unwrap();
+        let (retval, _) = key.data_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(retval, DataReturn::NoData);
     }
 
@@ -2010,13 +2010,13 @@ pub(crate) mod tests {
         let key = Key::variable("^helloDeleteMe");
 
         // Try setting a value
-        result = key.set_st(0, result, b"Hello world!").unwrap();
+        result = key.set_st(YDB_NOTTP, result, b"Hello world!").unwrap();
         // Check data
-        let (retval, mut result) = key.data_st(0, result).unwrap();
+        let (retval, mut result) = key.data_st(YDB_NOTTP, result).unwrap();
         assert_ne!(retval, DataReturn::NoData);
         // Delete the value
-        result = key.delete_st(0, result, DeleteType::DelNode).unwrap();
-        let (retval, _) = key.data_st(0, result).unwrap();
+        result = key.delete_st(YDB_NOTTP, result, DeleteType::DelNode).unwrap();
+        let (retval, _) = key.data_st(YDB_NOTTP, result).unwrap();
         // Check for no data
         assert_eq!(retval, DataReturn::NoData);
     }
@@ -2027,34 +2027,34 @@ pub(crate) mod tests {
         let mut key = Key::variable("deleteExcl");
 
         // Set a few values
-        let out_buf = key.set_st(0, out_buf, b"some value").unwrap();
+        let out_buf = key.set_st(YDB_NOTTP, out_buf, b"some value").unwrap();
         key.variable = "deleteExcl2".into();
-        let out_buf = key.set_st(0, out_buf, b"some value").unwrap();
+        let out_buf = key.set_st(YDB_NOTTP, out_buf, b"some value").unwrap();
 
         // Delete `deleteExcl2`, saving `deleteExcl`
-        let out_buf = delete_excl_st(0, out_buf, &["deleteExcl"]).unwrap();
+        let out_buf = delete_excl_st(YDB_NOTTP, out_buf, &["deleteExcl"]).unwrap();
         // Check data
-        let (data_type, out_buf) = key.data_st(0, out_buf).unwrap();
+        let (data_type, out_buf) = key.data_st(YDB_NOTTP, out_buf).unwrap();
         assert_eq!(data_type, DataReturn::NoData);
         key.variable = "deleteExcl".into();
-        let (data_type, out_buf) = key.data_st(0, out_buf).unwrap();
+        let (data_type, out_buf) = key.data_st(YDB_NOTTP, out_buf).unwrap();
         assert_eq!(data_type, DataReturn::ValueData);
 
         // Delete `deleteExcl`
-        let out_buf = delete_excl_st(0, out_buf, &[]).unwrap();
+        let out_buf = delete_excl_st(YDB_NOTTP, out_buf, &[]).unwrap();
         // Make sure it was actually deleted
-        let (data_type, out_buf) = key.data_st(0, out_buf).unwrap();
+        let (data_type, out_buf) = key.data_st(YDB_NOTTP, out_buf).unwrap();
         assert_eq!(data_type, DataReturn::NoData);
 
         // Saving a global/intrinsic variable should be an error
         use crate::craw::YDB_ERR_INVVARNAME;
-        let err = delete_excl_st(0, out_buf, &["^global"]).unwrap_err();
+        let err = delete_excl_st(YDB_NOTTP, out_buf, &["^global"]).unwrap_err();
         assert_eq!(err.status, YDB_ERR_INVVARNAME);
-        let err = delete_excl_st(0, Vec::new(), &["$ZSTATUS"]).unwrap_err();
+        let err = delete_excl_st(YDB_NOTTP, Vec::new(), &["$ZSTATUS"]).unwrap_err();
         assert_eq!(err.status, YDB_ERR_INVVARNAME);
 
         // Saving a variable that doesn't exist should do nothing and return YDB_OK.
-        delete_excl_st(0, Vec::new(), &["local"]).unwrap();
+        delete_excl_st(YDB_NOTTP, Vec::new(), &["local"]).unwrap();
 
         // Check for `YDB_ERR_NAMECOUNT2HI` if too many params are passed
         use crate::craw::{YDB_ERR_NAMECOUNT2HI, YDB_MAX_NAMES};
@@ -2069,29 +2069,29 @@ pub(crate) mod tests {
         let key = Key::variable("^helloIncrementMe");
         let err_buf = key.set_st(YDB_NOTTP, err_buf, "0").unwrap();
 
-        let err_buf = key.incr_st(0, err_buf, None).unwrap();
+        let err_buf = key.incr_st(YDB_NOTTP, err_buf, None).unwrap();
         let out_buf = key.get_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(&out_buf, b"1");
 
         let num = 1500.to_string().into_bytes();
-        let err_buf = key.incr_st(0, out_buf, Some(&num)).unwrap();
+        let err_buf = key.incr_st(YDB_NOTTP, out_buf, Some(&num)).unwrap();
         let out_buf = key.get_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(&out_buf, b"1501");
 
         // make sure that incr_st works even if the node doesn't exist yet
         let err_buf = key.delete_st(YDB_NOTTP, out_buf, DeleteType::DelNode).unwrap();
-        let err_buf = key.incr_st(0, err_buf, None).unwrap();
+        let err_buf = key.incr_st(YDB_NOTTP, err_buf, None).unwrap();
         let out_buf = key.get_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(&out_buf, b"1");
 
         // Make sure the value is converted when it isn't a number
         let err_buf = key.set_st(YDB_NOTTP, out_buf, "not a number").unwrap();
-        let err_buf = key.incr_st(0, err_buf, None).unwrap();
+        let err_buf = key.incr_st(YDB_NOTTP, err_buf, None).unwrap();
         let out_buf = key.get_st(YDB_NOTTP, err_buf).unwrap();
         assert_eq!(&out_buf, b"1");
 
         // Clean up
-        key.delete_st(0, out_buf, DeleteType::DelNode).unwrap();
+        key.delete_st(YDB_NOTTP, out_buf, DeleteType::DelNode).unwrap();
     }
 
     // Return the number of locks held for `var`
@@ -2238,11 +2238,11 @@ pub(crate) mod tests {
         let mut result = Vec::with_capacity(1);
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeNext", "shire");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(YDB_NOTTP, result, &value).unwrap();
         key[0] = Vec::from("hyrule");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(YDB_NOTTP, result, &value).unwrap();
         key[0] = Vec::from("a");
-        key.node_next_self_st(0, result).unwrap();
+        key.node_next_self_st(YDB_NOTTP, result).unwrap();
     }
 
     #[test]
@@ -2250,24 +2250,24 @@ pub(crate) mod tests {
         let mut result = Vec::with_capacity(1);
         let value = b"Hello world!";
         let mut key = make_key!("^helloNodeNext2", "worlds", "shire");
-        result = key.set_st(0, result, value).unwrap();
+        result = key.set_st(YDB_NOTTP, result, value).unwrap();
         key[1] = Vec::from("hyrule");
-        result = key.set_st(0, result, value).unwrap();
+        result = key.set_st(YDB_NOTTP, result, value).unwrap();
         key.truncate(2);
-        key.node_next_self_st(0, result).unwrap();
+        key.node_next_self_st(YDB_NOTTP, result).unwrap();
 
         // YDB_ERR_NODEEND
         // make sure NODEEND is still returned if we call multiple times in a row
         for _ in 0..10 {
-            let err = key.node_next_self_st(0, Vec::new()).unwrap_err();
+            let err = key.node_next_self_st(YDB_NOTTP, Vec::new()).unwrap_err();
             assert_eq!(err.status, craw::YDB_ERR_NODEEND);
         }
 
         // now test it for node_prev_self
-        key.node_prev_self_st(0, Vec::new()).unwrap();
+        key.node_prev_self_st(YDB_NOTTP, Vec::new()).unwrap();
         assert_eq!(key[1], b"hyrule");
         for _ in 0..10 {
-            let err = key.node_prev_self_st(0, Vec::new()).unwrap_err();
+            let err = key.node_prev_self_st(YDB_NOTTP, Vec::new()).unwrap_err();
             assert_eq!(err.status, craw::YDB_ERR_NODEEND);
         }
     }
@@ -2277,11 +2277,11 @@ pub(crate) mod tests {
         let mut result = Vec::with_capacity(1);
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeprev", "shire");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(YDB_NOTTP, result, &value).unwrap();
         key[0] = Vec::from("hyrule");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(YDB_NOTTP, result, &value).unwrap();
         key[0] = Vec::from("z");
-        if let Err(err) = key.node_prev_self_st(0, result) {
+        if let Err(err) = key.node_prev_self_st(YDB_NOTTP, result) {
             panic!("{}", err);
         }
     }
@@ -2291,41 +2291,41 @@ pub(crate) mod tests {
         let mut result = Vec::with_capacity(1);
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeprev2", "worlds", "shire");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(YDB_NOTTP, result, &value).unwrap();
         key[1] = Vec::from("hyrule");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(YDB_NOTTP, result, &value).unwrap();
         key.truncate(2);
         key[0] = Vec::from("z");
-        key.node_prev_self_st(0, result).unwrap();
+        key.node_prev_self_st(YDB_NOTTP, result).unwrap();
     }
 
     #[test]
     fn ydb_subscript_next() {
         let mut result = Vec::with_capacity(1);
         let mut key = make_key!("^helloSubNext", "a");
-        result = key.set_st(0, result, b"Hello world!").unwrap();
+        result = key.set_st(YDB_NOTTP, result, b"Hello world!").unwrap();
         key[0] = Vec::with_capacity(1);
-        result = key.sub_next_st(0, result).unwrap();
+        result = key.sub_next_st(YDB_NOTTP, result).unwrap();
         assert_eq!(result, b"a");
         key[0] = vec![b'a'];
-        key.delete_st(0, Vec::new(), DeleteType::DelNode).unwrap();
+        key.delete_st(YDB_NOTTP, Vec::new(), DeleteType::DelNode).unwrap();
 
         key[0] = vec![b'a'; 100];
-        key.delete_st(0, Vec::new(), DeleteType::DelNode).unwrap();
+        key.delete_st(YDB_NOTTP, Vec::new(), DeleteType::DelNode).unwrap();
 
         // Test a subscript with an INVSTRLEN shorter than the required capacity
         key[0] = vec![b'a'; 150];
-        key.set_st(0, result, "some val").expect("set_st");
+        key.set_st(YDB_NOTTP, result, "some val").expect("set_st");
 
         key[0] = vec![b'a'];
-        let subs = key.sub_next_st(0, Vec::new()).expect("sub_next");
+        let subs = key.sub_next_st(YDB_NOTTP, Vec::new()).expect("sub_next");
         assert_eq!(subs.as_slice(), &[b'a'; 150][..]);
 
         key[0] = vec![b'b'];
-        let subs = key.sub_prev_st(0, Vec::new()).expect("sub_prev");
+        let subs = key.sub_prev_st(YDB_NOTTP, Vec::new()).expect("sub_prev");
         assert_eq!(subs.as_slice(), &[b'a'; 150][..]);
         key[0] = subs;
-        key.delete_st(0, Vec::new(), DeleteType::DelTree).unwrap();
+        key.delete_st(YDB_NOTTP, Vec::new(), DeleteType::DelTree).unwrap();
     }
 
     #[test]
@@ -2333,9 +2333,9 @@ pub(crate) mod tests {
         let mut result = Vec::with_capacity(1);
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubprev", "b");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(YDB_NOTTP, result, &value).unwrap();
         key[0] = Vec::from("z");
-        result = key.sub_prev_st(0, result).unwrap();
+        result = key.sub_prev_st(YDB_NOTTP, result).unwrap();
         assert_eq!(result, Vec::from("b"));
     }
 
@@ -2344,10 +2344,10 @@ pub(crate) mod tests {
         let mut result = Vec::with_capacity(1);
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubNext2", "shire");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(YDB_NOTTP, result, &value).unwrap();
         // TODO: we need a better way to expand these buffers in the _self function
         key[0] = Vec::with_capacity(1);
-        key.sub_next_self_st(0, result).unwrap();
+        key.sub_next_self_st(YDB_NOTTP, result).unwrap();
         assert_eq!(key[0], Vec::from("shire"));
     }
 
@@ -2356,9 +2356,9 @@ pub(crate) mod tests {
         let mut result = Vec::with_capacity(1);
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubprev2", "shire");
-        result = key.set_st(0, result, &value).unwrap();
+        result = key.set_st(YDB_NOTTP, result, &value).unwrap();
         key[0] = Vec::from("z");
-        key.sub_prev_self_st(0, result).unwrap();
+        key.sub_prev_self_st(YDB_NOTTP, result).unwrap();
         assert_eq!(key[0], Vec::from("shire"));
     }
 
@@ -2370,7 +2370,7 @@ pub(crate) mod tests {
         let key = Key::variable("tpPersistence");
         let result = Vec::with_capacity(1);
         let result = tp_st(
-            0,
+            YDB_NOTTP,
             result,
             |tptoken| {
                 key.set_st(tptoken, Vec::new(), "value").unwrap();
@@ -2380,16 +2380,16 @@ pub(crate) mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(key.get_st(0, Vec::new()).unwrap(), b"value");
+        assert_eq!(key.get_st(YDB_NOTTP, Vec::new()).unwrap(), b"value");
 
         // user error
-        let err = tp_st(0, result, |_| Err("oops!".into()), "BATCH", &[]).unwrap_err();
+        let err = tp_st(YDB_NOTTP, result, |_| Err("oops!".into()), "BATCH", &[]).unwrap_err();
         assert_eq!(err.to_string(), "oops!");
 
         // ydb error
         let vec = Vec::with_capacity(10);
         let err = tp_st(
-            0,
+            YDB_NOTTP,
             vec,
             |tptoken| {
                 let key = make_key!("hello");
@@ -2444,7 +2444,7 @@ pub(crate) mod tests {
     fn nested_transaction() {
         let mut first_run = true;
         tp_st(
-            0,
+            YDB_NOTTP,
             Vec::new(),
             |tptoken| {
                 // Save this value because it's about to change
@@ -2492,8 +2492,8 @@ pub(crate) mod tests {
         for locals in &[&["*"][..], &[a.variable.as_str()], &[&a.variable, "b", "c"]] {
             let mut i = 0;
 
-            a.set_st(0, Vec::new(), "initial value").unwrap();
-            assert_eq!(&a.get_st(0, Vec::new()).unwrap(), b"initial value");
+            a.set_st(YDB_NOTTP, Vec::new(), "initial value").unwrap();
+            assert_eq!(&a.get_st(YDB_NOTTP, Vec::new()).unwrap(), b"initial value");
 
             // make sure `a` is reset after each call
             let closure = |tptoken| {
@@ -2507,17 +2507,17 @@ pub(crate) mod tests {
                     Ok(TransactionStatus::Restart)
                 }
             };
-            tp_st(0, Vec::new(), closure, "BATCH", locals).unwrap();
+            tp_st(YDB_NOTTP, Vec::new(), closure, "BATCH", locals).unwrap();
         }
 
         // now make sure that locals are not reset unless specified
         for locals in &[&["b"][..], &["b", "c", "d"], &[]] {
-            a.set_st(0, Vec::new(), "initial value").unwrap();
-            assert_eq!(&a.get_st(0, Vec::new()).unwrap(), b"initial value");
+            a.set_st(YDB_NOTTP, Vec::new(), "initial value").unwrap();
+            assert_eq!(&a.get_st(YDB_NOTTP, Vec::new()).unwrap(), b"initial value");
 
             let mut i = 0;
             tp_st(
-                0,
+                YDB_NOTTP,
                 Vec::new(),
                 |tptoken| {
                     if i == 0 {
@@ -2544,17 +2544,14 @@ pub(crate) mod tests {
     #[test]
     #[should_panic]
     fn panic_in_cb() {
-        tp_st(0, Vec::with_capacity(10), |_| panic!("oh no!"), "BATCH", &[]).unwrap_err();
+        tp_st(YDB_NOTTP, Vec::with_capacity(10), |_| panic!("oh no!"), "BATCH", &[]).unwrap_err();
     }
 
     #[test]
     fn ydb_message_t() {
         use crate::craw;
-        let mut err = YDBError {
-            message: Vec::new(),
-            status: craw::YDB_ERR_GVUNDEF,
-            tptoken: craw::YDB_NOTTP,
-        };
+        let mut err =
+            YDBError { message: Vec::new(), status: craw::YDB_ERR_GVUNDEF, tptoken: YDB_NOTTP };
         assert!(err.to_string().contains("%YDB-E-GVUNDEF, Global variable undefined"));
 
         // make sure it works even if it has to resize the out_buffer
@@ -2652,7 +2649,7 @@ pub(crate) mod tests {
         let err_buf = key.set_st(YDB_NOTTP, err_buf, "data").unwrap();
         key[0].clear();
 
-        let err = key.get_st(0, Vec::new()).unwrap_err();
+        let err = key.get_st(YDB_NOTTP, Vec::new()).unwrap_err();
         assert_eq!(err.status, YDB_ERR_LVUNDEF);
 
         let err_buf = key.node_next_self_st(YDB_NOTTP, err_buf).unwrap();
@@ -2667,57 +2664,58 @@ pub(crate) mod tests {
     fn common_errors() {
         let expect_err_with = |key: Key, err_code, get| {
             // data_st
-            let err = key.data_st(0, Vec::with_capacity(50)).unwrap_err();
+            let err = key.data_st(YDB_NOTTP, Vec::with_capacity(50)).unwrap_err();
             assert_eq!(err.status, err_code);
 
             // delete_st
-            let err = key.delete_st(0, Vec::with_capacity(50), DeleteType::DelNode).unwrap_err();
+            let err =
+                key.delete_st(YDB_NOTTP, Vec::with_capacity(50), DeleteType::DelNode).unwrap_err();
             assert_eq!(err.status, err_code);
 
             // incr_st
-            let err = key.incr_st(0, Vec::with_capacity(50), None).unwrap_err();
+            let err = key.incr_st(YDB_NOTTP, Vec::with_capacity(50), None).unwrap_err();
             assert_eq!(err.status, err_code);
 
             // get_st
             if get {
-                let err = key.get_st(0, Vec::with_capacity(50)).unwrap_err();
+                let err = key.get_st(YDB_NOTTP, Vec::with_capacity(50)).unwrap_err();
                 assert_eq!(err.status, err_code);
 
-                let err = key.set_st(0, Vec::with_capacity(50), b"some val").unwrap_err();
+                let err = key.set_st(YDB_NOTTP, Vec::with_capacity(50), b"some val").unwrap_err();
                 assert_eq!(err.status, err_code);
             }
 
             // lock_st
             let slice = std::slice::from_ref(&key);
-            let res = lock_st(0, Vec::new(), Duration::from_secs(0), slice);
+            let res = lock_st(YDB_NOTTP, Vec::new(), Duration::from_secs(0), slice);
             assert_eq!(res.unwrap_err().status, err_code);
 
             // lock_incr_st
-            let err = key.lock_incr_st(0, Vec::new(), Duration::from_secs(1)).unwrap_err();
+            let err = key.lock_incr_st(YDB_NOTTP, Vec::new(), Duration::from_secs(1)).unwrap_err();
             assert_eq!(err.status, err_code);
 
             // lock_decr_st
-            let err = key.lock_decr_st(0, Vec::new()).unwrap_err();
+            let err = key.lock_decr_st(YDB_NOTTP, Vec::new()).unwrap_err();
             assert_eq!(err.status, err_code);
 
             // node_next_st
             let mut dup = key.clone();
-            let err = dup.node_next_self_st(0, Vec::new()).unwrap_err();
+            let err = dup.node_next_self_st(YDB_NOTTP, Vec::new()).unwrap_err();
             assert_eq!(err.status, err_code);
 
             // node_prev_st
             let mut dup = key.clone();
-            let err = dup.node_prev_self_st(0, Vec::new()).unwrap_err();
+            let err = dup.node_prev_self_st(YDB_NOTTP, Vec::new()).unwrap_err();
             assert_eq!(err.status, err_code);
 
             // sub_next_st
             let mut dup = key.clone();
-            let err = dup.sub_next_self_st(0, Vec::new()).unwrap_err();
+            let err = dup.sub_next_self_st(YDB_NOTTP, Vec::new()).unwrap_err();
             assert_eq!(err.status, err_code);
 
             // sub_prev_st
             let mut dup = key.clone();
-            let err = dup.sub_prev_self_st(0, Vec::new()).unwrap_err();
+            let err = dup.sub_prev_self_st(YDB_NOTTP, Vec::new()).unwrap_err();
             assert_eq!(err.status, err_code);
         };
         let expect_err = |varname, err_code, get| {
@@ -2743,13 +2741,13 @@ pub(crate) mod tests {
     fn increment_errors() {
         let key = Key::variable("incrementError");
         let err_buf = Vec::with_capacity(50);
-        let err_buf = key.set_st(0, err_buf, "9E46").unwrap();
-        let err = key.incr_st(0, err_buf, Some(b"1E46")).unwrap_err();
+        let err_buf = key.set_st(YDB_NOTTP, err_buf, "9E46").unwrap();
+        let err = key.incr_st(YDB_NOTTP, err_buf, Some(b"1E46")).unwrap_err();
         assert_eq!(err.status, crate::craw::YDB_ERR_NUMOFLOW);
     }
     #[test]
     fn undef_var() {
-        use crate::craw::{YDB_NOTTP, YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
+        use crate::craw::{YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
         let key = Key::variable("^doesnotexist");
         let err_buf = Vec::with_capacity(10);
         let res = key.get_st(YDB_NOTTP, err_buf);
