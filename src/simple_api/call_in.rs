@@ -418,17 +418,22 @@ mod test {
     }
     #[test]
     #[serial]
+    // Test that M FFI works from within a transaction
     fn call_in_tp() {
         use crate::simple_api::{tp_st, TransactionStatus};
 
+        // Set up environment variables
         call(|| {
             let do_callin = |tptoken| {
+                // Create a C string with a no-op M function
                 let mut routine = CStr::from_bytes_with_nul(b"noop\0").unwrap();
                 unsafe {
+                    // Call the `noop` M function
                     ci_t!(tptoken, Vec::new(), &mut routine).unwrap();
                 }
                 Ok(TransactionStatus::Ok)
             };
+            // Start a transaction before making the call
             tp_st(YDB_NOTTP, Vec::new(), do_callin, "BATCH", &[]).unwrap();
         });
     }
