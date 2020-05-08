@@ -207,6 +207,17 @@ impl Context {
         KeyContext::with_key(self, key)
     }
 
+    /// Return the tptoken associated with this `Context`.
+    ///
+    /// This allows calling yottadb functions in the `craw` API that have not yet been wrapped
+    /// and require a tptoken from inside a transaction.
+    ///
+    /// # See also
+    /// - [`Context::tp`](struct.Context.html#method.tp)
+    pub fn tptoken(&self) -> u64 {
+        self.borrow().tptoken
+    }
+
     /// Start a new transaction, where `f` is the transaction to execute.
     ///
     /// The parameter `trans_id` is the name logged for the transaction.
