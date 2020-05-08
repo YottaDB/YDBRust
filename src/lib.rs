@@ -46,11 +46,14 @@ pub mod context_api;
 pub mod craw;
 pub mod simple_api;
 
-pub use craw::{YDB_NOTTP, YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
+pub use craw::{YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
 pub use simple_api::{
     call_in::{CallInDescriptor, CallInTableDescriptor},
-    DataReturn, DeleteType, TransactionStatus, YDBError, YDBResult,
+    DataReturn, DeleteType, TransactionStatus, TpToken, YDBError, YDBResult,
 };
+// This can't use `TpToken::default` because traits cannot have `const fn`
+/// The default transaction processing token if no transaction is in progress.
+pub const YDB_NOTTP: TpToken = TpToken(craw::YDB_NOTTP);
 
 use std::os::raw::c_int;
 /// Cleans up the process connection/access to all databases and all yottadb data structures.

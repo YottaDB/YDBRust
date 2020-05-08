@@ -106,7 +106,7 @@ pub struct YDBError {
     /// The [transaction] that was in process when the error occurred.
     ///
     /// [transaction]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
-    pub tptoken: u64,
+    pub tptoken: TpToken,
 }
 
 impl fmt::Debug for YDBError {
@@ -139,6 +139,27 @@ impl error::Error for YDBError {
 
 /// A specialized `Result` type returned by a YottaDB function.
 pub type YDBResult<T> = Result<T, YDBError>;
+
+/// A transaction processing token, used by yottadb to ensure ACID properties.
+///
+/// The only valid values for a TpToken are the default (`YDB_NOTTP`)
+/// or a token passed in from [`tp_st`](fn.tp_st.html).
+///
+/// TpTokens can be converted to `u64`, but not vice-versa.
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+pub struct TpToken(pub(crate) u64);
+
+impl Default for TpToken {
+    fn default() -> Self {
+        TpToken(crate::craw::YDB_NOTTP)
+    }
+}
+
+impl Into<u64> for TpToken {
+    fn into(self) -> u64 {
+        self.0
+    }
+}
 
 /// The type of data available at the current node.
 ///
@@ -295,7 +316,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::YDB_NOTTP;
     /// use yottadb::simple_api::{Key, YDBResult};
     ///
     /// fn main() -> YDBResult<()> {
@@ -311,7 +332,7 @@ impl Key {
     /// }
     /// ```
     #[inline]
-    pub fn get_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub fn get_st(&self, tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         self.direct_unsafe_call(tptoken, out_buffer, ydb_get_st)
     }
 
@@ -327,7 +348,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::YDB_NOTTP;
     /// use yottadb::simple_api::{Key, YDBResult};
     ///
     /// fn main() -> YDBResult<()> {
@@ -339,7 +360,7 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn set_st<U>(&self, tptoken: u64, err_buffer: Vec<u8>, new_val: U) -> YDBResult<Vec<u8>>
+    pub fn set_st<U>(&self, tptoken: TpToken, err_buffer: Vec<u8>, new_val: U) -> YDBResult<Vec<u8>>
     where
         U: AsRef<[u8]>,
     {
@@ -372,7 +393,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::YDB_NOTTP;
     /// use yottadb::simple_api::{Key, YDBResult, DataReturn};
     ///
     /// fn main() -> YDBResult<()> {
@@ -386,7 +407,9 @@ impl Key {
     ///     Ok(())
     /// }
     /// ```
-    pub fn data_st(&self, tptoken: u64, err_buffer: Vec<u8>) -> YDBResult<(DataReturn, Vec<u8>)> {
+    pub fn data_st(
+        &self, tptoken: TpToken, err_buffer: Vec<u8>,
+    ) -> YDBResult<(DataReturn, Vec<u8>)> {
         let mut retval: u32 = 0;
         let do_call = |tptoken, out_buffer_p, varname_p, len, subscripts_p| unsafe {
             ydb_data_st(tptoken, out_buffer_p, varname_p, len, subscripts_p, &mut retval as *mut _)
@@ -421,7 +444,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::YDB_NOTTP;
     /// use yottadb::simple_api::{Key, YDBResult, DeleteType};
     ///
     /// fn main() -> YDBResult<()> {
@@ -434,7 +457,7 @@ impl Key {
     /// }
     /// ```
     pub fn delete_st(
-        &self, tptoken: u64, err_buffer: Vec<u8>, delete_type: DeleteType,
+        &self, tptoken: TpToken, err_buffer: Vec<u8>, delete_type: DeleteType,
     ) -> YDBResult<Vec<u8>> {
         let c_delete_ty = match delete_type {
             DeleteType::DelNode => YDB_DEL_NODE,
@@ -457,7 +480,7 @@ impl Key {
     // `non_allocating_call` assumes that on error, `func` should be called again.
     // Functions which require `func` to only be called once cannot use `non_allocating_call`.
     fn non_allocating_call<F>(
-        &self, tptoken: u64, err_buffer: Vec<u8>, mut func: F,
+        &self, tptoken: TpToken, err_buffer: Vec<u8>, mut func: F,
     ) -> YDBResult<Vec<u8>>
     where
         F: FnMut(u64, *mut ydb_buffer_t, *const ydb_buffer_t, i32, *const ydb_buffer_t) -> c_int,
@@ -484,7 +507,7 @@ impl Key {
     //
     // This differs from `non_allocating_call` in that it passes an `err_buffer_t` to the closure.
     fn non_allocating_ret_call<F>(
-        &self, tptoken: u64, out_buffer: Vec<u8>, mut func: F,
+        &self, tptoken: TpToken, out_buffer: Vec<u8>, mut func: F,
     ) -> YDBResult<Vec<u8>>
     where
         F: FnMut(
@@ -528,7 +551,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::YDB_NOTTP;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
@@ -552,7 +575,7 @@ impl Key {
     /// }
     /// ```
     pub fn incr_st(
-        &self, tptoken: u64, out_buffer: Vec<u8>, increment: Option<&[u8]>,
+        &self, tptoken: TpToken, out_buffer: Vec<u8>, increment: Option<&[u8]>,
     ) -> YDBResult<Vec<u8>> {
         let mut increment_t_buf;
         let increment_p = if let Some(increment_v) = increment {
@@ -617,7 +640,7 @@ impl Key {
     /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
     /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
     #[inline]
-    pub fn lock_decr_st(&self, tptoken: u64, err_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub fn lock_decr_st(&self, tptoken: TpToken, err_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         use crate::craw::ydb_lock_decr_st;
         let do_call = |tptoken, err_buffer_p, varname_p, len, subscripts_p| unsafe {
             ydb_lock_decr_st(tptoken, err_buffer_p, varname_p, len, subscripts_p)
@@ -658,7 +681,7 @@ impl Key {
     /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
     /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
     pub fn lock_incr_st(
-        &self, tptoken: u64, mut err_buffer: Vec<u8>, timeout: Duration,
+        &self, tptoken: TpToken, mut err_buffer: Vec<u8>, timeout: Duration,
     ) -> YDBResult<Vec<u8>> {
         use std::convert::TryInto;
         use crate::craw::{ydb_lock_incr_st, YDB_ERR_TIME2LONG};
@@ -691,7 +714,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::YDB_NOTTP;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
@@ -715,7 +738,9 @@ impl Key {
     /// [how-it-works]: https://yottadb.com/product/how-it-works/
     /// [vars-nodes]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts
     #[inline]
-    pub fn node_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub fn node_next_self_st(
+        &mut self, tptoken: TpToken, out_buffer: Vec<u8>,
+    ) -> YDBResult<Vec<u8>> {
         self.growing_shrinking_call(tptoken, out_buffer, ydb_node_next_st)
     }
 
@@ -731,7 +756,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::YDB_NOTTP;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
@@ -752,12 +777,14 @@ impl Key {
     /// }
     /// ```
     #[inline]
-    pub fn node_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub fn node_prev_self_st(
+        &mut self, tptoken: TpToken, out_buffer: Vec<u8>,
+    ) -> YDBResult<Vec<u8>> {
         self.growing_shrinking_call(tptoken, out_buffer, ydb_node_previous_st)
     }
 
     fn growing_shrinking_call(
-        &mut self, tptoken: u64, mut err_buffer: Vec<u8>,
+        &mut self, tptoken: TpToken, mut err_buffer: Vec<u8>,
         c_func: unsafe extern "C" fn(
             u64,
             *mut ydb_buffer_t,
@@ -786,7 +813,7 @@ impl Key {
             // Do the call
             let status = unsafe {
                 c_func(
-                    tptoken,
+                    tptoken.0,
                     &mut err_buffer_t,
                     &varname,
                     len,
@@ -861,7 +888,7 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::YDB_NOTTP;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
@@ -882,7 +909,7 @@ impl Key {
     /// }
     /// ```
     #[inline]
-    pub fn sub_next_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub fn sub_next_st(&self, tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         self.direct_unsafe_call(tptoken, out_buffer, ydb_subscript_next_st)
     }
 
@@ -898,11 +925,11 @@ impl Key {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::craw::YDB_NOTTP;
+    /// use yottadb::YDB_NOTTP;
     /// use yottadb::simple_api::{Key, YDBResult};
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let mut key = make_key!("^helloSubPrev", "a");
     ///     let mut output_buffer = Vec::with_capacity(1024);
     ///
@@ -918,7 +945,7 @@ impl Key {
     /// }
     /// ```
     #[inline]
-    pub fn sub_prev_st(&self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub fn sub_prev_st(&self, tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         self.direct_unsafe_call(tptoken, out_buffer, ydb_subscript_previous_st)
     }
 
@@ -926,7 +953,7 @@ impl Key {
     // This function creates the appropriate closure for a call to `non_allocating_ret_call`.
     #[inline]
     fn direct_unsafe_call(
-        &self, tptoken: u64, out_buffer: Vec<u8>,
+        &self, tptoken: TpToken, out_buffer: Vec<u8>,
         func: unsafe extern "C" fn(
             u64,
             *mut ydb_buffer_t,
@@ -995,7 +1022,9 @@ impl Key {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn sub_next_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub fn sub_next_self_st(
+        &mut self, tptoken: TpToken, out_buffer: Vec<u8>,
+    ) -> YDBResult<Vec<u8>> {
         self.sub_self_call(tptoken, out_buffer, ydb_subscript_next_st)
     }
 
@@ -1050,13 +1079,15 @@ impl Key {
     /// assert_eq!(user[0], ydb[0]);
     /// # Ok(())
     /// # }
-    pub fn sub_prev_self_st(&mut self, tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub fn sub_prev_self_st(
+        &mut self, tptoken: TpToken, out_buffer: Vec<u8>,
+    ) -> YDBResult<Vec<u8>> {
         self.sub_self_call(tptoken, out_buffer, ydb_subscript_previous_st)
     }
 
     // `sub_prev_self` and `sub_next_self` use the same memory allocation logic.
     fn sub_self_call(
-        &mut self, tptoken: u64, mut err_buffer: Vec<u8>,
+        &mut self, tptoken: TpToken, mut err_buffer: Vec<u8>,
         func: unsafe extern "C" fn(
             u64,
             *mut ydb_buffer_t,
@@ -1081,7 +1112,7 @@ impl Key {
 
             let status = unsafe {
                 func(
-                    tptoken,
+                    tptoken.0,
                     &mut err_buffer_t,
                     varname.as_ptr(),
                     subscripts.len() as i32,
@@ -1278,7 +1309,7 @@ enum CallBackError {
 }
 /// Passes the callback function as a structure to the callback
 struct CallBackStruct<'a> {
-    cb: &'a mut dyn FnMut(u64) -> UserResult,
+    cb: &'a mut dyn FnMut(TpToken) -> UserResult,
     /// Application error (not a YDBError)
     error: Option<CallBackError>,
 }
@@ -1289,6 +1320,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
     let callback_struct = unsafe { &mut *(tpfnparm as *mut CallBackStruct) };
 
     let mut cb = panic::AssertUnwindSafe(&mut callback_struct.cb);
+    let tptoken = TpToken(tptoken);
     // this deref_mut() is because Rust is having trouble with type inferrence
     let retval = match panic::catch_unwind(move || cb.deref_mut()(tptoken)) {
         Ok(val) => val,
@@ -1416,10 +1448,10 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// [threads and transactions]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
 /// [C documentation]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st
 pub fn tp_st<F>(
-    tptoken: u64, mut err_buffer: Vec<u8>, mut f: F, trans_id: &str, locals_to_reset: &[&str],
+    tptoken: TpToken, mut err_buffer: Vec<u8>, mut f: F, trans_id: &str, locals_to_reset: &[&str],
 ) -> Result<Vec<u8>, Box<dyn Error>>
 where
-    F: FnMut(u64) -> UserResult,
+    F: FnMut(TpToken) -> UserResult,
 {
     let mut err_buffer_t = Key::make_out_buffer_t(&mut err_buffer);
 
@@ -1443,7 +1475,7 @@ where
     let arg = &mut callback_struct as *mut _ as *mut c_void;
     let status = unsafe {
         ydb_tp_st(
-            tptoken,
+            tptoken.into(),
             &mut err_buffer_t,
             Some(fn_callback),
             arg,
@@ -1520,7 +1552,7 @@ where
 /// - [Local and global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
 /// - [Instrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
 pub fn delete_excl_st(
-    tptoken: u64, err_buffer: Vec<u8>, saved_variables: &[&str],
+    tptoken: TpToken, err_buffer: Vec<u8>, saved_variables: &[&str],
 ) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_delete_excl_st;
 
@@ -1566,7 +1598,7 @@ pub fn delete_excl_st(
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
 /// - [`zwr2str_st`](fn.zwr2str_st.html), which deserializes a buffer in Zwrite format back to the original binary.
-pub fn str2zwr_st(tptoken: u64, out_buf: Vec<u8>, original: &[u8]) -> YDBResult<Vec<u8>> {
+pub fn str2zwr_st(tptoken: TpToken, out_buf: Vec<u8>, original: &[u8]) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_str2zwr_st;
 
     let original_t = ConstYDBBuffer::from(original);
@@ -1597,7 +1629,9 @@ pub fn str2zwr_st(tptoken: u64, out_buf: Vec<u8>, original: &[u8]) -> YDBResult<
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
 /// - [str2zwr_st](fn.str2zwr_st.html), the inverse of `zwr2str_st`.
-pub fn zwr2str_st(tptoken: u64, out_buf: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
+pub fn zwr2str_st(
+    tptoken: TpToken, out_buf: Vec<u8>, serialized: &[u8],
+) -> Result<Vec<u8>, YDBError> {
     use crate::craw::ydb_zwr2str_st;
 
     let serialized_t = ConstYDBBuffer::from(serialized);
@@ -1632,7 +1666,7 @@ pub fn zwr2str_st(tptoken: u64, out_buf: Vec<u8>, serialized: &[u8]) -> Result<V
 /// let msg = String::from_utf8(buf).unwrap();
 /// assert!(msg.contains("Undefined local variable"));
 /// ```
-pub fn message_t(tptoken: u64, out_buffer: Vec<u8>, status: i32) -> YDBResult<Vec<u8>> {
+pub fn message_t(tptoken: TpToken, out_buffer: Vec<u8>, status: i32) -> YDBResult<Vec<u8>> {
     resize_ret_call(tptoken, out_buffer, |tptoken, err_buffer_p, out_buffer_p| unsafe {
         ydb_message_t(tptoken, err_buffer_p, status, out_buffer_p)
     })
@@ -1656,7 +1690,7 @@ pub fn message_t(tptoken: u64, out_buffer: Vec<u8>, status: i32) -> YDBResult<Ve
 /// use yottadb::{simple_api, YDB_NOTTP};
 /// let release = simple_api::release_t(YDB_NOTTP, Vec::new()).unwrap();
 /// ```
-pub fn release_t(tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<String> {
+pub fn release_t(tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<String> {
     let zrelease = Key::variable("$ZYRELEASE").get_st(tptoken, out_buffer)?;
     let zrelease = String::from_utf8(zrelease).expect("$ZRELEASE was not valid UTF8");
     Ok(format!("rustwr {} {}", env!("CARGO_PKG_VERSION"), zrelease))
@@ -1728,7 +1762,7 @@ pub fn release_t(tptoken: u64, out_buffer: Vec<u8>) -> YDBResult<String> {
 /// [`Key::lock_decr_st`]: struct.Key.html#method.lock_decr_st
 #[cfg(any(target_pointer_width = "64", target_pointer_width = "32"))]
 pub fn lock_st(
-    tptoken: u64, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[Key],
+    tptoken: TpToken, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[Key],
 ) -> YDBResult<Vec<u8>> {
     use std::convert::TryFrom;
     use crate::craw::{
@@ -1778,7 +1812,7 @@ pub fn lock_st(
     };
     #[cfg(target_pointer_width = "64")]
     {
-        arg[0] = tptoken as Void;
+        arg[0] = tptoken.0 as Void;
         arg[1] = &mut err_buffer_t as *mut _ as Void;
         arg[2] = timeout_ns as Void;
         arg[3] = keys.len() as Void;
@@ -1856,7 +1890,7 @@ pub fn lock_st(
 // This has to be public so that it can be used by `ci_t!`.
 // However, it is not a supported part of the API.
 #[doc(hidden)]
-pub fn resize_call<F>(tptoken: u64, err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
+pub fn resize_call<F>(tptoken: TpToken, err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
 where
     F: FnMut(u64, *mut ydb_buffer_t) -> c_int,
 {
@@ -1872,7 +1906,7 @@ where
 /// See documentation for `non_allocating_ret_call` for more details.
 ///
 /// F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status
-fn resize_ret_call<F>(tptoken: u64, mut out_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
+fn resize_ret_call<F>(tptoken: TpToken, mut out_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
 where
     F: FnMut(u64, *mut ydb_buffer_t, *mut ydb_buffer_t) -> c_int,
 {
@@ -1883,7 +1917,7 @@ where
         // capacity with the length of the string.
         let mut err_buffer_t = out_buffer_t;
         // Do the call
-        let status = func(tptoken, &mut err_buffer_t, &mut out_buffer_t);
+        let status = func(tptoken.into(), &mut err_buffer_t, &mut out_buffer_t);
         // Handle resizing the buffer, if needed
         if status == YDB_ERR_INVSTRLEN {
             out_buffer.resize(out_buffer_t.len_used as usize, 0);
@@ -2403,7 +2437,7 @@ pub(crate) mod tests {
         assert!(err.downcast::<YDBError>().unwrap().status == craw::YDB_ERR_LVUNDEF);
 
         // TPTOODEEP
-        fn call_forever(tptoken: u64) -> UserResult {
+        fn call_forever(tptoken: TpToken) -> UserResult {
             tp_st(tptoken, Vec::new(), call_forever, "BATCH", &[])?;
             Ok(TransactionStatus::Ok)
         }
@@ -2634,7 +2668,7 @@ pub(crate) mod tests {
 
     #[test]
     fn empty_err_buf() {
-        use crate::craw::{YDB_NOTTP, YDB_ERR_GVUNDEF};
+        use crate::craw::YDB_ERR_GVUNDEF;
         let key = Key::variable("^doesnotexist");
         let err_buf = Vec::new();
         let res = key.get_st(YDB_NOTTP, err_buf);
@@ -2642,7 +2676,7 @@ pub(crate) mod tests {
     }
     #[test]
     fn empty_subscript() {
-        use crate::craw::{YDB_NOTTP, YDB_ERR_LVUNDEF};
+        use crate::craw::YDB_ERR_LVUNDEF;
 
         let mut key = make_key!("simpleHello", "world");
         let err_buf = Vec::new();

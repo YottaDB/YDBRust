@@ -24,7 +24,7 @@
 //! ```
 //! # #[macro_use] extern crate yottadb;
 //! use yottadb::context_api::Context;
-//! use yottadb::{YDB_NOTTP, DeleteType, YDBResult};
+//! use yottadb::{DeleteType, YDBResult};
 //!
 //! fn main() -> YDBResult<()> {
 //!     let ctx = Context::new();
@@ -49,9 +49,9 @@ use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 use std::fmt;
 
-use crate::craw::{YDB_NOTTP, YDB_ERR_NODEEND};
+use crate::craw::YDB_ERR_NODEEND;
 use crate::simple_api::{
-    self, tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType, TransactionStatus,
+    self, tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType, TransactionStatus, TpToken,
 };
 
 // Private macro to help make iterators
@@ -119,7 +119,7 @@ macro_rules! make_ckey {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 struct ContextInternal {
     buffer: Option<Vec<u8>>,
-    tptoken: u64,
+    tptoken: TpToken,
 }
 
 /// A struct that keeps track of the current transaction and error buffer.
@@ -192,7 +192,7 @@ impl Context {
         Context {
             context: Rc::new(RefCell::new(ContextInternal {
                 buffer: Some(Vec::with_capacity(1024)),
-                tptoken: YDB_NOTTP,
+                tptoken: TpToken::default(),
             })),
         }
     }
@@ -234,7 +234,7 @@ impl Context {
     ///
     /// # See also
     /// - [`Context::tp`](struct.Context.html#method.tp)
-    pub fn tptoken(&self) -> u64 {
+    pub fn tptoken(&self) -> TpToken {
         self.borrow().tptoken
     }
 
@@ -348,7 +348,7 @@ impl Context {
         let result = tp_st(
             tptoken,
             Vec::with_capacity(50),
-            |tptoken: u64| {
+            |tptoken: TpToken| {
                 self.context.borrow_mut().tptoken = tptoken;
                 f(self)
             },

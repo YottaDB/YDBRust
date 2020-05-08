@@ -19,7 +19,7 @@
 
 use std::ffi::{CString, CStr};
 use crate::craw::ci_name_descriptor;
-use super::{resize_call, YDBResult};
+use super::{resize_call, YDBResult, TpToken};
 
 /// The descriptor for a call-in table opened with [`ci_tab_open_t`].
 ///
@@ -66,7 +66,7 @@ pub struct CallInTableDescriptor(usize);
 /// # Ok(())
 /// # }
 pub fn ci_tab_open_t(
-    tptoken: u64, err_buffer: Vec<u8>, file: &CStr,
+    tptoken: TpToken, err_buffer: Vec<u8>, file: &CStr,
 ) -> YDBResult<(CallInTableDescriptor, Vec<u8>)> {
     use crate::craw::ydb_ci_tab_open_t;
 
@@ -107,7 +107,7 @@ pub fn ci_tab_open_t(
 /// # }
 /// ```
 pub fn ci_tab_switch_t(
-    tptoken: u64, err_buffer: Vec<u8>, new_handle: CallInTableDescriptor,
+    tptoken: TpToken, err_buffer: Vec<u8>, new_handle: CallInTableDescriptor,
 ) -> YDBResult<(CallInTableDescriptor, Vec<u8>)> {
     use crate::craw::ydb_ci_tab_switch_t;
 
@@ -160,7 +160,7 @@ pub fn ci_tab_switch_t(
 #[macro_export]
 macro_rules! ci_t {
     ($tptoken: expr, $err_buffer: expr, $routine: expr $(, $args: expr)* $(,)?) => {{
-        let tptoken: u64 = $tptoken;
+        let tptoken: $crate::TpToken = $tptoken;
         let err_buffer: ::std::vec::Vec<u8> = $err_buffer;
         let routine: &::std::ffi::CStr = $routine;
 
@@ -250,7 +250,7 @@ impl Drop for CallInDescriptor {
 #[macro_export]
 macro_rules! cip_t {
     ($tptoken: expr, $err_buffer: expr, $routine: expr, $($args: expr),* $(,)?) => {{
-        let tptoken: u64 = $tptoken;
+        let tptoken: $crate::TpToken = $tptoken;
         let err_buffer: ::std::vec::Vec<u8> = $err_buffer;
         let routine: &mut $crate::simple_api::call_in::CallInDescriptor = $routine;
 
