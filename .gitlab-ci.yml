@@ -27,7 +27,6 @@ rust-compat:
     - rustup toolchain install 1.34.0
     - rustup default 1.34.0
     - cargo build --verbose
-    - cargo test --verbose
 
 rust-latest:
   stage: build
