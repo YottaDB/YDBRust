@@ -416,4 +416,20 @@ mod test {
         // switch back the calltable to use an environment variable now that we're done
         ci_tab_switch_t(YDB_NOTTP, Vec::new(), CallInTableDescriptor::default()).unwrap();
     }
+    #[test]
+    #[serial]
+    fn call_in_tp() {
+        use crate::simple_api::{tp_st, TransactionStatus};
+
+        call(|| {
+            let do_callin = |tptoken| {
+                let mut routine = CStr::from_bytes_with_nul(b"noop\0").unwrap();
+                unsafe {
+                    ci_t!(tptoken, Vec::new(), &mut routine).unwrap();
+                }
+                Ok(TransactionStatus::Ok)
+            };
+            tp_st(YDB_NOTTP, Vec::new(), do_callin, "BATCH", &[]).unwrap();
+        });
+    }
 }
