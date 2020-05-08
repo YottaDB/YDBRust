@@ -212,6 +212,26 @@ impl Context {
     /// This allows calling yottadb functions in the `craw` API that have not yet been wrapped
     /// and require a tptoken from inside a transaction.
     ///
+    /// # Example
+    /// `tptoken()` can be used to call M FFI from within a transaction:
+    /// ```
+    /// use std::env;
+    /// use std::ffi::CStr;
+    /// use yottadb::context_api::Context;
+    /// use yottadb::{ci_t, TransactionStatus, YDB_NOTTP};
+    ///
+    /// env::set_var("ydb_routines", "examples/m-ffi");
+    /// env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
+    /// let ctx = Context::new();
+    /// ctx.tp(|ctx| {
+    ///     let tptoken = ctx.tptoken();
+    ///     assert_ne!(tptoken, YDB_NOTTP);
+    ///     let mut routine = CStr::from_bytes_with_nul(b"noop\0").unwrap();
+    ///     unsafe { ci_t!(tptoken, Vec::new(), routine)?; }
+    ///     Ok(TransactionStatus::Ok)
+    /// }, "BATCH", &[]).unwrap();
+    /// ```
+    ///
     /// # See also
     /// - [`Context::tp`](struct.Context.html#method.tp)
     pub fn tptoken(&self) -> u64 {
