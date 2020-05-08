@@ -1158,7 +1158,8 @@ impl Key {
 
     fn get_buffers_mut(&mut self) -> (ydb_buffer_t, Vec<ydb_buffer_t>) {
         let var = ydb_buffer_t {
-            buf_addr: self.variable.as_mut_ptr() as *mut _,
+            // `str::as_mut_ptr` was only stabilized in 1.36
+            buf_addr: unsafe { self.variable.as_bytes_mut() }.as_mut_ptr() as *mut _,
             len_alloc: self.variable.capacity() as u32,
             len_used: self.variable.len() as u32,
         };
