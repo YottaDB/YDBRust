@@ -142,13 +142,14 @@ pub fn ci_tab_switch_t(
 /// ```
 /// use std::env;
 /// use std::ffi::CString;
+/// use std::os::raw::c_char;
 /// use yottadb::{craw, ci_t, TpToken};
 ///
 /// env::set_var("ydb_routines", "examples/m-ffi");
 /// env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
 ///
 /// let mut buf = Vec::<u8>::with_capacity(100);
-/// let mut msg = craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut i8 };
+/// let mut msg = craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut c_char };
 /// let routine = CString::new("HelloWorld1").unwrap();
 /// unsafe {
 ///     ci_t!(TpToken::default(), Vec::with_capacity(100), &routine, &mut msg as *mut _).unwrap();
@@ -236,13 +237,14 @@ impl Drop for CallInDescriptor {
 /// ```
 /// use std::env;
 /// use std::ffi::CString;
+/// use std::os::raw::c_char;
 /// use yottadb::{craw, cip_t, CallInDescriptor, TpToken};
 ///
 /// env::set_var("ydb_routines", "examples/m-ffi");
 /// env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
 ///
 /// let mut buf = Vec::<u8>::with_capacity(100);
-/// let mut msg = craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut i8 };
+/// let mut msg = craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut c_char };
 /// let mut routine = CallInDescriptor::new(CString::new("HelloWorld1").unwrap());
 /// unsafe {
 ///     cip_t!(TpToken::default(), Vec::with_capacity(100), &mut routine, &mut msg as *mut _).unwrap();
@@ -268,6 +270,7 @@ mod test {
     use serial_test::serial;
     use std::env;
     use std::ffi::CString;
+    use std::os::raw::c_char;
     use super::*;
     use crate::craw::{self, ydb_string_t, ydb_long_t};
     use crate::YDB_NOTTP;
@@ -286,16 +289,16 @@ mod test {
 
             let mut ret_buf = Vec::<u8>::with_capacity(100);
             let mut ret_msg =
-                ydb_string_t { length: 100, address: ret_buf.as_mut_ptr() as *mut i8 };
+                ydb_string_t { length: 100, address: ret_buf.as_mut_ptr() as *mut c_char };
 
             let buf1 = b"parm1";
-            let mut msg1 = ydb_string_t { length: 5, address: buf1.as_ptr() as *mut i8 };
+            let mut msg1 = ydb_string_t { length: 5, address: buf1.as_ptr() as *mut c_char };
 
             let buf2 = b"parm2";
-            let mut msg2 = ydb_string_t { length: 5, address: buf2.as_ptr() as *mut i8 };
+            let mut msg2 = ydb_string_t { length: 5, address: buf2.as_ptr() as *mut c_char };
 
             let buf3 = b"parm3";
-            let mut msg3 = ydb_string_t { length: 5, address: buf3.as_ptr() as *mut i8 };
+            let mut msg3 = ydb_string_t { length: 5, address: buf3.as_ptr() as *mut c_char };
 
             unsafe {
                 cip_t!(
@@ -359,7 +362,7 @@ mod test {
 
         // same as doc-test for `ci_t`
         let mut buf = Vec::<u8>::with_capacity(100);
-        let mut msg = ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut i8 };
+        let mut msg = ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut c_char };
         let routine = CString::new("HelloWorld1").unwrap();
         unsafe {
             ci_t!(YDB_NOTTP, Vec::with_capacity(100), &routine, &mut msg as *mut _).unwrap();

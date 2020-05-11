@@ -112,6 +112,7 @@ mod test {
     #[ignore]
     fn test_invalid_exit() {
         use std::env::set_var;
+        use std::os::raw::c_ulong;
         use crate::craw::ydb_string_t;
 
         set_var("ydb_routines", "examples/m-ffi");
@@ -122,7 +123,7 @@ mod test {
         let mut buf = Vec::<u8>::with_capacity(1000);
 
         let mut status =
-            ydb_string_t { address: buf.as_mut_ptr() as *mut _, length: buf.capacity() as u64 };
+            ydb_string_t { address: buf.as_mut_ptr() as *mut _, length: buf.capacity() as c_ulong };
         let exit = CString::new("ydb_exit").unwrap();
         unsafe {
             ci_t!(YDB_NOTTP, Vec::new(), &exit, &mut status as *mut ydb_string_t).unwrap();
