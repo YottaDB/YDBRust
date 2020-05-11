@@ -183,9 +183,12 @@ impl CallInDescriptor {
     /// Create a new `descriptor` that will call `routine`.
     pub fn new(routine: CString) -> Self {
         use crate::craw::ydb_string_t;
+        use std::os::raw::c_ulong;
 
-        let string =
-            ydb_string_t { length: routine.as_bytes().len() as u64, address: routine.into_raw() };
+        let string = ydb_string_t {
+            length: routine.as_bytes().len() as c_ulong,
+            address: routine.into_raw(),
+        };
         Self(ci_name_descriptor { rtn_name: string, handle: std::ptr::null_mut() })
     }
     /// Consume this descriptor and return the original routine

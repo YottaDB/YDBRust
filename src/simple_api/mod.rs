@@ -1822,6 +1822,7 @@ pub fn lock_st(
     }
     #[cfg(target_pointer_width = "32")]
     {
+        let tptoken = tptoken.0;
         #[cfg(target_endian = "little")]
         {
             arg[0] = (tptoken & 0xffffffff) as Void;
