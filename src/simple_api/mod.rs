@@ -1302,6 +1302,7 @@ pub enum TransactionStatus {
 
 type UserResult = Result<TransactionStatus, Box<dyn Error>>;
 
+#[derive(Debug)]
 enum CallBackError {
     // the callback returned an error
     ApplicationError(Box<dyn Error>),
@@ -1390,11 +1391,11 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// use yottadb::simple_api::{Key, tp_st};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let var = Key::variable("tpRollbackTest");
+/// let var = Key::variable("^tpRollbackTest");
 /// var.set_st(TpToken::default(), Vec::new(), "initial value")?;
 /// let maybe_err = tp_st(TpToken::default(), Vec::new(), |tptoken| {
-///     fallible_operation()?;
 ///     var.set_st(tptoken, Vec::new(), "new value")?;
+///     fallible_operation()?;
 ///     Ok(TransactionStatus::Ok)
 /// }, "BATCH", &[]);
 /// let expected_val: &[_] = if maybe_err.is_ok() {
@@ -1457,7 +1458,7 @@ where
     let mut err_buffer_t = Key::make_out_buffer_t(&mut err_buffer);
 
     let mut locals: Vec<ConstYDBBuffer> = Vec::with_capacity(locals_to_reset.len());
-    for local in locals_to_reset.iter() {
+    for &local in locals_to_reset.iter() {
         locals.push(
             ydb_buffer_t {
                 buf_addr: local.as_ptr() as *const _ as *mut _,
@@ -2578,6 +2579,20 @@ pub(crate) mod tests {
             )
             .unwrap();
         }
+    }
+
+    #[test]
+    fn rollback() {
+        let key = Key::variable("^tpRollbackTest");
+        key.set_st(YDB_NOTTP, Vec::new(), "initial").unwrap();
+        let set_inner = |tptoken| {
+            key.set_st(tptoken, Vec::new(), "val")?;
+            Ok(TransactionStatus::Rollback)
+        };
+        let err = tp_st(YDB_NOTTP, Vec::new(), set_inner, "BATCH", &[]).unwrap_err();
+        let status = err.downcast::<YDBError>().unwrap().status;
+        assert_eq!(status, craw::YDB_TP_ROLLBACK);
+        assert_eq!(key.get_st(YDB_NOTTP, Vec::new()).unwrap(), b"initial");
     }
 
     #[test]
