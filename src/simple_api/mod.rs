@@ -2449,8 +2449,8 @@ pub(crate) mod tests {
             Ok(TransactionStatus::Ok)
         }
         let err = call_forever(YDB_NOTTP).unwrap_err();
-        match err.downcast::<YDBError>() {
-            Ok(err) if err.status == craw::YDB_ERR_TPTOODEEP => {}
+        match &err.downcast::<YDBError>() {
+            Ok(ydb_err) if ydb_err.status == craw::YDB_ERR_TPTOODEEP => {}
             other => panic!("expected ERR_TPTOODEEP, got {:?}", other),
         }
 
@@ -2648,10 +2648,10 @@ pub(crate) mod tests {
         fn no_invalid_errors_proptest(key in arb_key(), value: Vec<u8>, b: bool) {
             fn assert_not_invalid<T>(res: YDBResult<T>) {
                 match res {
-                    Err(ydberr) if ydberr.status == YDB_ERR_INVSTRLEN => {
+                    Err(YDBError { status: YDB_ERR_INVSTRLEN, .. }) => {
                         panic!("function returned YDB_ERR_INVSTRLEN");
                     }
-                    Err(ydberr) if ydberr.status == YDB_ERR_INSUFFSUBS => {
+                    Err(YDBError { status: YDB_ERR_INSUFFSUBS, .. }) => {
                         panic!("function returned YDB_ERR_INVSTRLEN");
                     }
                     _ => {}
