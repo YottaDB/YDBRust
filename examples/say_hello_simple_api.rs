@@ -10,7 +10,7 @@
 *                                                               *
 ****************************************************************/
 
-#![allow(non_snake_case)]
+//! An example of `yottadb` using the `simple_api`.
 
 use yottadb::simple_api::Key;
 use yottadb::{YDB_NOTTP, DeleteType};
