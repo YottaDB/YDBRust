@@ -1,3 +1,15 @@
+#################################################################
+#								#
+# Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.	#
+# All rights reserved.						#
+#								#
+#	This source code contains the intellectual property	#
+#	of its copyright holder(s), and is made available	#
+#	under a license.  If you do not know the terms of	#
+#	the license, please stop and do not read further.	#
+#								#
+#################################################################
+
 [package]
 name = "yottadb"
 version = "0.3.0"
@@ -15,6 +27,17 @@ readme = "README.md"
 
 [build-dependencies]
 pkg-config = "0.3"
+
+[profile.release]
+opt-level = 3
+debug = false
+
+# The only dependencies YDBRust has are build dependencies on bindgen and pkg-config.
+# These execute basically instantaneously, so there is no need to optimize them.
+# NOTE: we cannot use `build-override` because we support back to 1.34
+# and build-override was only stabilized in 1.41.
+[profile.release.package."*"]
+opt-level = 0
 
 [build-dependencies.bindgen]
 version = "0.53"
