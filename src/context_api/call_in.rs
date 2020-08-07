@@ -51,9 +51,9 @@ impl Context {
     /// # }
     pub fn ci_tab_open(&self, file: &CStr) -> YDBResult<CallInTableDescriptor> {
         let tptoken = self.context.borrow().tptoken;
-        let buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let buffer = self.take_buffer();
         let (descriptor, buffer) = ci_tab_open_t(tptoken, buffer, file)?;
-        self.context.borrow_mut().buffer = Some(buffer);
+        self.context.borrow_mut().buffer = buffer;
         Ok(descriptor)
     }
     /// Switch the active call-in table to `new_handle`. Returns the previously active table.
@@ -85,9 +85,9 @@ impl Context {
         &self, new_handle: CallInTableDescriptor,
     ) -> YDBResult<CallInTableDescriptor> {
         let tptoken = self.context.borrow().tptoken;
-        let buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let buffer = self.take_buffer();
         let (descriptor, buffer) = ci_tab_switch_t(tptoken, buffer, new_handle)?;
-        self.context.borrow_mut().buffer = Some(buffer);
+        self.context.borrow_mut().buffer = buffer;
         Ok(descriptor)
     }
 }

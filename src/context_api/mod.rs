@@ -118,7 +118,7 @@ macro_rules! make_ckey {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 struct ContextInternal {
-    buffer: Option<Vec<u8>>,
+    buffer: Vec<u8>,
     tptoken: TpToken,
 }
 
@@ -191,7 +191,7 @@ impl Context {
     pub fn new() -> Context {
         Context {
             context: Rc::new(RefCell::new(ContextInternal {
-                buffer: Some(Vec::new()),
+                buffer: Vec::new(),
                 tptoken: TpToken::default(),
             })),
         }
@@ -409,7 +409,7 @@ impl Context {
         use simple_api::delete_excl_st;
 
         let tptoken = self.context.borrow().tptoken;
-        let buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let buffer = self.take_buffer();
         self.recover_buffer(delete_excl_st(tptoken, buffer, saved_variables))
     }
     /// Given a binary sequence, serialize it to 'Zwrite format', which is ASCII printable.
@@ -477,18 +477,17 @@ impl Context {
         // We can't reuse `context.buffer` since we return the buffer on success
         zwr2str_st(tptoken, out_buffer, serialized)
     }
-    fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
-        match result {
-            Ok(x) => {
-                self.context.borrow_mut().buffer = Some(x);
-                Ok(())
-            }
-            Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::new());
-                Err(x)
-            }
-        }
+
+    fn take_buffer(&self) -> Vec<u8> {
+        std::mem::replace(&mut self.context.borrow_mut().buffer, Vec::new())
     }
+
+    fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
+        result.map(|x| {
+            self.context.borrow_mut().buffer = x;
+        })
+    }
+
     /// Acquires locks specified in `locks` and releases all others.
     ///
     /// This operation is atomic. If any lock cannot be acquired, all locks are released.
@@ -562,7 +561,7 @@ impl Context {
         use simple_api::lock_st;
 
         let tptoken = self.context.borrow().tptoken;
-        let buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let buffer = self.take_buffer();
         self.recover_buffer(lock_st(tptoken, buffer, timeout, locks))
     }
     fn borrow(&self) -> Ref<'_, ContextInternal> {
@@ -734,9 +733,15 @@ impl KeyContext {
     pub fn with_key<K: Into<Key>>(ctx: &Context, key: K) -> Self {
         Self { context: ctx.clone(), key: key.into() }
     }
+
+    fn take_buffer(&self) -> Vec<u8> {
+        self.context.take_buffer()
+    }
+
     fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
         self.context.recover_buffer(result)
     }
+
     /// Gets the value of this key from the database and returns the value.
     ///
     /// # Errors
@@ -840,7 +845,7 @@ impl KeyContext {
     /// ```
     pub fn set<U: AsRef<[u8]>>(&self, new_val: U) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
-        let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let out_buffer = self.take_buffer();
         let result = self.key.set_st(tptoken, out_buffer, new_val);
         self.recover_buffer(result)
     }
@@ -876,17 +881,11 @@ impl KeyContext {
     /// ```
     pub fn data(&self) -> YDBResult<DataReturn> {
         let tptoken = self.context.borrow().tptoken;
-        let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
-        match self.key.data_st(tptoken, out_buffer) {
-            Ok((y, x)) => {
-                self.context.borrow_mut().buffer = Some(x);
-                Ok(y)
-            }
-            Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::new());
-                Err(x)
-            }
-        }
+        let out_buffer = self.take_buffer();
+        self.key.data_st(tptoken, out_buffer).map(|(y, x)| {
+            self.context.borrow_mut().buffer = x;
+            y
+        })
     }
 
     /// Delete nodes in the local or global variable tree or subtree specified. A value of DelNode or DelTree for DeleteType
@@ -919,7 +918,7 @@ impl KeyContext {
     /// ```
     pub fn delete(&self, delete_type: DeleteType) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
-        let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let out_buffer = self.take_buffer();
         let result = self.key.delete_st(tptoken, out_buffer, delete_type);
         self.recover_buffer(result)
     }
@@ -995,7 +994,7 @@ impl KeyContext {
     /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
     pub fn lock_incr(&self, timeout: std::time::Duration) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
-        let buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let buffer = self.take_buffer();
         self.recover_buffer(self.key.lock_incr_st(tptoken, buffer, timeout))
     }
 
@@ -1028,7 +1027,7 @@ impl KeyContext {
     /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
     pub fn lock_decr(&self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
-        let buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let buffer = self.take_buffer();
         self.recover_buffer(self.key.lock_decr_st(tptoken, buffer))
     }
 
@@ -1064,7 +1063,7 @@ impl KeyContext {
     /// ```
     pub fn next_sub_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
-        let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let out_buffer = self.take_buffer();
         let result = self.key.sub_next_self_st(tptoken, out_buffer);
         self.recover_buffer(result)
     }
@@ -1100,7 +1099,7 @@ impl KeyContext {
     /// ```
     pub fn prev_sub_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
-        let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let out_buffer = self.take_buffer();
         let result = self.key.sub_prev_self_st(tptoken, out_buffer);
         self.recover_buffer(result)
     }
@@ -1208,7 +1207,7 @@ impl KeyContext {
     /// ```
     pub fn next_node_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
-        let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let out_buffer = self.take_buffer();
         let result = self.key.node_next_self_st(tptoken, out_buffer);
         self.recover_buffer(result)
     }
@@ -1246,7 +1245,7 @@ impl KeyContext {
     /// ```
     pub fn prev_node_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.borrow().tptoken;
-        let out_buffer = self.context.borrow_mut().buffer.take().unwrap();
+        let out_buffer = self.take_buffer();
         let result = self.key.node_prev_self_st(tptoken, out_buffer);
         self.recover_buffer(result)
     }
