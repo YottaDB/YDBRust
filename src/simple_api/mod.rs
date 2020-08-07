@@ -34,7 +34,7 @@
 //!
 //! fn main() -> YDBResult<()> {
 //!     let mut key = yottadb::make_key!("^MyGlobal", "SubscriptA", "42");
-//!     let mut buffer = Vec::with_capacity(1024);
+//!     let mut buffer = Vec::new();
 //!     let value = "This is a persistent message";
 //!     buffer = key.set_st(YDB_NOTTP, buffer, value)?;
 //!     buffer = key.get_st(YDB_NOTTP, buffer)?;
@@ -51,7 +51,7 @@
 //!
 //! fn main() -> YDBResult<()> {
 //!     let mut key = yottadb::make_key!("$tlevel");
-//!     let buffer = Vec::with_capacity(10);
+//!     let buffer = Vec::new();
 //!     let buffer = key.get_st(YDB_NOTTP, buffer)?;
 //!     let tlevel: usize = String::from_utf8_lossy(&buffer).parse()
 //!         .expect("$tlevel should be an integer");
@@ -321,7 +321,7 @@ impl Key {
     ///
     /// fn main() -> YDBResult<()> {
     ///     let mut key = make_key!("^hello");
-    ///     let mut output_buffer = Vec::with_capacity(1024);
+    ///     let mut output_buffer = Vec::new();
     ///
     ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello world!")?;
     ///     output_buffer = key.get_st(TpToken::default(), output_buffer)?;
@@ -353,7 +353,7 @@ impl Key {
     ///
     /// fn main() -> YDBResult<()> {
     ///     let mut key = make_key!("^hello");
-    ///     let mut output_buffer = Vec::with_capacity(1024);
+    ///     let mut output_buffer = Vec::new();
     ///
     ///     key.set_st(TpToken::default(), output_buffer, b"Hello world!")?;
     ///
@@ -398,7 +398,7 @@ impl Key {
     ///
     /// fn main() -> YDBResult<()> {
     ///     let mut key = make_key!("^helloValueDoesntExist");
-    ///     let mut output_buffer = Vec::with_capacity(1024);
+    ///     let mut output_buffer = Vec::new();
     ///
     ///     let (output, output_buffer) = key.data_st(TpToken::default(), output_buffer)?;
     ///
@@ -449,7 +449,7 @@ impl Key {
     ///
     /// fn main() -> YDBResult<()> {
     ///     let mut key = make_key!("^hello");
-    ///     let mut output_buffer = Vec::with_capacity(1024);
+    ///     let mut output_buffer = Vec::new();
     ///
     ///     output_buffer = key.delete_st(TpToken::default(), output_buffer, DeleteType::DelTree)?;
     ///
@@ -557,7 +557,7 @@ impl Key {
     ///
     /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let mut key = make_key!("^helloIncrementDocTest");
-    ///     let mut output_buffer = Vec::with_capacity(1024);
+    ///     let mut output_buffer = Vec::new();
     ///
     ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "0")?;
     ///     output_buffer = key.get_st(TpToken::default(), output_buffer)?;
@@ -720,7 +720,7 @@ impl Key {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let mut key = make_key!("^helloNodeNextSelf", "a");
-    ///     let mut output_buffer = Vec::with_capacity(1024);
+    ///     let mut output_buffer = Vec::new();
     ///
     ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello")?;
     ///     key[0] = Vec::from("b");
@@ -762,7 +762,7 @@ impl Key {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let mut key = make_key!("^helloNodePrevSelf", "a");
-    ///     let mut output_buffer = Vec::with_capacity(1024);
+    ///     let mut output_buffer = Vec::new();
     ///
     ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello")?;
     ///     key[0] = Vec::from("b");
@@ -836,7 +836,7 @@ impl Key {
                 continue;
             }
             if status == YDB_ERR_INSUFFSUBS {
-                self.subscripts.resize_with(ret_subs_used, || Vec::with_capacity(10));
+                self.subscripts.resize_with(ret_subs_used, Vec::new);
                 continue;
             }
             if status == crate::craw::YDB_ERR_PARAMINVALID {
@@ -896,7 +896,7 @@ impl Key {
     ///
     /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let mut key = make_key!("^helloSubNext", "a");
-    ///     let mut output_buffer = Vec::with_capacity(1024);
+    ///     let mut output_buffer = Vec::new();
     ///
     ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     key[0] = Vec::from("b");
@@ -933,7 +933,7 @@ impl Key {
     ///
     /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let mut key = make_key!("^helloSubPrev", "a");
-    ///     let mut output_buffer = Vec::with_capacity(1024);
+    ///     let mut output_buffer = Vec::new();
     ///
     ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     key[0] = Vec::from("b");
@@ -989,7 +989,7 @@ impl Key {
     ///
     /// fn main() -> YDBResult<()> {
     ///     let mut key = make_key!("^helloSubNextSelf", "a");
-    ///     let mut output_buffer = Vec::with_capacity(1024);
+    ///     let mut output_buffer = Vec::new();
     ///
     ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     key[0] = Vec::from("b");
@@ -1048,7 +1048,7 @@ impl Key {
     ///
     /// fn main() -> YDBResult<()> {
     ///     let mut key = make_key!("^helloSubPrevSelf", "a");
-    ///     let mut output_buffer = Vec::with_capacity(1024);
+    ///     let mut output_buffer = Vec::new();
     ///
     ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
     ///     key[0] = Vec::from("b");
@@ -1981,7 +1981,7 @@ pub(crate) mod tests {
 
     #[test]
     fn basic_set_and_get_st() {
-        let mut result = Vec::with_capacity(1);
+        let mut result = Vec::new();
         let key = Key::variable("^basicSetGet");
 
         // Try setting a value
@@ -2019,7 +2019,7 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_data_st() {
-        let err_buf = Vec::with_capacity(1);
+        let err_buf = Vec::new();
         let mut key = Key::variable("testDataSt");
 
         // should be empty to start
@@ -2051,7 +2051,7 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_delete_st() {
-        let mut result = Vec::with_capacity(1);
+        let mut result = Vec::new();
         let key = Key::variable("^helloDeleteMe");
 
         // Try setting a value
@@ -2108,13 +2108,13 @@ pub(crate) mod tests {
         assert_eq!(err.status, YDB_ERR_NAMECOUNT2HI);
 
         // Passing a buffer that has insufficient capacity for an error should resize the buffer
-        let err = delete_excl_st(YDB_NOTTP, Vec::with_capacity(1), &["^global"]).unwrap_err();
+        let err = delete_excl_st(YDB_NOTTP, Vec::new(), &["^global"]).unwrap_err();
         assert_eq!(err.status, YDB_ERR_INVVARNAME);
     }
 
     #[test]
     fn ydb_incr_st() {
-        let err_buf = Vec::with_capacity(1);
+        let err_buf = Vec::new();
         let key = Key::variable("^helloIncrementMe");
         let err_buf = key.set_st(YDB_NOTTP, err_buf, "0").unwrap();
 
@@ -2284,7 +2284,7 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_node_next_self_st() {
-        let mut result = Vec::with_capacity(1);
+        let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeNext", "shire");
         result = key.set_st(YDB_NOTTP, result, &value).unwrap();
@@ -2296,7 +2296,7 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_node_next_self_extra_node_st() {
-        let mut result = Vec::with_capacity(1);
+        let mut result = Vec::new();
         let value = b"Hello world!";
         let mut key = make_key!("^helloNodeNext2", "worlds", "shire");
         result = key.set_st(YDB_NOTTP, result, value).unwrap();
@@ -2323,7 +2323,7 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_node_prev_self_st() {
-        let mut result = Vec::with_capacity(1);
+        let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeprev", "shire");
         result = key.set_st(YDB_NOTTP, result, &value).unwrap();
@@ -2337,7 +2337,7 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_node_prev_self_extra_node_st() {
-        let mut result = Vec::with_capacity(1);
+        let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeprev2", "worlds", "shire");
         result = key.set_st(YDB_NOTTP, result, &value).unwrap();
@@ -2350,10 +2350,10 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_subscript_next() {
-        let mut result = Vec::with_capacity(1);
+        let mut result = Vec::new();
         let mut key = make_key!("^helloSubNext", "a");
         result = key.set_st(YDB_NOTTP, result, b"Hello world!").unwrap();
-        key[0] = Vec::with_capacity(1);
+        key[0] = Vec::new();
         result = key.sub_next_st(YDB_NOTTP, result).unwrap();
         assert_eq!(result, b"a");
         key[0] = vec![b'a'];
@@ -2379,7 +2379,7 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_subscript_prev() {
-        let mut result = Vec::with_capacity(1);
+        let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubprev", "b");
         result = key.set_st(YDB_NOTTP, result, &value).unwrap();
@@ -2390,19 +2390,19 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_subscript_next_self() {
-        let mut result = Vec::with_capacity(1);
+        let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubNext2", "shire");
         result = key.set_st(YDB_NOTTP, result, &value).unwrap();
         // TODO: we need a better way to expand these buffers in the _self function
-        key[0] = Vec::with_capacity(1);
+        key[0] = Vec::new();
         key.sub_next_self_st(YDB_NOTTP, result).unwrap();
         assert_eq!(key[0], Vec::from("shire"));
     }
 
     #[test]
     fn ydb_subscript_prev_self() {
-        let mut result = Vec::with_capacity(1);
+        let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubprev2", "shire");
         result = key.set_st(YDB_NOTTP, result, &value).unwrap();
@@ -2417,7 +2417,7 @@ pub(crate) mod tests {
 
         // Variables are persisted after a transaction
         let key = Key::variable("tpPersistence");
-        let result = Vec::with_capacity(1);
+        let result = Vec::new();
         let result = tp_st(
             YDB_NOTTP,
             result,
@@ -2436,13 +2436,13 @@ pub(crate) mod tests {
         assert_eq!(err.to_string(), "oops!");
 
         // ydb error
-        let vec = Vec::with_capacity(10);
+        let vec = Vec::new();
         let err = tp_st(
             YDB_NOTTP,
             vec,
             |tptoken| {
                 let key = make_key!("hello");
-                key.get_st(tptoken, Vec::with_capacity(1024))?;
+                key.get_st(tptoken, Vec::new())?;
                 unreachable!();
             },
             "BATCH",
@@ -2607,7 +2607,7 @@ pub(crate) mod tests {
     #[test]
     #[should_panic]
     fn panic_in_cb() {
-        tp_st(YDB_NOTTP, Vec::with_capacity(10), |_| panic!("oh no!"), "BATCH", &[]).unwrap_err();
+        tp_st(YDB_NOTTP, Vec::new(), |_| panic!("oh no!"), "BATCH", &[]).unwrap_err();
     }
 
     #[test]
@@ -2727,24 +2727,23 @@ pub(crate) mod tests {
     fn common_errors() {
         let expect_err_with = |key: Key, err_code, get| {
             // data_st
-            let err = key.data_st(YDB_NOTTP, Vec::with_capacity(50)).unwrap_err();
+            let err = key.data_st(YDB_NOTTP, Vec::new()).unwrap_err();
             assert_eq!(err.status, err_code);
 
             // delete_st
-            let err =
-                key.delete_st(YDB_NOTTP, Vec::with_capacity(50), DeleteType::DelNode).unwrap_err();
+            let err = key.delete_st(YDB_NOTTP, Vec::new(), DeleteType::DelNode).unwrap_err();
             assert_eq!(err.status, err_code);
 
             // incr_st
-            let err = key.incr_st(YDB_NOTTP, Vec::with_capacity(50), None).unwrap_err();
+            let err = key.incr_st(YDB_NOTTP, Vec::new(), None).unwrap_err();
             assert_eq!(err.status, err_code);
 
             // get_st
             if get {
-                let err = key.get_st(YDB_NOTTP, Vec::with_capacity(50)).unwrap_err();
+                let err = key.get_st(YDB_NOTTP, Vec::new()).unwrap_err();
                 assert_eq!(err.status, err_code);
 
-                let err = key.set_st(YDB_NOTTP, Vec::with_capacity(50), b"some val").unwrap_err();
+                let err = key.set_st(YDB_NOTTP, Vec::new(), b"some val").unwrap_err();
                 assert_eq!(err.status, err_code);
             }
 
@@ -2803,7 +2802,7 @@ pub(crate) mod tests {
     #[test]
     fn increment_errors() {
         let key = Key::variable("incrementError");
-        let err_buf = Vec::with_capacity(50);
+        let err_buf = Vec::new();
         let err_buf = key.set_st(YDB_NOTTP, err_buf, "9E46").unwrap();
         let err = key.incr_st(YDB_NOTTP, err_buf, Some(b"1E46")).unwrap_err();
         assert_eq!(err.status, crate::craw::YDB_ERR_NUMOFLOW);
@@ -2812,12 +2811,12 @@ pub(crate) mod tests {
     fn undef_var() {
         use crate::craw::{YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
         let key = Key::variable("^doesnotexist");
-        let err_buf = Vec::with_capacity(10);
+        let err_buf = Vec::new();
         let res = key.get_st(YDB_NOTTP, err_buf);
         assert_eq!(res.unwrap_err().status, YDB_ERR_GVUNDEF);
 
         let key = Key::variable("doesnotexist");
-        let err_buf = Vec::with_capacity(10);
+        let err_buf = Vec::new();
         let res = key.get_st(YDB_NOTTP, err_buf);
         assert_eq!(res.unwrap_err().status, YDB_ERR_LVUNDEF);
     }

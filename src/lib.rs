@@ -120,7 +120,7 @@ mod test {
         set_var("ydb_xc_c", "examples/m-ffi/external.xc");
 
         // `INVYDBEXIT` should be returned if `exit` is called through M FFI
-        let mut buf = Vec::<u8>::with_capacity(1000);
+        let mut buf = Vec::<u8>::new();
 
         let mut status =
             ydb_string_t { address: buf.as_mut_ptr() as *mut _, length: buf.capacity() as c_ulong };

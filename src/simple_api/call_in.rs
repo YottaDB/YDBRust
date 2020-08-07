@@ -149,10 +149,10 @@ pub fn ci_tab_switch_t(
 /// env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
 ///
 /// let mut buf = Vec::<u8>::with_capacity(100);
-/// let mut msg = craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut c_char };
+/// let mut msg = craw::ydb_string_t { length: buf.capacity() as u64, address: buf.as_mut_ptr() as *mut c_char };
 /// let routine = CString::new("HelloWorld1").unwrap();
 /// unsafe {
-///     ci_t!(TpToken::default(), Vec::with_capacity(100), &routine, &mut msg as *mut _).unwrap();
+///     ci_t!(TpToken::default(), Vec::new(), &routine, &mut msg as *mut _).unwrap();
 ///     buf.set_len(msg.length as usize);
 /// }
 /// assert_eq!(&buf, b"entry called");
@@ -244,10 +244,10 @@ impl Drop for CallInDescriptor {
 /// env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
 ///
 /// let mut buf = Vec::<u8>::with_capacity(100);
-/// let mut msg = craw::ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut c_char };
+/// let mut msg = craw::ydb_string_t { length: buf.capacity() as u64, address: buf.as_mut_ptr() as *mut c_char };
 /// let mut routine = CallInDescriptor::new(CString::new("HelloWorld1").unwrap());
 /// unsafe {
-///     cip_t!(TpToken::default(), Vec::with_capacity(100), &mut routine, &mut msg as *mut _).unwrap();
+///     cip_t!(TpToken::default(), Vec::new(), &mut routine, &mut msg as *mut _).unwrap();
 ///     buf.set_len(msg.length as usize);
 /// }
 /// assert_eq!(&buf, b"entry called");
@@ -288,22 +288,27 @@ mod test {
             let mut routine = CallInDescriptor::new(CString::new("HelloWorld2").unwrap());
 
             let mut ret_buf = Vec::<u8>::with_capacity(100);
-            let mut ret_msg =
-                ydb_string_t { length: 100, address: ret_buf.as_mut_ptr() as *mut c_char };
+            let mut ret_msg = ydb_string_t {
+                length: ret_buf.capacity() as u64,
+                address: ret_buf.as_mut_ptr() as *mut c_char,
+            };
 
             let buf1 = b"parm1";
-            let mut msg1 = ydb_string_t { length: 5, address: buf1.as_ptr() as *mut c_char };
+            let mut msg1 =
+                ydb_string_t { length: buf1.len() as u64, address: buf1.as_ptr() as *mut c_char };
 
             let buf2 = b"parm2";
-            let mut msg2 = ydb_string_t { length: 5, address: buf2.as_ptr() as *mut c_char };
+            let mut msg2 =
+                ydb_string_t { length: buf2.len() as u64, address: buf2.as_ptr() as *mut c_char };
 
             let buf3 = b"parm3";
-            let mut msg3 = ydb_string_t { length: 5, address: buf3.as_ptr() as *mut c_char };
+            let mut msg3 =
+                ydb_string_t { length: buf3.len() as u64, address: buf3.as_ptr() as *mut c_char };
 
             unsafe {
                 cip_t!(
                     YDB_NOTTP,
-                    Vec::with_capacity(100),
+                    Vec::new(),
                     &mut routine,
                     &mut ret_msg,
                     &mut msg1 as *mut _,
@@ -326,18 +331,18 @@ mod test {
             let b = 2 as ydb_long_t;
             let mut out = 0;
             unsafe {
-                cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap();
+                cip_t!(YDB_NOTTP, Vec::new(), &mut routine, &mut out, a, b).unwrap();
             }
             assert_eq!(out, 3);
             // make sure it works if called multiple times
             unsafe {
-                cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap();
+                cip_t!(YDB_NOTTP, Vec::new(), &mut routine, &mut out, a, b).unwrap();
             }
             assert_eq!(out, 3);
             // make sure it works with `ci_t`
             let mut routine = routine.into_cstr();
             unsafe {
-                ci_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap();
+                ci_t!(YDB_NOTTP, Vec::new(), &mut routine, &mut out, a, b).unwrap();
             }
             assert_eq!(out, 3);
         });
@@ -362,10 +367,13 @@ mod test {
 
         // same as doc-test for `ci_t`
         let mut buf = Vec::<u8>::with_capacity(100);
-        let mut msg = ydb_string_t { length: 100, address: buf.as_mut_ptr() as *mut c_char };
+        let mut msg = ydb_string_t {
+            length: buf.capacity() as u64,
+            address: buf.as_mut_ptr() as *mut c_char,
+        };
         let routine = CString::new("HelloWorld1").unwrap();
         unsafe {
-            ci_t!(YDB_NOTTP, Vec::with_capacity(100), &routine, &mut msg as *mut _).unwrap();
+            ci_t!(YDB_NOTTP, Vec::new(), &routine, &mut msg as *mut _).unwrap();
             buf.set_len(msg.length as usize);
         }
         assert_eq!(&buf, b"entry called");
@@ -386,9 +394,8 @@ mod test {
         let (small_fd, _) = ci_tab_open_t(YDB_NOTTP, Vec::new(), &small_file).unwrap();
         ci_tab_switch_t(YDB_NOTTP, Vec::new(), small_fd).unwrap();
 
-        let err = unsafe {
-            cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap_err()
-        };
+        let err =
+            unsafe { cip_t!(YDB_NOTTP, Vec::new(), &mut routine, &mut out, a, b).unwrap_err() };
         assert_eq!(err.status, craw::YDB_ERR_CINOENTRY);
         assert_eq!(out, 0);
 
@@ -397,25 +404,20 @@ mod test {
         let (big_fd, _) = ci_tab_open_t(YDB_NOTTP, Vec::new(), &big_file).unwrap();
         let (small_fd, _) = ci_tab_switch_t(YDB_NOTTP, Vec::new(), big_fd).unwrap();
 
-        unsafe {
-            cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap()
-        };
+        unsafe { cip_t!(YDB_NOTTP, Vec::new(), &mut routine, &mut out, a, b).unwrap() };
         assert_eq!(out, 3);
 
         // make sure the call works even though the calltable has been changed back
         out = 0;
         ci_tab_switch_t(YDB_NOTTP, Vec::new(), small_fd).unwrap();
-        unsafe {
-            cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap()
-        };
+        unsafe { cip_t!(YDB_NOTTP, Vec::new(), &mut routine, &mut out, a, b).unwrap() };
         assert_eq!(out, 3);
 
         // make sure the old descriptor still works and updates the `Add` function name when called with `ci_t`
         let mut routine = routine.into_cstr();
         out = 0;
-        let err = unsafe {
-            ci_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap_err()
-        };
+        let err =
+            unsafe { ci_t!(YDB_NOTTP, Vec::new(), &mut routine, &mut out, a, b).unwrap_err() };
         assert_eq!(err.status, craw::YDB_ERR_CINOENTRY);
         assert_eq!(out, 0);
 

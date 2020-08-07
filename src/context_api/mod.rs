@@ -191,7 +191,7 @@ impl Context {
     pub fn new() -> Context {
         Context {
             context: Rc::new(RefCell::new(ContextInternal {
-                buffer: Some(Vec::with_capacity(1024)),
+                buffer: Some(Vec::new()),
                 tptoken: TpToken::default(),
             })),
         }
@@ -347,7 +347,7 @@ impl Context {
         // allocate a new buffer for errors, since we need context.buffer to pass `self` to f
         let result = tp_st(
             tptoken,
-            Vec::with_capacity(50),
+            Vec::new(),
             |tptoken: TpToken| {
                 self.context.borrow_mut().tptoken = tptoken;
                 f(self)
@@ -484,7 +484,7 @@ impl Context {
                 Ok(())
             }
             Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
+                self.context.borrow_mut().buffer = Some(Vec::new());
                 Err(x)
             }
         }
@@ -766,8 +766,7 @@ impl KeyContext {
     /// ```
     pub fn get(&self) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
-        let out_buffer = Vec::with_capacity(1024);
-        self.key.get_st(tptoken, out_buffer)
+        self.key.get_st(tptoken, Vec::new())
     }
 
     /// Retrieve a value from the database and parse it into a Rust data structure.
@@ -884,7 +883,7 @@ impl KeyContext {
                 Ok(y)
             }
             Err(x) => {
-                self.context.borrow_mut().buffer = Some(Vec::with_capacity(1024));
+                self.context.borrow_mut().buffer = Some(Vec::new());
                 Err(x)
             }
         }
@@ -958,8 +957,7 @@ impl KeyContext {
     /// ```
     pub fn increment(&self, increment: Option<&[u8]>) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
-        let out_buffer = Vec::with_capacity(1024);
-        self.key.incr_st(tptoken, out_buffer, increment)
+        self.key.incr_st(tptoken, Vec::new(), increment)
     }
 
     /// Increment the count of a lock held by the process, or acquire a new lock.
