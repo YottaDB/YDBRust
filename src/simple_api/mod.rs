@@ -836,7 +836,7 @@ impl Key {
                 continue;
             }
             if status == YDB_ERR_INSUFFSUBS {
-                self.subscripts.resize_with(ret_subs_used, Vec::new);
+                self.subscripts.resize_with(ret_subs_used, || Vec::with_capacity(10));
                 continue;
             }
             if status == crate::craw::YDB_ERR_PARAMINVALID {
