@@ -389,7 +389,7 @@ mod test {
         let err = unsafe {
             cip_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap_err()
         };
-        assert_eq!(err.status, -craw::YDB_ERR_CINOENTRY);
+        assert_eq!(err.status, craw::YDB_ERR_CINOENTRY);
         assert_eq!(out, 0);
 
         // now try a table that does
@@ -416,7 +416,7 @@ mod test {
         let err = unsafe {
             ci_t!(YDB_NOTTP, Vec::with_capacity(100), &mut routine, &mut out, a, b).unwrap_err()
         };
-        assert_eq!(err.status, -craw::YDB_ERR_CINOENTRY);
+        assert_eq!(err.status, craw::YDB_ERR_CINOENTRY);
         assert_eq!(out, 0);
 
         // switch back the calltable to use an environment variable now that we're done

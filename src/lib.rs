@@ -133,6 +133,6 @@ mod test {
         let msg = String::from_utf8_lossy(&buf);
         println!("{:?}", msg);
         let status = msg.split(',').next().unwrap().parse().expect("status should be valid number");
-        assert_eq!(-craw::YDB_ERR_INVYDBEXIT, status);
+        assert_eq!(craw::YDB_ERR_INVYDBEXIT, status);
     }
 }
