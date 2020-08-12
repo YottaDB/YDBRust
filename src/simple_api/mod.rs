@@ -80,8 +80,8 @@ use std::panic;
 use crate::craw::{
     ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t, ydb_incr_st,
     ydb_node_next_st, ydb_node_previous_st, ydb_subscript_next_st, ydb_subscript_previous_st,
-    ydb_tp_st, YDB_OK, YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_DEL_TREE, YDB_DEL_NODE,
-    YDB_TP_RESTART, YDB_TP_ROLLBACK,
+    ydb_tp_st, YDB_OK, YDB_ERR_INVSTRLEN, YDB_ERR_INSUFFSUBS, YDB_ERR_TPRETRY, YDB_DEL_TREE,
+    YDB_DEL_NODE, YDB_TP_RESTART, YDB_TP_ROLLBACK,
 };
 
 const DEFAULT_CAPACITY: usize = 50;
@@ -854,6 +854,8 @@ impl Key {
                 unsafe {
                     err_buffer.set_len(new_buffer_size);
                 }
+                // See https://gitlab.com/YottaDB/DB/YDB/-/issues/619
+                debug_assert_ne!(status, YDB_ERR_TPRETRY);
                 return Err(YDBError { message: err_buffer, status, tptoken });
             }
             break (ret_subs_used, subscripts);
@@ -1136,6 +1138,8 @@ impl Key {
             unsafe {
                 err_buffer.set_len(min(err_buffer_t.len_alloc, err_buffer_t.len_used) as usize);
             }
+            // See https://gitlab.com/YottaDB/DB/YDB/-/issues/619
+            debug_assert_ne!(status, YDB_ERR_TPRETRY);
             return Err(YDBError { message: err_buffer, status, tptoken });
         }
         unsafe {
@@ -1506,7 +1510,9 @@ where
         unsafe {
             err_buffer.set_len(min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize);
         }
-        Err(Box::new(YDBError { message: err_buffer, status: status as i32, tptoken }))
+        // See https://gitlab.com/YottaDB/DB/YDB/-/issues/619
+        debug_assert_ne!(status, YDB_ERR_TPRETRY);
+        Err(Box::new(YDBError { message: err_buffer, status, tptoken }))
     }
 }
 
@@ -1881,6 +1887,7 @@ pub fn lock_st(
     }
 
     if status != YDB_OK as c_int {
+        debug_assert_ne!(status, YDB_ERR_TPRETRY);
         Err(YDBError { message: out_buffer, status, tptoken })
     } else {
         Ok(out_buffer)
@@ -1940,6 +1947,7 @@ where
         break status;
     };
     if status != YDB_OK as i32 {
+        debug_assert_ne!(status, YDB_ERR_TPRETRY);
         Err(YDBError { tptoken, message: out_buffer, status })
     } else {
         Ok(out_buffer)
