@@ -412,6 +412,23 @@ impl Context {
         let buffer = self.take_buffer();
         self.recover_buffer(delete_excl_st(tptoken, buffer, saved_variables))
     }
+
+    /// Runs the YottaDB deferred signal handler (if necessary).
+    ///
+    /// This function must be called if an application has a tight loop inside a transaction which never calls a YDB function.
+    ///
+    /// # See also
+    /// - [Signal Handling](../index.html#signal-handling)
+    /// - [`Context::tp`](#method.tp)
+    /// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-eintr-handler-ydb-eintr-handler-t)
+    pub fn eintr_handler(&self) -> YDBResult<()> {
+        use simple_api::eintr_handler_t;
+
+        let tptoken = self.context.borrow().tptoken;
+        let buffer = self.take_buffer();
+        self.recover_buffer(eintr_handler_t(tptoken, buffer))
+    }
+
     /// Given a binary sequence, serialize it to 'Zwrite format', which is ASCII printable.
     ///
     /// # Errors

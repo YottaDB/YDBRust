@@ -33,10 +33,68 @@
 //! The context_api is recommended for normal use, but the others are available if your
 //! needs are more specialized.
 //!
+//! ## Signal handling
+//!
+//! YottaDB performs its own signal handling in addition to any signal handlers you may have set up.
+//! Since many functions in C are not async-safe, it defers any action until the next time `ydb_eintr_handler` is called.
+//! All YDB functions will automatically call `ydb_eintr_handler` if necessary,
+//! so in most cases this should not affect your application. However, there are some rare cases
+//! when the handler will not be called:
+//! - If you have a tight loop inside a [`tp`] that does not call a YDB function
+//!
+//! For example, the following loop will run forever even if sent SIGINT:
+//! ```no_run
+//! # fn main() -> yottadb::YDBResult<()> {
+//! use yottadb::context_api::{Context, KeyContext};
+//! let ctx = Context::new();
+//! let loop_callback = |_| loop {
+//!     std::thread::sleep(std::time::Duration::from_secs(1));
+//!     println!("finished sleep");
+//! };
+//! ctx.tp(loop_callback, "BATCH", &[]).unwrap();
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! To avoid this, call [`eintr_handler`] in the loop:
+//!
+//! ```no_run
+//! # fn main() -> yottadb::YDBResult<()> {
+//! # use yottadb::context_api::{Context, KeyContext};
+//! # let ctx = Context::new();
+//! # let release = ctx.release()?;
+//! loop {
+//!     std::thread::sleep(std::time::Duration::from_secs(1));
+//!     ctx.eintr_handler()?;
+//!     println!("finished sleep");
+//! }
+//! # }
+//! ```
+//!
+//! However, you should endeavor to keep transactions as short as possible -
+//! both for performance, since YottaDB uses optimistic concurrency control,
+//! and for reliability, since operations will not be committed until the transaction concludes.
+//!
+//! As a last-ditch method of error-recovery, YottaDB will exit immediately
+//! if sent three interrupt signals in a row, even if `eintr_handler` is not called.
+//!
+//! YottaDB does not register any signal handlers until the first time `ydb_init` is called,
+//! and deregisters its handlers after `ydb_exit`.
+//!
+//! ### See also
+//!
+//! - The [C documentation on signals](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#signals)
+//! - [`eintr_handler`]
+//! - [`eintr_handler_t`]
+//! - [`tp`]
+//!
 //! [`craw`]: craw/index.html
 //! [`simple_api`]: simple_api/index.html
 //! [`context_api`]: context_api/index.html
 //! [`YDBError`]: simple_api/struct.YDBError.html
+//! [`eintr_handler`]: context_api/struct.Context.html#method.eintr_handler
+//! [`eintr_handler_t`]: simple_api/fn.eintr_handler_t.html
+//! [`tp`]: context_api/struct.Context.html#method.tp
 //! [YottaDB]: https://yottadb.com/
 //! [transaction processing]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
 #![deny(missing_docs)]

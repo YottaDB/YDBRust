@@ -1704,6 +1704,21 @@ pub fn release_t(tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<String> {
     Ok(format!("rustwr {} {}", env!("CARGO_PKG_VERSION"), zrelease))
 }
 
+/// Runs the YottaDB deferred signal handler (if necessary).
+///
+/// This function must be called if an application has a tight loop which never calls a YDB function.
+///
+/// # See also
+/// - [Signal Handling](../index.html#signal-handling)
+/// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-eintr-handler-ydb-eintr-handler-t)
+pub fn eintr_handler_t(tptoken: TpToken, err_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    use crate::craw::ydb_eintr_handler_t;
+
+    resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| unsafe {
+        ydb_eintr_handler_t(tptoken, err_buffer_p)
+    })
+}
+
 /// Acquires locks specified in `locks` and releases all others.
 ///
 /// This operation is atomic. If any lock cannot be acquired, all locks are released.
