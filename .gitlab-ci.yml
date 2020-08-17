@@ -59,7 +59,7 @@ pages:
       - ~/.cargo/bin/cargo-deadlinks
   script:
     - cargo doc --no-deps
-    - cargo install cargo-deadlinks
+    - cargo install --debug cargo-deadlinks
     - cargo deadlinks
     - mv target/doc public
     - echo '<meta http-equiv="refresh" content="0; url=yottadb">' > public/index.html
