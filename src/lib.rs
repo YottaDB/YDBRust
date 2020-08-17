@@ -113,7 +113,6 @@ pub use simple_api::{
 /// The default transaction processing token if no transaction is in progress.
 pub const YDB_NOTTP: TpToken = TpToken(craw::YDB_NOTTP);
 
-use std::os::raw::c_int;
 /// Cleans up the process connection/access to all databases and all yottadb data structures.
 ///
 /// If you have already made a call to YottaDB, any future calls to YottaDB after calling `yottadb::ydb_exit()`
@@ -137,60 +136,6 @@ use std::os::raw::c_int;
 /// yottadb::ydb_exit();
 /// ```
 /// [`Key`]: simple_api/struct.Key.html
-pub fn ydb_exit() -> c_int {
+pub fn ydb_exit() -> std::os::raw::c_int {
     unsafe { craw::ydb_exit() }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use std::ffi::CString;
-
-    // These tests are ignored since if they run, all future calls will fail
-    #[test]
-    #[ignore]
-    fn test_exit_before_init() {
-        // If called before any previous ydb_* call, should do nothing.
-        ydb_exit();
-        simple_api::Key::variable("a").data_st(YDB_NOTTP, Vec::new()).unwrap();
-    }
-
-    #[test]
-    #[ignore]
-    fn test_exit() {
-        // Calls should work to start
-        simple_api::Key::variable("a").data_st(YDB_NOTTP, Vec::new()).unwrap();
-        ydb_exit();
-        // Then calls return CALLINAFTERXIT after calling `exit()`
-        let err = simple_api::Key::variable("a").data_st(YDB_NOTTP, Vec::new()).unwrap_err();
-        assert_eq!(err.status, craw::YDB_ERR_CALLINAFTERXIT);
-    }
-
-    #[test]
-    #[ignore]
-    fn test_invalid_exit() {
-        use std::env::set_var;
-        use std::os::raw::c_ulong;
-        use crate::craw::ydb_string_t;
-
-        set_var("ydb_routines", "examples/m-ffi");
-        set_var("ydb_ci", "examples/m-ffi/calltab.ci");
-        set_var("ydb_xc_c", "examples/m-ffi/external.xc");
-
-        // `INVYDBEXIT` should be returned if `exit` is called through M FFI
-        let mut buf = Vec::<u8>::new();
-
-        let mut status =
-            ydb_string_t { address: buf.as_mut_ptr() as *mut _, length: buf.capacity() as c_ulong };
-        let exit = CString::new("ydb_exit").unwrap();
-        unsafe {
-            ci_t!(YDB_NOTTP, Vec::new(), &exit, &mut status as *mut ydb_string_t).unwrap();
-            buf.set_len(status.length as usize);
-        }
-
-        let msg = String::from_utf8_lossy(&buf);
-        println!("{:?}", msg);
-        let status = msg.split(',').next().unwrap().parse().expect("status should be valid number");
-        assert_eq!(craw::YDB_ERR_INVYDBEXIT, status);
-    }
 }
