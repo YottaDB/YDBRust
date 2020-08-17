@@ -14,7 +14,15 @@
 
 set -e
 
+# Check copyrights first
 tests/copyright.sh
+
+# Check formatting
 cargo fmt -- --check
+
+# Do some lint checks using clippy
 cargo clippy -- --deny clippy::all
-cargo test
+
+# Previously we had a call to "cargo test" here. But it is a heavyweight task to run all tests for every commit
+# Since the pipeline does run "cargo test", that is considered good enough and the "cargo test" call here has been removed.
+

@@ -31,12 +31,16 @@ use yottadb::simple_api::Key;
 ```
 
 Before building or using a project which depends on YottaDB, you need to
-[ensure that YottaDB is set up](https://yottadb.com/product/get-started/)
-and configured.
 
-```sh
-source $(pkg-config --variable=prefix yottadb)/ydb_env_set
-```
+1. [Ensure that YottaDB is set up](https://yottadb.com/product/get-started/)
+   and configured.
+
+   ```sh
+   source $(pkg-config --variable=prefix yottadb)/ydb_env_set
+   ```
+
+2. [Ensure that rust and cargo are set up](https://doc.rust-lang.org/book/ch01-01-installation.html#installing-rustup-on-linux-or-macos/)
+   and configured.
 
 ## Development Setup
 
@@ -60,7 +64,7 @@ cargo doc --open
 
 You may want to also set up pre-commit hooks:
 
-`ln -s ../../test.sh .git/hooks/pre-commit`
+`ln -s ../../pre-commit .git/hooks/pre-commit`
 
 ### Developing with Docker
 
