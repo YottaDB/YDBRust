@@ -19,7 +19,7 @@ Include YDBRust in your Cargo.toml:
 
 ```toml
 [dependencies]
-yottadb = "0.3"
+yottadb = "1.0"
 ```
 
 Add this into your project:

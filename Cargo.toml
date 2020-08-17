@@ -12,7 +12,7 @@
 
 [package]
 name = "yottadb"
-version = "0.3.0"
+version = "1.0.0"
 authors = ["YottaDB, LLC <info@yottadb.com>"]
 edition = "2018"
 
@@ -40,7 +40,7 @@ debug = false
 opt-level = 0
 
 [build-dependencies.bindgen]
-version = "0.53"
+version = "0.54"
 default-features = false
 features = ['runtime']
 
@@ -49,9 +49,9 @@ threadpool = "1.7"
 rand = "0.7"
 num_cpus = "1"
 tokio = { version = "0.2", features = ["rt-core"], default-features = false }
-proptest = "0.9"
+proptest = "0.10"
 serial_test = "0.4"
 
 [dev-dependencies.sdl2]
-version = "0.33"
+version = "0.34"
 features = ["gfx", "ttf"]
