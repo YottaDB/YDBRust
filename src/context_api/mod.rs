@@ -451,7 +451,7 @@ impl Context {
     ///
     /// # See also
     /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
-    /// - [`zwr2str_st`](fn.zwr2str_st.html), which deserializes a buffer in Zwrite format back to the original binary.
+    /// - [`zwr2str`](#method.zwr2str), which deserializes a buffer in Zwrite format back to the original binary.
     ///
     /// [`BADCHAR`]: https://docs.yottadb.com/MessageRecovery/errors.html#badchar
     pub fn str2zwr(&self, original: &[u8]) -> YDBResult<Vec<u8>> {
@@ -486,7 +486,7 @@ impl Context {
     ///
     /// # See also
     /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
-    /// - [str2zwr_st](fn.str2zwr_st.html), the inverse of `zwr2str_st`.
+    /// - [str2zwr](#method.str2zwr), the inverse of `zwr2str`.
     pub fn zwr2str(&self, out_buffer: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
         use simple_api::zwr2str_st;
 
@@ -603,7 +603,7 @@ impl Context {
     /// - [ZMessage codes](https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes)
     /// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-message-ydb-message-t)
     ///
-    /// [`impl Display`]: struct.YDBError.html#impl-Display
+    /// [`impl Display`]: ../simple_api/struct.YDBError.html#impl-Display
     ///
     /// # Example
     /// Look up the error message for an undefined local variable:

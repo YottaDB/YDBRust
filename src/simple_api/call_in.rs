@@ -134,7 +134,7 @@ pub fn ci_tab_switch_t(
 /// # See also
 /// - [C to M FFI](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#calling-m-routines)
 /// - [The M documentation on call-ins](https://docs.yottadb.com/ProgrammersGuide/extrout.html#calls-from-external-routines-call-ins)
-/// - [`cip_t!`](../macro.cip_t.html), which allows caching the `routine` lookup, making future calls faster.
+/// - [`cip_t!`](macro.cip_t.html), which allows caching the `routine` lookup, making future calls faster.
 ///
 /// # Example
 /// Call the M routine described by `HelloWorld1` in the call-in table.
@@ -221,7 +221,7 @@ impl Drop for CallInDescriptor {
 /// However, since Rust does not allow implementing variadic functions, it is a macro instead.
 ///
 /// # See also
-/// - [`CallInDescriptor`](simple_api/struct.CallInDescriptor.html)
+/// - [`CallInDescriptor`](simple_api/call_in/struct.CallInDescriptor.html)
 /// - [`ci_t!`](macro.ci_t.html), which has more information about call-ins in YottaDB.
 ///
 /// # Safety

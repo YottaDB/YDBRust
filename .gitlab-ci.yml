@@ -15,7 +15,8 @@ stages:
   - docs
 
 before_script:
-  - apt-get update -qq && apt-get install -y -qq git curl libclang-common-6.0-dev clang libsdl2-dev libsdl2-gfx-dev libsdl2-doc libsdl2-ttf-dev
+  # libssl-dev for cargo-deadlinks
+  - apt-get update -qq && apt-get install -y -qq git curl libclang-common-6.0-dev clang libsdl2-dev libsdl2-gfx-dev libsdl2-doc libsdl2-ttf-dev libssl-dev
   - curl https://sh.rustup.rs -sSf | sh -s -- -y
   - source /opt/yottadb/current/ydb_env_set
   - source $HOME/.cargo/env
@@ -58,7 +59,8 @@ pages:
       - ~/.cargo/bin/cargo-deadlinks
   script:
     - cargo doc --no-deps
-    - cargo install cargo-deadlinks && cargo deadlinks
+    - cargo install cargo-deadlinks
+    - cargo deadlinks
     - mv target/doc public
     - echo '<meta http-equiv="refresh" content="0; url=yottadb">' > public/index.html
   artifacts:
