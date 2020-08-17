@@ -116,17 +116,17 @@ pub const YDB_NOTTP: TpToken = TpToken(craw::YDB_NOTTP);
 use std::os::raw::c_int;
 /// Cleans up the process connection/access to all databases and all yottadb data structures.
 ///
-/// If you have already made a call to YottaDB, any future calls to YottaDB after calling `yottadb::exit()`
+/// If you have already made a call to YottaDB, any future calls to YottaDB after calling `yottadb::ydb_exit()`
 /// will return `YDBError { status: YDB_ERR_CALLINAFTERXIT }`.
 /// If you have never before made a call to YottaDB, `exit()` has no effect.
 ///
-/// A typical application should not need to call `yottadb::exit()`
+/// A typical application should not need to call `yottadb::ydb_exit()`
 /// since YottaDB will automatically clean up on process termination.
 ///
 /// This has no effect on any [`Key`]s, which will be automatically dropped when they go out of scope.
 ///
 /// # Errors
-/// - `YDB_ERR_INVYDBEXIT` if `exit()` is called through M FFI (e.g. through `simple_api::ci_t`)
+/// - `YDB_ERR_INVYDBEXIT` if `ydb_exit()` is called through M FFI (e.g. through `simple_api::ci_t`)
 ///
 /// Possible errors for this function include:
 /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
