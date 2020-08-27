@@ -13,13 +13,14 @@
 //! An example of `yottadb` using the `context_api`.
 
 use yottadb::context_api::{Context, KeyContext as Key};
-use yottadb::{DeleteType, YDBError};
+use yottadb::YDBError;
 
 fn main() -> Result<(), YDBError> {
     let ctx = Context::new();
-    let hello = Key::new(&ctx, "hello", &["Rust"]);
-    hello.set("こんにちは")?;
 
+    let hello = Key::new(&ctx, "^hello", &["Rust"]);
+    hello.set("こんにちは")?;
     assert_eq!(hello.get()?, "こんにちは".as_bytes());
-    hello.delete(DeleteType::DelNode)
+
+    Ok(())
 }

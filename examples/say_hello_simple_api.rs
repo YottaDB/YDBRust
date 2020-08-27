@@ -13,13 +13,12 @@
 //! An example of `yottadb` using the `simple_api`.
 
 use yottadb::simple_api::Key;
-use yottadb::{YDB_NOTTP, DeleteType};
+use yottadb::YDB_NOTTP;
 
 fn main() {
-    let hello = Key::new("hello", &["Rust"]);
-    let err_buffer = hello.set_st(YDB_NOTTP, Vec::new(), "こんにちは".as_bytes()).unwrap();
+    let hello = Key::new("^hello", &["Rust"]);
+    hello.set_st(YDB_NOTTP, Vec::new(), "こんにちは".as_bytes()).unwrap();
 
     let out_buffer = hello.get_st(YDB_NOTTP, Vec::new()).unwrap();
     assert_eq!(out_buffer, "こんにちは".as_bytes());
-    hello.delete_st(YDB_NOTTP, err_buffer, DeleteType::DelNode).unwrap();
 }
