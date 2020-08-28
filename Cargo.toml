@@ -45,6 +45,7 @@ default-features = false
 features = ['runtime']
 
 [dev-dependencies]
+criterion = "0.3"
 threadpool = "1.7"
 rand = "0.7"
 num_cpus = "1"
@@ -55,3 +56,7 @@ serial_test = "0.4"
 [dev-dependencies.sdl2]
 version = "0.34"
 features = ["gfx", "ttf"]
+
+[[bench]]
+name = "db_set"
+harness = false
