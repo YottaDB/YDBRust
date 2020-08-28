@@ -84,7 +84,9 @@ use crate::craw::{
     YDB_DEL_NODE, YDB_TP_RESTART, YDB_TP_ROLLBACK,
 };
 
-const DEFAULT_CAPACITY: usize = 50;
+#[doc(hidden)]
+// public for testing, no need to use this for real code
+pub const DEFAULT_CAPACITY: usize = 50;
 
 /// An error returned by the underlying YottaDB library.
 ///
@@ -824,6 +826,9 @@ impl Key {
             };
             let ret_subs_used = ret_subs_used as usize;
             // Handle resizing the buffer, if needed
+            // HACK: by reading the source, I saw that YDB will never return INVSTRLEN
+            // for the `err_buffer`, only for the subscripts (it will just not write as long a message).
+            // So it's ok for this to only look at the subscripts.
             if status == YDB_ERR_INVSTRLEN {
                 let last_sub_index = ret_subs_used;
                 assert!(last_sub_index < self.subscripts.len());
@@ -1122,6 +1127,9 @@ impl Key {
                     &mut last_self_buffer,
                 )
             };
+            // HACK: by looking at the source I saw that this only returns INVSTRLEN for variable or subscript,
+            // not the error buffer (it will just write a shorter message).
+            // So it's safe to only resize `t`.
             if status == YDB_ERR_INVSTRLEN {
                 // New size should be size needed + (current size - len used)
                 let new_size = (last_self_buffer.len_used - last_self_buffer.len_alloc) as usize;
@@ -1935,6 +1943,9 @@ fn resize_ret_call<F>(tptoken: TpToken, mut out_buffer: Vec<u8>, mut func: F) ->
 where
     F: FnMut(u64, *mut ydb_buffer_t, *mut ydb_buffer_t) -> c_int,
 {
+    #[cfg(debug_assertions)]
+    let mut i = 0;
+
     let status = loop {
         let mut out_buffer_t = Key::make_out_buffer_t(&mut out_buffer);
         // NOTE: it is very important that this makes a copy of `out_buffer_t`:
@@ -1944,8 +1955,25 @@ where
         // Do the call
         let status = func(tptoken.into(), &mut err_buffer_t, &mut out_buffer_t);
         // Handle resizing the buffer, if needed
+        // The goal here is to catch any `INVSTRLEN` errors and resize the `out_buffer` to be large enough,
+        // rather than forcing the end user to do it themselves.
+        // However, in some edge cases, it's possible the `INVSTRLEN` will refer _not_ to `out_buffer`,
+        // but to some other buffer that `func` passed in inside a nested call.
+        // In particular, M FFI calls using `ci_t!` could accept ydb_string_t return types but not have enough memory allocated.
+        // But there's no way to tell whether this is a call from `ci_t!` or not.
+        // The trick this uses is to see if the existing `capacity` is already as long as `len_used`:
+        // If so, the `INVSTRLEN` must be referring to a different buffer and there's nothing we can do about it.
         if status == YDB_ERR_INVSTRLEN {
-            out_buffer.resize(out_buffer_t.len_used as usize, 0);
+            let len = out_buffer_t.len_used as usize;
+            if out_buffer.capacity() >= len {
+                return Err(YDBError { tptoken, message: out_buffer, status });
+            }
+            out_buffer.resize(len, 0);
+            #[cfg(debug_assertions)]
+            {
+                i += 1;
+                assert!(i <= 10, "possible infinite loop in `resize_ret_call`");
+            }
             continue;
         }
         // Resize the vec with the buffer to we can see the value
