@@ -10,6 +10,13 @@ All rights reserved.
 
 # Changelog
 
+## [1.1.0] - 2020-09-01
+
+### Fixed
+
+- `ci_t!` and `ci_t_p!` can no longer loop forever if passed an output buffer with insufficient capacity ([!98](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/98))
+- Several broken links in the documentation have been fixed ([!95](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/95))
+
 ## [1.0.0] - 2020-08-17
 
 ### Added
