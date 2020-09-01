@@ -1312,12 +1312,12 @@ pub enum TransactionStatus {
     Rollback = YDB_TP_ROLLBACK as isize,
 }
 
-type UserResult = Result<TransactionStatus, Box<dyn Error>>;
+type UserResult = Result<TransactionStatus, Box<dyn Error + Send + Sync>>;
 
 #[derive(Debug)]
 enum CallBackError {
     // the callback returned an error
-    ApplicationError(Box<dyn Error>),
+    ApplicationError(Box<dyn Error + Send + Sync>),
     // the callback panicked; this is the value `panic!` was called with
     Panic(Box<dyn std::any::Any + Send + 'static>),
 }
@@ -1465,7 +1465,7 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// [C documentation]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st
 pub fn tp_st<F>(
     tptoken: TpToken, mut err_buffer: Vec<u8>, mut f: F, trans_id: &str, locals_to_reset: &[&str],
-) -> Result<Vec<u8>, Box<dyn Error>>
+) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>>
 where
     F: FnMut(TpToken) -> UserResult,
 {

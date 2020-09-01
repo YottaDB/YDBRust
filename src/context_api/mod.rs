@@ -341,9 +341,9 @@ impl Context {
     /// [C documentation]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st
     pub fn tp<'a, F>(
         &'a self, mut f: F, trans_id: &str, locals_to_reset: &[&str],
-    ) -> Result<(), Box<dyn Error>>
+    ) -> Result<(), Box<dyn Error + Send + Sync>>
     where
-        F: FnMut(&'a Self) -> Result<TransactionStatus, Box<dyn Error>>,
+        F: FnMut(&'a Self) -> Result<TransactionStatus, Box<dyn Error + Send + Sync>>,
     {
         let tptoken = self.context.borrow().tptoken;
         // allocate a new buffer for errors, since we need context.buffer to pass `self` to f

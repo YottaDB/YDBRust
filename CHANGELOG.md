@@ -10,6 +10,12 @@ All rights reserved.
 
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Errors for transactions are now required to implement `Send` and `Sync`.
+
 ## [1.1.0] - 2020-09-01
 
 ### Fixed

@@ -159,7 +159,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn doblk(index: usize) -> Result<(), Box<dyn Error>> {
+fn doblk(index: usize) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut index = index;
     let ctx = Context::new();
     let reads = make_ckey!(ctx, "^reads");
