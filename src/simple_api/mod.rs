@@ -1361,6 +1361,8 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 
 /// Start a new transaction, where `f` is the transaction to execute.
 ///
+/// `tp` stands for 'transaction processing'.
+///
 /// The parameter `trans_id` is the name logged for the transaction.
 ///     If `trans_id` has the special value `"BATCH"`, durability is not enforced by YottaDB.
 ///     See the [C documentation] for details.

@@ -207,7 +207,7 @@ impl Context {
         KeyContext::with_key(self, key)
     }
 
-    /// Return the tptoken associated with this `Context`.
+    /// Return the token for the transaction associated with this `Context`.
     ///
     /// This allows calling yottadb functions in the `craw` API that have not yet been wrapped
     /// and require a tptoken from inside a transaction.
@@ -239,6 +239,8 @@ impl Context {
     }
 
     /// Start a new transaction, where `f` is the transaction to execute.
+    ///
+    /// `tp` stands for 'transaction processing'.
     ///
     /// The parameter `trans_id` is the name logged for the transaction.
     ///     If `trans_id` has the special value `"BATCH"`, durability is not enforced by YottaDB.
