@@ -38,6 +38,9 @@ rust-latest:
     - cargo clippy -- --deny clippy::all
     - cargo build --verbose
     - cargo test --verbose
+    - cargo run --example xyzInitRust
+    - cargo run --example xyzTransRust
+    - cargo run --example xyzVerifyRust
 
 rust-nightly:
   stage: build
