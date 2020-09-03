@@ -15,6 +15,8 @@
 //! This program is part of the exercises in the YottaDB Acculturation Workshop at
 //! https://docs.yottadb.com/AcculturationGuide/acculturation.html
 //! and its use is discussed there.
+//!
+//! This is the initialization program for the Acculturation Workshop.
 use yottadb::{DeleteType, YDBResult};
 use yottadb::context_api::{Context, KeyContext as Key};
 

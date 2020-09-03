@@ -13,6 +13,8 @@
 //! This program is part of the exercises in the YottaDB Acculturation Workshop at
 //! https://docs.yottadb.com/AcculturationGuide/acculturation.html
 //! and its use is discussed there.
+//!
+//! This is a simulated application program which uses the database from multiple threads.
 #![allow(non_snake_case)]
 
 use std::error::Error;
