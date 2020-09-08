@@ -23,6 +23,10 @@ homepage = "https://yottadb.com/"
 documentation = "https://yottadb.gitlab.io/Lang/YDBRust/yottadb/"
 readme = "README.md"
 
+[features]
+vendor = ["bindgen"]
+default = ["vendor"]
+
 [dependencies]
 
 [build-dependencies]
@@ -41,6 +45,7 @@ opt-level = 0
 
 [build-dependencies.bindgen]
 version = "0.54"
+optional = true
 default-features = false
 features = ['runtime']
 

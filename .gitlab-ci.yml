@@ -42,6 +42,16 @@ rust-latest:
     - cargo run --example xyzTransRust
     - cargo run --example xyzVerifyRust
 
+rust-no-vendor:
+  stage: build
+  image: yottadb/yottadb-base:latest-master
+  cache:
+    paths:
+      - ~/.cargo/bin/bindgen
+  script:
+    - cargo install --debug bindgen
+    - cargo check --no-default-features
+
 rust-nightly:
   stage: build
   image: yottadb/yottadb-base:latest-master

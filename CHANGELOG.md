@@ -12,6 +12,10 @@ All rights reserved.
 
 ## [Unreleased]
 
+### Added
+
+- `yottadb` no longer requires compiling `bindgen` from source (when passed `--no-default-features`). See [!101](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/101/pipelines) for details.
+
 ### Changed
 
 - Errors for transactions are now required to implement `Send` and `Sync`.

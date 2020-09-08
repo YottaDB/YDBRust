@@ -33,6 +33,17 @@
 //! The context_api is recommended for normal use, but the others are available if your
 //! needs are more specialized.
 //!
+//! ## Features
+//!
+//! Since `yottadb` is a set of bindings to a C library, it uses `bindgen` to generate the bindings.
+//! There are two ways to do this:
+//! - `features = ["vendor"]`, the default. This compiles `bindgen` from source.
+//! - `default-features = false`. This requires you to have bindgen already installed locally.
+//!
+//! Using vendoring means you can use `yottadb` in any user environment,
+//! even when you don't have admin priviledges to install programs.
+//! Using a pre-installed version means compile times are much lower.
+//!
 //! ## Signal handling
 //!
 //! YottaDB performs its own signal handling in addition to any signal handlers you may have set up.
