@@ -39,7 +39,9 @@ rust-latest:
     - cargo build --verbose
     - cargo test --verbose
     - cargo run --example xyzInitRust
-    - cargo run --example xyzTransRust
+    # NOTE: exits with success if and only if `xyzTransRust` times out
+    # This prevents false negatives due to the compile failing and false positives due to the timeout.
+    - timeout 5s cargo run --example xyzTransRust && false || [ $? = 124 ]
     - cargo run --example xyzVerifyRust
 
 rust-no-vendor:
