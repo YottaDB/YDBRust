@@ -33,6 +33,10 @@ rust-latest:
   stage: build
   image: yottadb/yottadb-base:latest-master
   script:
+    # Copy commit gpg key verify script to build directory and execute
+    - wget https://gitlab.com/YottaDB/DB/YDB/-/raw/master/ci/commit_gpgkey_verify.sh
+    - chmod +x commit_gpgkey_verify.sh
+    - ./commit_gpgkey_verify.sh
     - CONTINUOUS_INTEGRATION=1 tests/copyright.sh
     - cargo fmt -- --check
     - cargo clippy -- --deny clippy::all
