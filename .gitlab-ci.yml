@@ -33,10 +33,6 @@ rust-latest:
   stage: build
   image: yottadb/yottadb-base:latest-master
   script:
-    # Copy commit gpg key verify script to build directory and execute
-    - wget https://gitlab.com/YottaDB/DB/YDB/-/raw/master/ci/commit_gpgkey_verify.sh
-    - chmod +x commit_gpgkey_verify.sh
-    - ./commit_gpgkey_verify.sh
     - CONTINUOUS_INTEGRATION=1 tests/copyright.sh
     - cargo fmt -- --check
     - cargo clippy -- --deny clippy::all
@@ -47,6 +43,17 @@ rust-latest:
     # This prevents false negatives due to the compile failing and false positives due to the timeout.
     - timeout 5s cargo run --example xyzTransRust && false || [ $? = 124 ]
     - cargo run --example xyzVerifyRust
+
+gpgkey-verify:
+  image: ubuntu:18.04
+  stage: build
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git wget gnupg
+  script:
+    # Copy commit gpg key verify script to build directory and execute
+    - wget https://gitlab.com/YottaDB/DB/YDB/-/raw/master/ci/commit_gpgkey_verify.sh
+    - chmod +x commit_gpgkey_verify.sh
+    - ./commit_gpgkey_verify.sh https://gitlab.com/YottaDB/Lang/YDBRust
 
 rust-no-vendor:
   stage: build
