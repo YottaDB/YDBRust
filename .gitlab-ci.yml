@@ -51,9 +51,9 @@ gpgkey-verify:
     - apt-get update -qq && apt-get install -y -qq git wget gnupg
   script:
     # Copy commit gpg key verify script to build directory and execute
-    - wget https://gitlab.com/YottaDB/DB/YDB/-/raw/master/ci/commit_gpgkey_verify.sh
-    - chmod +x commit_gpgkey_verify.sh
-    - ./commit_gpgkey_verify.sh https://gitlab.com/YottaDB/Lang/YDBRust
+    - wget https://gitlab.com/YottaDB/DB/YDB/-/raw/master/ci/commit_verify.sh
+    - chmod +x commit_verify.sh
+    - ./commit_verify.sh tests/needs_copyright.sh https://gitlab.com/YottaDB/Lang/YDBRust
 
 rust-no-vendor:
   stage: build

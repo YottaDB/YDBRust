@@ -21,8 +21,7 @@ tests/copyright.sh
 cargo fmt -- --check
 
 # Do some lint checks using clippy
-cargo clippy -- --deny clippy::all
+cargo clippy --no-default-features -- --deny clippy::all
 
 # Previously we had a call to "cargo test" here. But it is a heavyweight task to run all tests for every commit
 # Since the pipeline does run "cargo test", that is considered good enough and the "cargo test" call here has been removed.
-

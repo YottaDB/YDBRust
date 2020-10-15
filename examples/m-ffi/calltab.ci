@@ -1,3 +1,14 @@
+//////////////////////////////////////////////////////////////////
+//								//
+// Copyright (c) 2020 YottaDB LLC and/or its subsidiaries.	//
+// All rights reserved.						//
+//								//
+//	This source code contains the intellectual property	//
+//	of its copyright holder(s), and is made available	//
+//	under a license.  If you do not know the terms of	//
+//	the license, please stop and do not read further.	//
+//								//
+//////////////////////////////////////////////////////////////////
 ydb_exit : ydb_string_t * exit()
 zshvar      : void ^zshvar(I:ydb_string_t*,I:ydb_string_t*)
 ydbmcallback :void run^ydbcallback(I:ydb_string_t*)
