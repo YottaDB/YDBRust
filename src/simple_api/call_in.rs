@@ -27,8 +27,8 @@ use super::{resize_call, YDBResult, TpToken};
 /// when called with [`ci_tab_switch_t`], uses the environment variable `ydb_ci`.
 /// This is also the table that is used if `ci_tab_switch_t` is never called.
 ///
-/// [`ci_tab_open_t`]: fn.ci_tab_open_t.html
-/// [`ci_tab_switch_t`]: fn.ci_tab_switch_t.html
+/// [`ci_tab_open_t`]: ci_tab_open_t()
+/// [`ci_tab_switch_t`]: ci_tab_switch_t()
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct CallInTableDescriptor(usize);
 
@@ -40,7 +40,7 @@ pub struct CallInTableDescriptor(usize);
 /// - [C SimpleAPI documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-ci-tab-open-ydb-ci-tab-open-t)
 /// - [Call-in interface](https://docs.yottadb.com/ProgrammersGuide/extrout.html#call-in-interface)
 /// - [`ci_t!`] and [`cip_t!`]
-/// - [`ci_tab_switch_t`](fn.ci_tab_switch_t.html)
+/// - [`ci_tab_switch_t`](ci_tab_switch_t())
 ///
 /// # Errors
 
@@ -50,9 +50,6 @@ pub struct CallInTableDescriptor(usize);
 
 /// - a negative [error return code] (for example, if the call-in table in the file had parse errors).
 ///
-/// [`ci_tab_switch_t`]: fn.ci_tab_switch_t.html
-/// [`ci_t!`]: ../../macro.ci_t.html
-/// [`cip_t!`]: ../../macro.cip_t.html
 /// [error return code]: https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes
 ///
 /// # Example
@@ -93,7 +90,7 @@ pub fn ci_tab_open_t(
 
 /// - [a negative error return code](https://docs.yottadb.com/MessageRecovery/errormsgref.html#standard-error-codes)
 ///
-/// [`ci_tab_open_t`]: fn.ci_tab_open_t.html
+/// [`ci_tab_open_t`]: ci_tab_open_t()
 ///
 /// # Example
 /// ```
@@ -134,7 +131,7 @@ pub fn ci_tab_switch_t(
 /// # See also
 /// - [C to M FFI](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#calling-m-routines)
 /// - [The M documentation on call-ins](https://docs.yottadb.com/ProgrammersGuide/extrout.html#calls-from-external-routines-call-ins)
-/// - [`cip_t!`](macro.cip_t.html), which allows caching the `routine` lookup, making future calls faster.
+/// - [`cip_t!`], which allows caching the `routine` lookup, making future calls faster.
 ///
 /// # Example
 /// Call the M routine described by `HelloWorld1` in the call-in table.
@@ -177,7 +174,7 @@ macro_rules! ci_t {
 /// The descriptor is lazily initialized on the first call to `cip_t!`,
 /// and future calls will be much faster to execute.
 ///
-/// [`cip_t!`]: ../../macro.cip_t.html
+/// [`cip_t!`]: crate::cip_t!
 pub struct CallInDescriptor(ci_name_descriptor);
 
 impl CallInDescriptor {
@@ -221,8 +218,8 @@ impl Drop for CallInDescriptor {
 /// However, since Rust does not allow implementing variadic functions, it is a macro instead.
 ///
 /// # See also
-/// - [`CallInDescriptor`](simple_api/call_in/struct.CallInDescriptor.html)
-/// - [`ci_t!`](macro.ci_t.html), which has more information about call-ins in YottaDB.
+/// - [`CallInDescriptor`](crate::simple_api::call_in::CallInDescriptor)
+/// - [`ci_t!`], which has more information about call-ins in YottaDB.
 ///
 /// # Safety
 /// Each argument passed (after `routine`) must correspond to the appropriate argument expected by `routine`.

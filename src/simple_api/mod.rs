@@ -60,10 +60,9 @@
 //! }
 //! ```
 //!
-//! [key]: struct.Key.html
+//! [key]: Key
 //! [intrinsics]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
 //! [tlevel]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#tlevel
-//! [YDBResult]: type.YDBResult.html
 
 pub mod call_in;
 
@@ -145,7 +144,7 @@ pub type YDBResult<T> = Result<T, YDBError>;
 /// A transaction processing token, used by yottadb to ensure ACID properties.
 ///
 /// The only valid values for a TpToken are the default (`TpToken::default()`)
-/// or a token passed in from [`tp_st`](fn.tp_st.html).
+/// or a token passed in from [`tp_st`](tp_st()).
 ///
 /// TpTokens can be converted to `u64`, but not vice-versa.
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
@@ -166,7 +165,7 @@ impl Into<u64> for TpToken {
 /// The type of data available at the current node.
 ///
 /// # See also
-/// - [`Key::data_st()`](struct.Key.html#method.data_st)
+/// - [`Key::data_st()`]
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum DataReturn {
     /// There is no data present, either here or lower in the tree.
@@ -182,7 +181,7 @@ pub enum DataReturn {
 /// The type of deletion that should be carried out.
 ///
 /// # See also
-/// - [`Key::delete_st()`](struct.Key.html#method.delete_st)
+/// - [`Key::delete_st()`]
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum DeleteType {
     /// Delete only this node.
@@ -191,7 +190,7 @@ pub enum DeleteType {
     DelTree,
 }
 
-/// Provides a [`Key`][key] object for the given subscripts.
+/// Provides a [`Key`] object for the given subscripts.
 ///
 /// See [the YottaDB documentation][nodes-and-variables] for more information
 /// about how YottaDB handles keys.
@@ -209,7 +208,6 @@ pub enum DeleteType {
 /// let mut key = make_key!();
 /// ```
 ///
-/// [key]: simple_api/struct.Key.html
 /// [nodes-and-variables]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts
 #[macro_export]
 macro_rules! make_key {
@@ -226,7 +224,7 @@ macro_rules! make_key {
 /// A key used to get, set, and delete values in the database.
 ///
 /// # See also
-/// - [`KeyContext`](../context_api/struct.KeyContext.html)
+/// - [`KeyContext`](super::context_api::KeyContext)
 /// - [Keys, values, nodes, variables, and subscripts](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts)
 /// - [Local and Global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
 /// - [Intrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
@@ -236,7 +234,7 @@ pub struct Key {
     ///
     /// Note that not all variables are valid.
     /// If a `variable` is set to an invalid value, the next call to YottaDB
-    /// will result in a [`YDB_ERR_INVVARNAME`](../craw/constant.YDB_ERR_INVVARNAME.html).
+    /// will result in a [`YDB_ERR_INVVARNAME`](super::craw::YDB_ERR_INVVARNAME).
     /// See [variables vs. subscripts][variable] for details on what variables are valid and invalid.
     ///
     /// [variable]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values
@@ -1242,21 +1240,21 @@ impl Key {
     /// Remove all subscripts after the `i`th index.
     ///
     /// # See also
-    /// - [`Vec::truncate()`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.truncate)
+    /// - [`Vec::truncate()`](std::vec::Vec::truncate())
     pub fn truncate(&mut self, i: usize) {
         self.subscripts.truncate(i);
     }
     /// Remove all subscripts, leaving only the `variable`.
     ///
     /// # See also
-    /// - [`Vec::clear()`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.clear)
+    /// - [`Vec::clear()`](std::vec::Vec::clear())
     pub fn clear(&mut self) {
         self.subscripts.clear();
     }
     /// Add a new subscript, keeping all existing subscripts in place.
     ///
     /// # See also
-    /// - [`Vec::push()`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.push)
+    /// - [`Vec::push()`](std::vec::Vec::push())
     pub fn push(&mut self, subscript: Vec<u8>) {
         self.subscripts.push(subscript);
     }
@@ -1265,7 +1263,7 @@ impl Key {
     /// Note that this will _not_ return the `variable` even if there are no subscripts present.
     ///
     /// # See also
-    /// - [`Vec::pop()`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.pop)
+    /// - [`Vec::pop()`](std::vec::Vec::pop())
     pub fn pop(&mut self) -> Option<Vec<u8>> {
         self.subscripts.pop()
     }
@@ -1301,7 +1299,7 @@ impl<S: Into<String>> From<S> for Key {
 
 /// The status returned from a callback passed to [`tp_st`]
 ///
-/// [`tp_st`]: fn.tp_st.html
+/// [`tp_st`]: tp_st()
 #[derive(Debug, Copy, Clone)]
 pub enum TransactionStatus {
     /// Complete the transaction and commit all changes
@@ -1453,14 +1451,14 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
 /// ```
 ///
 /// # See Also
-/// - [`context_api::Context::tp`](../context_api/struct.Context.html#method.tp)
+/// - [`context_api::Context::tp`](super::context_api::Context::tp())
 /// - [More details about the underlying FFI call][C documentation]
 /// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
 /// - [Threads and Transaction Processing][threads and transactions]
 ///
 /// [`$zmaxtptime`]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#zmaxtptime
-/// [`TransactionStatus`]: ../simple_api/enum.TransactionStatus.html
-/// [intrinsics]: index.html#intrinsic-variables
+/// [`TransactionStatus`]: super::simple_api::TransactionStatus
+/// [intrinsics]: self#intrinsic-variables
 /// [threads and transactions]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
 /// [C documentation]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st
 pub fn tp_st<F>(
@@ -1615,7 +1613,7 @@ pub fn delete_excl_st(
 ///
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
-/// - [`zwr2str_st`](fn.zwr2str_st.html), which deserializes a buffer in Zwrite format back to the original binary.
+/// - [`zwr2str_st`](zwr2str_st()), which deserializes a buffer in Zwrite format back to the original binary.
 pub fn str2zwr_st(tptoken: TpToken, out_buf: Vec<u8>, original: &[u8]) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_str2zwr_st;
 
@@ -1646,7 +1644,7 @@ pub fn str2zwr_st(tptoken: TpToken, out_buf: Vec<u8>, original: &[u8]) -> YDBRes
 ///
 /// # See also
 /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
-/// - [str2zwr_st](fn.str2zwr_st.html), the inverse of `zwr2str_st`.
+/// - [str2zwr_st](str2zwr_st()), the inverse of `zwr2str_st`.
 pub fn zwr2str_st(
     tptoken: TpToken, out_buf: Vec<u8>, serialized: &[u8],
 ) -> Result<Vec<u8>, YDBError> {
@@ -1664,13 +1662,13 @@ pub fn zwr2str_st(
 /// - `YDB_ERR_UNKNOWNSYSERR` if `status` is an unrecognized status code
 ///
 /// # See also
-/// - [`context_api::Context::message_t`](../context_api/struct.Context.html#method.message)
+/// - [`context_api::Context::message_t`](super::context_api::Context::message())
 /// - [`impl Display for YDBError`][`impl Display`], which should meet most use cases for `message_t`.
 /// - [Function return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#function-return-codes)
 /// - [ZMessage codes](https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes)
 /// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-message-ydb-message-t)
 ///
-/// [`impl Display`]: struct.YDBError.html#impl-Display
+/// [`impl Display`]: YDBError#impl-Display
 ///
 /// # Example
 /// Look up the error message for an undefined local variable:
@@ -1719,7 +1717,7 @@ pub fn release_t(tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<String> {
 /// This function must be called if an application has a tight loop which never calls a YDB function.
 ///
 /// # See also
-/// - [Signal Handling](../index.html#signal-handling)
+/// - [Signal Handling](super#signal-handling)
 /// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-eintr-handler-ydb-eintr-handler-t)
 pub fn eintr_handler_t(tptoken: TpToken, err_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_eintr_handler_t;
@@ -1789,10 +1787,10 @@ pub fn eintr_handler_t(tptoken: TpToken, err_buffer: Vec<u8>) -> YDBResult<Vec<u
 ///
 /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
 /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
-/// - [`context_api::Context::lock`](../context_api/struct.Context.html#method.lock)
+/// - [`context_api::Context::lock`](super::context_api::Context::lock())
 ///
-/// [`Key::lock_incr_st`]: struct.Key.html#method.lock_incr_st
-/// [`Key::lock_decr_st`]: struct.Key.html#method.lock_decr_st
+/// [`Key::lock_incr_st`]: Key::lock_incr_st()
+/// [`Key::lock_decr_st`]: Key::lock_decr_st()
 #[cfg(any(target_pointer_width = "64", target_pointer_width = "32"))]
 pub fn lock_st(
     tptoken: TpToken, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[Key],

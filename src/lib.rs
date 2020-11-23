@@ -99,13 +99,10 @@
 //! - [`eintr_handler_t`]
 //! - [`tp`]
 //!
-//! [`craw`]: craw/index.html
-//! [`simple_api`]: simple_api/index.html
-//! [`context_api`]: context_api/index.html
-//! [`YDBError`]: simple_api/struct.YDBError.html
-//! [`eintr_handler`]: context_api/struct.Context.html#method.eintr_handler
-//! [`eintr_handler_t`]: simple_api/fn.eintr_handler_t.html
-//! [`tp`]: context_api/struct.Context.html#method.tp
+//! [`YDBError`]: simple_api::YDBError
+//! [`eintr_handler`]: context_api::Context::eintr_handler()
+//! [`eintr_handler_t`]: simple_api::eintr_handler_t()
+//! [`tp`]: context_api::Context::tp()
 //! [YottaDB]: https://yottadb.com/
 //! [transaction processing]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
 #![deny(missing_docs)]
@@ -146,7 +143,7 @@ pub const YDB_NOTTP: TpToken = TpToken(craw::YDB_NOTTP);
 /// ```no_run
 /// yottadb::ydb_exit();
 /// ```
-/// [`Key`]: simple_api/struct.Key.html
+/// [`Key`]: simple_api::Key
 pub fn ydb_exit() -> std::os::raw::c_int {
     unsafe { craw::ydb_exit() }
 }

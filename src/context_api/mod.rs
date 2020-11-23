@@ -13,7 +13,7 @@
 //! Provides a Rust-interface for YottaDB which hides some of the complexity related to
 //! managing error-return buffers and tptokens.
 //!
-//! Most operations are encapsulated in methods in the [KeyContext](struct.KeyContext.html) struct.
+//! Most operations are encapsulated in methods in the [KeyContext] struct.
 //! In addition to easier-to-use get/set/delete/data,
 //! iteration helpers are available to iterate over values in the database in a variety of ways.
 //!
@@ -88,7 +88,7 @@ macro_rules! gen_iter_proto {
     }
 }
 
-/// Create a [`KeyContext`](context_api/struct.KeyContext.html) with the given subscripts, provided a context.
+/// Create a [`KeyContext`] with the given subscripts, provided a context.
 ///
 /// # Examples
 ///
@@ -172,12 +172,12 @@ impl Default for Context {
 /// Keys are used to get, set, and delete values in the database.
 ///
 /// # See also
-/// - [`Key`](../simple_api/struct.Key.html)
+/// - [`Key`](super::simple_api::Key)
 /// - [Keys, values, nodes, variables, and subscripts](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts)
 /// - [Local and Global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
 /// - [Intrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
 ///
-/// [`Key`]: ../simple_api/struct.Key.html
+/// [`Key`]: super::simple_api::Key
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct KeyContext {
     context: Context,
@@ -200,9 +200,9 @@ impl Context {
     /// Create a `KeyContext` from this `Context`.
     ///
     /// # See also
-    /// - [`KeyContext::new()`](struct.KeyContext.html#method.new)
-    /// - [`KeyContext::with_key`](struct.KeyContext.html#method.with_key)
-    /// - [`impl From<(&Context, Key)> for KeyContext`](struct.KeyContext.html#implementations)
+    /// - [`KeyContext::new()`]
+    /// - [`KeyContext::with_key`](KeyContext::with_key())
+    /// - [`impl From<(&Context, Key)> for KeyContext`](KeyContext#implementations)
     pub fn new_key<K: Into<Key>>(&self, key: K) -> KeyContext {
         KeyContext::with_key(self, key)
     }
@@ -233,7 +233,7 @@ impl Context {
     /// ```
     ///
     /// # See also
-    /// - [`Context::tp`](struct.Context.html#method.tp)
+    /// - [`Context::tp`](Context::tp())
     pub fn tptoken(&self) -> TpToken {
         self.borrow().tptoken
     }
@@ -329,14 +329,14 @@ impl Context {
     /// ```
     ///
     /// # See Also
-    /// - [`simple_api::tp_st`](../simple_api/fn.tp_st.html)
+    /// - [`simple_api::tp_st`](super::simple_api::tp_st())
     /// - [More details about the underlying FFI call][C documentation]
     /// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
     /// - [Threads and Transaction Processing][threads and transactions]
     ///
     /// [`$zmaxtptime`]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#zmaxtptime
-    /// [`TransactionStatus`]: ../simple_api/enum.TransactionStatus.html
-    /// [intrinsics]: ../simple_api/index.html#intrinsic-variables
+    /// [`TransactionStatus`]: super::simple_api::TransactionStatus
+    /// [intrinsics]: crate::simple_api#intrinsic-variables
     /// [threads and transactions]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
     /// [C documentation]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st
     pub fn tp<'a, F>(
@@ -403,7 +403,7 @@ impl Context {
     /// ```
     ///
     /// # See also
-    /// - [`simple_api::delete_excl_st`](../simple_api/fn.delete_excl_st.html)
+    /// - [`simple_api::delete_excl_st`](super::simple_api::delete_excl_st())
     /// - The [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-delete-excl-s-ydb-delete-excl-st)
     /// - [Local and global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
     /// - [Instrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
@@ -420,8 +420,8 @@ impl Context {
     /// This function must be called if an application has a tight loop inside a transaction which never calls a YDB function.
     ///
     /// # See also
-    /// - [Signal Handling](../index.html#signal-handling)
-    /// - [`Context::tp`](#method.tp)
+    /// - [Signal Handling](super#signal-handling)
+    /// - [`Context::tp`](Context::tp())
     /// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-eintr-handler-ydb-eintr-handler-t)
     pub fn eintr_handler(&self) -> YDBResult<()> {
         use simple_api::eintr_handler_t;
@@ -453,7 +453,7 @@ impl Context {
     ///
     /// # See also
     /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
-    /// - [`zwr2str`](#method.zwr2str), which deserializes a buffer in Zwrite format back to the original binary.
+    /// - [`zwr2str`](Context::zwr2str()), which deserializes a buffer in Zwrite format back to the original binary.
     ///
     /// [`BADCHAR`]: https://docs.yottadb.com/MessageRecovery/errors.html#badchar
     pub fn str2zwr(&self, original: &[u8]) -> YDBResult<Vec<u8>> {
@@ -488,7 +488,7 @@ impl Context {
     ///
     /// # See also
     /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
-    /// - [str2zwr](#method.str2zwr), the inverse of `zwr2str`.
+    /// - [str2zwr](Context::str2zwr()), the inverse of `zwr2str`.
     pub fn zwr2str(&self, out_buffer: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
         use simple_api::zwr2str_st;
 
@@ -572,10 +572,10 @@ impl Context {
     ///
     /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
     /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
-    /// - [`simple_api::lock_st`](../simple_api/fn.lock_st.html)
+    /// - [`simple_api::lock_st`](super::simple_api::lock_st())
     ///
-    /// [`KeyContext::lock_incr`]: struct.KeyContext.html#method.lock_incr
-    /// [`KeyContext::lock_decr`]: struct.KeyContext.html#method.lock_decr
+    /// [`KeyContext::lock_incr`]: KeyContext::lock_incr()
+    /// [`KeyContext::lock_decr`]: KeyContext::lock_decr()
     pub fn lock(&self, timeout: Duration, locks: &[Key]) -> YDBResult<()> {
         use simple_api::lock_st;
 
@@ -599,13 +599,13 @@ impl Context {
     /// - `YDB_ERR_UNKNOWNSYSERR` if `status` is an unrecognized status code
     ///
     /// # See also
-    /// - [`simple_api::message_t`](../simple_api/fn.message_t.html)
+    /// - [`simple_api::message_t`](super::simple_api::message_t())
     /// - [`impl Display for YDBError`][`impl Display`], which should meet most use cases for `message_t`.
     /// - [Function return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#function-return-codes)
     /// - [ZMessage codes](https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes)
     /// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-message-ydb-message-t)
     ///
-    /// [`impl Display`]: ../simple_api/struct.YDBError.html#impl-Display
+    /// [`impl Display`]: super::simple_api::YDBError#impl-Display
     ///
     /// # Example
     /// Look up the error message for an undefined local variable:
@@ -687,7 +687,7 @@ impl From<(&Context, Key)> for KeyContext {
     }
 }
 
-/// The error type returned by [`KeyContext::get_and_parse()`](struct.KeyContext.html#method.get_and_parse)
+/// The error type returned by [`KeyContext::get_and_parse()`]
 #[derive(Debug)]
 pub enum ParseError<T> {
     /// There was an error retrieving the value from the database.
@@ -728,9 +728,9 @@ impl KeyContext {
     /// Create a new `KeyContext`, creating the `Key` at the same time.
     ///
     /// # See also
-    /// - [`KeyContext::with_key`](struct.KeyContext.html#method.with_key)
-    /// - [`Context::new_key()`](struct.Context.html#method.new_key)
-    /// - [`impl From<(&Context, Key)> for KeyContext`](struct.KeyContext.html#implementations)
+    /// - [`KeyContext::with_key`](KeyContext::with_key())
+    /// - [`Context::new_key()`]
+    /// - [`impl From<(&Context, Key)> for KeyContext`](KeyContext#implementations)
     pub fn new<V, S>(ctx: &Context, variable: V, subscripts: &[S]) -> KeyContext
     where
         V: Into<String>,
@@ -746,9 +746,9 @@ impl KeyContext {
     /// Create a new `KeyContext` using an existing key.
     ///
     /// # See also
-    /// - [`KeyContext::new`](struct.KeyContext.html#method.new)
-    /// - [`Context::new_key()`](struct.Context.html#method.new_key)
-    /// - [`impl From<(&Context, Key)> for KeyContext`](struct.KeyContext.html#implementations)
+    /// - [`KeyContext::new`](KeyContext::new())
+    /// - [`Context::new_key()`]
+    /// - [`impl From<(&Context, Key)> for KeyContext`](KeyContext#implementations)
     pub fn with_key<K: Into<Key>>(ctx: &Context, key: K) -> Self {
         Self { context: ctx.clone(), key: key.into() }
     }
