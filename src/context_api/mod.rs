@@ -336,7 +336,7 @@ impl Context {
     ///
     /// [`$zmaxtptime`]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#zmaxtptime
     /// [`TransactionStatus`]: ../simple_api/enum.TransactionStatus.html
-    /// [intrinsics]: index.html#intrinsic-variables
+    /// [intrinsics]: ../simple_api/index.html#intrinsic-variables
     /// [threads and transactions]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
     /// [C documentation]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st
     pub fn tp<'a, F>(
