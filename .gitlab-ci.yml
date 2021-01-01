@@ -1,6 +1,6 @@
 #################################################################
 #                                                               #
-# Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.  #
+# Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  #
 # All rights reserved.                                          #
 #                                                               #
 #       This source code contains the intellectual property     #
@@ -33,7 +33,6 @@ rust-latest:
   stage: build
   image: yottadb/yottadb-base:latest-master
   script:
-    - CONTINUOUS_INTEGRATION=1 tests/copyright.sh
     - cargo fmt -- --check
     - cargo clippy -- --deny clippy::all
     - cargo build --verbose
