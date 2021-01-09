@@ -1,6 +1,6 @@
 #################################################################
 #								#
-# Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.	#
+# Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.	#
 # All rights reserved.						#
 #								#
 #	This source code contains the intellectual property	#
@@ -29,22 +29,15 @@ default = ["vendor"]
 
 [dependencies]
 
-[build-dependencies]
-pkg-config = "0.3"
-
 [profile.release]
 opt-level = 3
 debug = false
 
-# The only dependencies YDBRust has are build dependencies on bindgen and pkg-config.
-# These execute basically instantaneously, so there is no need to optimize them.
-# NOTE: we cannot use `build-override` because we support back to 1.34
-# and build-override was only stabilized in 1.41.
-[profile.release.package."*"]
-opt-level = 0
+[build-dependencies]
+pkg-config = "0.3"
 
 [build-dependencies.bindgen]
-version = "0.54"
+version = "0.56"
 optional = true
 default-features = false
 features = ['runtime']
@@ -52,11 +45,11 @@ features = ['runtime']
 [dev-dependencies]
 criterion = "0.3"
 threadpool = "1.7"
-rand = "0.7"
+rand = "0.8"
 num_cpus = "1"
-tokio = { version = "0.2", features = ["rt-core"], default-features = false }
+tokio = { version = "1", features = ["rt"], default-features = false }
 proptest = "0.10"
-serial_test = "0.4"
+serial_test = "0.5"
 
 [dev-dependencies.sdl2]
 version = "0.34"

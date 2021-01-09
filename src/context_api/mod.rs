@@ -141,17 +141,16 @@ struct ContextInternal {
 ///
 /// Example:
 ///
-/// ```compile_fail
-/// # #[macro_use] extern crate yottadb;
-/// extern crate tokio;
+/// ```compile_fail,E0277
 /// use yottadb::context_api::Context;
+/// use yottadb::{TransactionStatus, make_ckey};
 ///
 /// let ctx = Context::new();
 /// let mut key1 = make_ckey!(ctx, "key1");
 /// let mut key2 = make_ckey!(ctx, "key2");
 /// tokio::spawn(async {
 ///     // error[E0277]: `dyn std::error::Error` cannot be sent between threads safely
-///     ctx.tp(|_| Ok(()), "BATCH", &[])
+///     ctx.tp(|_| Ok(TransactionStatus::Ok), "BATCH", &[])
 /// });
 /// ```
 ///

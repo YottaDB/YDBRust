@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -24,26 +24,23 @@ use yottadb::DeleteType;
 
 use rand::Rng;
 
-fn get_global() -> String {
-    let mut rng = rand::thread_rng();
-    let val = rng.gen_range(0, 2);
-    match val {
-        0 => String::from("^MyGlobal1"),
-        1 => String::from("^MyGlobal2"),
-        2 => String::from("^MyGlobal3"),
-        _ => panic!("Huh."),
+fn get_global() -> &'static str {
+    match rand::thread_rng().gen_range(0..=2) {
+        0 => "^MyGlobal1",
+        1 => "^MyGlobal2",
+        2 => "^MyGlobal3",
+        _ => unreachable!(),
     }
 }
 
-fn random_walk() {
-    let ctx = Context::new();
+fn random_walk(ctx: &Context) {
     let mut key =
         make_ckey!(ctx, get_global(), get_global(), get_global(), get_global(), get_global());
     // Randomly select between 0 and 4 subscripts
     let mut rng = rand::thread_rng();
-    key.truncate(rng.gen_range(0, 4));
+    key.truncate(rng.gen_range(0..=4));
     // Select a random operation
-    match rng.gen_range(0, 6) {
+    match rng.gen_range(0..=6) {
         0 => key.delete(DeleteType::DelNode).unwrap(),
         1 | 4 | 5 => match key.get() {
             // we don't unwrap this because failures are fine
@@ -56,15 +53,18 @@ fn random_walk() {
         6 => {
             key.data().unwrap();
         }
-        _ => panic!("out of range"),
+        _ => unreachable!(),
     }
 }
 
 fn main() {
     let pool = ThreadPool::new(8);
     for _ in 0..8 {
-        pool.execute(move || loop {
-            random_walk();
+        pool.execute(move || {
+            let ctx = Context::new();
+            loop {
+                random_walk(&ctx);
+            }
         });
     }
 
