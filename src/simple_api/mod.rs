@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -147,8 +147,15 @@ pub type YDBResult<T> = Result<T, YDBError>;
 /// or a token passed in from [`tp_st`](tp_st()).
 ///
 /// TpTokens can be converted to `u64`, but not vice-versa.
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct TpToken(pub(crate) u64);
+
+impl fmt::Debug for TpToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let token: &dyn fmt::Display = if self.0 == 0 { &"YDB_NOTTP" } else { &self.0 };
+        write!(f, "TpToken({})", token)
+    }
+}
 
 impl Default for TpToken {
     fn default() -> Self {
@@ -228,7 +235,7 @@ macro_rules! make_key {
 /// - [Keys, values, nodes, variables, and subscripts](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts)
 /// - [Local and Global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
 /// - [Intrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub struct Key {
     /// The [variable] of the key, which can be freely modified.
     ///
@@ -240,6 +247,22 @@ pub struct Key {
     /// [variable]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values
     pub variable: String,
     subscripts: Vec<Vec<u8>>,
+}
+
+impl fmt::Debug for Key {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use std::fmt::Write;
+
+        f.write_str(&self.variable)?;
+        if let Some(first) = self.subscripts.get(0) {
+            write!(f, "({:?}", String::from_utf8_lossy(first))?;
+            for subscript in &self.subscripts[1..] {
+                write!(f, ", {:?}", String::from_utf8_lossy(subscript))?;
+            }
+            f.write_char(')')?;
+        }
+        Ok(())
+    }
 }
 
 impl Key {

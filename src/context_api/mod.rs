@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -156,9 +156,19 @@ struct ContextInternal {
 /// ```
 ///
 /// [1]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Context {
     context: Rc<RefCell<ContextInternal>>,
+}
+
+impl fmt::Debug for Context {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let ctx = self.context.borrow();
+        f.debug_struct("Context")
+            .field("tptoken", &ctx.tptoken)
+            .field("buffer", &String::from_utf8_lossy(&ctx.buffer))
+            .finish()
+    }
 }
 
 impl Default for Context {
@@ -180,9 +190,9 @@ impl Default for Context {
 /// [`Key`]: super::simple_api::Key
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct KeyContext {
-    context: Context,
     /// `KeyContext` implements `Deref<Target = Key>`
     pub key: Key,
+    context: Context,
 }
 
 use core::cell::{Ref, RefMut};
