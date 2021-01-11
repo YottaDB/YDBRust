@@ -116,10 +116,29 @@ macro_rules! make_ckey {
     );
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug)]
 struct ContextInternal {
     buffer: Vec<u8>,
     tptoken: TpToken,
+    #[cfg(test)]
+    db_lock: Option<crate::test_lock::LockGuard<'static>>,
+}
+
+impl PartialEq for ContextInternal {
+    fn eq(&self, other: &Self) -> bool {
+        self.tptoken == other.tptoken && self.buffer == other.buffer
+    }
+}
+
+impl Eq for ContextInternal {}
+
+#[cfg(test)]
+impl Context {
+    fn write_lock(&self) {
+        let mut ctx = self.borrow_mut();
+        drop(ctx.db_lock.take());
+        ctx.db_lock = Some(crate::test_lock::LockGuard::write());
+    }
 }
 
 /// A struct that keeps track of the current transaction and error buffer.
@@ -202,6 +221,8 @@ impl Context {
             context: Rc::new(RefCell::new(ContextInternal {
                 buffer: Vec::new(),
                 tptoken: TpToken::default(),
+                #[cfg(test)]
+                db_lock: Some(crate::test_lock::LockGuard::read()),
             })),
         }
     }
@@ -1531,7 +1552,6 @@ implement_iterator!(
 #[cfg(test)]
 mod tests {
     use std::num::ParseIntError;
-    use serial_test::serial;
 
     use super::*;
 
@@ -1547,7 +1567,7 @@ mod tests {
     #[test]
     fn simple_get() {
         let ctx = Context::new();
-        let key = ctx.new_key(Key::variable("^hello"));
+        let key = ctx.new_key(Key::variable("^helloGet"));
         key.set(b"Hello world!").unwrap();
         assert_eq!(key.get().unwrap(), b"Hello world!");
         key.delete(DeleteType::DelNode).unwrap();
@@ -1556,7 +1576,7 @@ mod tests {
     #[test]
     fn simple_set() {
         let ctx = Context::new();
-        let key = ctx.new_key(Key::variable("^hello"));
+        let key = ctx.new_key(Key::variable("helloSet"));
         key.set(b"Hello world!").unwrap();
         key.set("Hello str!").unwrap();
         key.set(String::from("Hello String!")).unwrap();
@@ -1566,7 +1586,7 @@ mod tests {
     #[test]
     fn simple_data() {
         let ctx = Context::new();
-        let key = ctx.new_key(Key::variable("^hello"));
+        let key = ctx.new_key(Key::variable("helloData"));
         key.data().unwrap();
     }
 
@@ -1588,7 +1608,7 @@ mod tests {
     #[test]
     fn simple_prev_node() {
         let ctx = Context::new();
-        let mut key = make_ckey!(ctx, "^hello", "0", "0");
+        let mut key = make_ckey!(ctx, "^helloPrevNode", "0", "0");
 
         key.set(b"Hello world!").unwrap();
         // Forget the second subscript
@@ -1625,7 +1645,7 @@ mod tests {
                     assert_eq!(x, match i {
                         $( $pat => $val ),*,
                         _ => panic!("Unexpected value: <{:#?}>", x),
-                    }, "Values don't match on {}th iteration", i);
+                    }, "Values don't match on {}th iteration (for key {:?})", i, key);
                 }
             }
         }
@@ -1734,7 +1754,7 @@ mod tests {
         let ctx = Context::new();
         ctx.tp(
             |ctx| {
-                let key = ctx.new_key("^hello");
+                let key = ctx.new_key("^helloTp");
                 key.set("Hello world!")?;
                 Ok(TransactionStatus::Ok)
             },
@@ -1760,6 +1780,7 @@ mod tests {
     #[test]
     fn ydb_delete_excl_st() {
         let ctx = Context::new();
+        ctx.write_lock();
         let mut key = KeyContext::variable(&ctx, "contextDeleteExcl");
 
         // Set a few values
@@ -1832,7 +1853,7 @@ mod tests {
     #[test]
     fn prev_node_self() -> Result<(), Box<dyn Error>> {
         let ctx = Context::new();
-        let mut key = make_ckey!(ctx, "^hello", "0", "0");
+        let mut key = make_ckey!(ctx, "^helloPrevNode", "0", "0");
 
         key.set("Hello world!")?;
         // Forget the second subscript
@@ -1857,18 +1878,21 @@ mod tests {
     }
     #[test]
     fn no_subscripts() {
-        let next = KeyContext::new(&Context::new(), "empty", &["subscript"]);
+        let ctx = Context::new();
+        let next = KeyContext::new(&ctx, "empty", &["subscript"]);
         next.set("some data").unwrap();
-        let mut key = KeyContext::variable(&Context::new(), "empty");
+        let mut key = KeyContext::variable(&ctx, "empty");
         key.next_node_self().unwrap();
     }
+
     #[test]
-    #[serial]
     fn ydb_lock_st() {
         use crate::simple_api::tests::lock_count;
 
         // Test `Context::lock`
         let ctx = Context::new();
+        // This test cannot run in parallel with any others.
+        ctx.write_lock();
         let key = KeyContext::variable(&ctx, "ydbCtxLock");
         assert_eq!(lock_count(&key.variable), 0);
         // Acquuire the lock

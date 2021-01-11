@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2020 YottaDB LLC and/or its subsidiaries.       *
+* Copyright (c) 2021 YottaDB LLC and/or its subsidiaries.       *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -264,15 +264,16 @@ macro_rules! cip_t {
 
 #[cfg(test)]
 mod test {
-    use serial_test::serial;
     use std::env;
     use std::ffi::CString;
     use std::os::raw::c_char;
     use super::*;
     use crate::craw::{self, ydb_string_t, ydb_long_t};
     use crate::YDB_NOTTP;
+    use crate::test_lock::LockGuard;
 
     fn call<F: FnOnce() -> T, T>(f: F) -> T {
+        let _guard = LockGuard::read();
         env::set_var("ydb_routines", "examples/m-ffi");
         env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
         f()
@@ -355,6 +356,10 @@ mod test {
     }
     #[test]
     fn no_callin_env_var() {
+        // This modifies the active call-in table and so cannot run in parallel with other tests in
+        // this module.
+        let _guard = LockGuard::write();
+
         // NOTE: this does NOT set ydb_ci
         env::set_var("ydb_routines", "examples/m-ffi");
 
@@ -376,8 +381,10 @@ mod test {
         assert_eq!(&buf, b"entry called");
     }
     #[test]
-    #[serial]
     fn tab_open_switch() {
+        // This test cannot run in parallel with any others.
+        let _guard = LockGuard::write();
+
         // NOTE: this does NOT set ydb_ci
         env::set_var("ydb_routines", "examples/m-ffi");
 
@@ -422,7 +429,6 @@ mod test {
         ci_tab_switch_t(YDB_NOTTP, Vec::new(), CallInTableDescriptor::default()).unwrap();
     }
     #[test]
-    #[serial]
     // Test that M FFI works from within a transaction
     fn call_in_tp() {
         use crate::simple_api::{tp_st, TransactionStatus};

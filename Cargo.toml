@@ -49,7 +49,7 @@ rand = "0.8"
 num_cpus = "1"
 tokio = { version = "1", features = ["rt"], default-features = false }
 proptest = "0.10"
-serial_test = "0.5"
+once_cell = "1"
 
 [dev-dependencies.sdl2]
 version = "0.34"

@@ -2022,9 +2022,9 @@ where
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use serial_test::serial;
     use proptest::prelude::*;
     use crate::*;
+    use crate::test_lock::LockGuard;
     use super::*;
 
     fn arb_key() -> impl Strategy<Value = Key> {
@@ -2047,6 +2047,8 @@ pub(crate) mod tests {
 
     #[test]
     fn basic_set_and_get_st() {
+        let _guard = LockGuard::read();
+
         let mut result = Vec::new();
         let key = Key::variable("^basicSetGet");
 
@@ -2066,6 +2068,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_get_st_error() {
+        let _guard = LockGuard::read();
+
         let key = Key::variable("^helloDoesntExists");
         let err = key.get_st(YDB_NOTTP, Vec::new()).unwrap_err();
         assert_eq!(err.status, crate::craw::YDB_ERR_GVUNDEF);
@@ -2077,6 +2081,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_set_st_error() {
+        let _guard = LockGuard::read();
+
         let key = Key::variable("$ZCHSET");
         let err = key.set_st(YDB_NOTTP, Vec::new(), "some val").unwrap_err();
         assert_eq!(err.status, craw::YDB_ERR_SVNOSET)
@@ -2085,6 +2091,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_data_st() {
+        let _guard = LockGuard::read();
+
         let err_buf = Vec::new();
         let mut key = Key::variable("testDataSt");
 
@@ -2117,6 +2125,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_delete_st() {
+        let _guard = LockGuard::read();
+
         let mut result = Vec::new();
         let key = Key::variable("^helloDeleteMe");
 
@@ -2134,6 +2144,9 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_delete_excl_st() {
+        // This test cannot be run in parallel.
+        let _guard = LockGuard::write();
+
         let out_buf = Vec::new();
         let mut key = Key::variable("deleteExcl");
 
@@ -2180,6 +2193,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_incr_st() {
+        let _guard = LockGuard::read();
+
         let err_buf = Vec::new();
         let key = Key::variable("^helloIncrementMe");
         let err_buf = key.set_st(YDB_NOTTP, err_buf, "0").unwrap();
@@ -2266,8 +2281,10 @@ pub(crate) mod tests {
         }
     }
     #[test]
-    #[serial]
     fn ydb_lock_incr_decr_st() {
+        // This test cannot run in parallel with any others.
+        let _guard = LockGuard::write();
+
         // Create a new lock
         let err_buf = Vec::new();
         let key = Key::variable("simpleIncrLock");
@@ -2293,9 +2310,11 @@ pub(crate) mod tests {
     }
 
     #[test]
-    #[serial]
     fn ydb_lock_st() {
         use crate::craw::{YDB_ERR_MAXARGCNT, YDB_ERR_TIME2LONG};
+
+        // This test cannot run in parallel with any others.
+        let _guard = LockGuard::write();
 
         // Test global and local locks
         for &lock in &["ydbLock", "^ydbLock"] {
@@ -2350,6 +2369,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_node_next_self_st() {
+        let _guard = LockGuard::read();
+
         let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeNext", "shire");
@@ -2362,6 +2383,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_node_next_self_extra_node_st() {
+        let _guard = LockGuard::read();
+
         let mut result = Vec::new();
         let value = b"Hello world!";
         let mut key = make_key!("^helloNodeNext2", "worlds", "shire");
@@ -2389,6 +2412,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_node_prev_self_st() {
+        let _guard = LockGuard::read();
+
         let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeprev", "shire");
@@ -2403,6 +2428,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_node_prev_self_extra_node_st() {
+        let _guard = LockGuard::read();
+
         let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloNodeprev2", "worlds", "shire");
@@ -2416,6 +2443,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_subscript_next() {
+        let _guard = LockGuard::read();
+
         let mut result = Vec::new();
         let mut key = make_key!("^helloSubNext", "a");
         result = key.set_st(YDB_NOTTP, result, b"Hello world!").unwrap();
@@ -2445,6 +2474,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_subscript_prev() {
+        let _guard = LockGuard::read();
+
         let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubprev", "b");
@@ -2456,6 +2487,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_subscript_next_self() {
+        let _guard = LockGuard::read();
+
         let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubNext2", "shire");
@@ -2468,6 +2501,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ydb_subscript_prev_self() {
+        let _guard = LockGuard::read();
+
         let mut result = Vec::new();
         let value = Vec::from("Hello world!");
         let mut key = make_key!("^helloSubprev2", "shire");
@@ -2480,6 +2515,8 @@ pub(crate) mod tests {
     #[test]
     fn ydb_tp_st() {
         use crate::craw;
+
+        let _guard = LockGuard::read();
 
         // Variables are persisted after a transaction
         let key = Key::variable("tpPersistence");
@@ -2557,6 +2594,8 @@ pub(crate) mod tests {
 
     #[test]
     fn nested_transaction() {
+        let _guard = LockGuard::read();
+
         let mut first_run = true;
         tp_st(
             YDB_NOTTP,
@@ -2600,8 +2639,9 @@ pub(crate) mod tests {
     }
 
     #[test]
-    #[serial]
     fn restart_resets_locals() {
+        // This test cannot run in parallel with any others.
+        let _guard = LockGuard::write();
         let a = Key::variable("tpResetsLocals");
 
         for locals in &[&["*"][..], &[a.variable.as_str()], &[&a.variable, "b", "c"]] {
@@ -2658,6 +2698,8 @@ pub(crate) mod tests {
 
     #[test]
     fn rollback() {
+        let _guard = LockGuard::read();
+
         let key = Key::variable("^tpRollbackTest");
         key.set_st(YDB_NOTTP, Vec::new(), "initial").unwrap();
         let set_inner = |tptoken| {
@@ -2679,6 +2721,9 @@ pub(crate) mod tests {
     #[test]
     fn ydb_message_t() {
         use crate::craw;
+
+        let _guard = LockGuard::read();
+
         let mut err =
             YDBError { message: Vec::new(), status: craw::YDB_ERR_GVUNDEF, tptoken: YDB_NOTTP };
         assert!(err.to_string().contains("%YDB-E-GVUNDEF, Global variable undefined"));
@@ -2764,6 +2809,9 @@ pub(crate) mod tests {
     #[test]
     fn empty_err_buf() {
         use crate::craw::YDB_ERR_GVUNDEF;
+
+        let _guard = LockGuard::read();
+
         let key = Key::variable("^doesnotexist");
         let err_buf = Vec::new();
         let res = key.get_st(YDB_NOTTP, err_buf);
@@ -2772,6 +2820,8 @@ pub(crate) mod tests {
     #[test]
     fn empty_subscript() {
         use crate::craw::YDB_ERR_LVUNDEF;
+
+        let _guard = LockGuard::read();
 
         let mut key = make_key!("simpleHello", "world");
         let err_buf = Vec::new();
@@ -2791,6 +2841,8 @@ pub(crate) mod tests {
     // `RUST_BACKTRACE=1 cargo test --lib common_errors` to find out which.
     #[test]
     fn common_errors() {
+        let _guard = LockGuard::read();
+
         let expect_err_with = |key: Key, err_code, get| {
             // data_st
             let err = key.data_st(YDB_NOTTP, Vec::new()).unwrap_err();
@@ -2867,6 +2919,8 @@ pub(crate) mod tests {
 
     #[test]
     fn increment_errors() {
+        let _guard = LockGuard::read();
+
         let key = Key::variable("incrementError");
         let err_buf = Vec::new();
         let err_buf = key.set_st(YDB_NOTTP, err_buf, "9E46").unwrap();
@@ -2876,6 +2930,9 @@ pub(crate) mod tests {
     #[test]
     fn undef_var() {
         use crate::craw::{YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
+
+        let _guard = LockGuard::read();
+
         let key = Key::variable("^doesnotexist");
         let err_buf = Vec::new();
         let res = key.get_st(YDB_NOTTP, err_buf);

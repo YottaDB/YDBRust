@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -146,4 +146,39 @@ pub const YDB_NOTTP: TpToken = TpToken(craw::YDB_NOTTP);
 /// [`Key`]: simple_api::Key
 pub fn ydb_exit() -> std::os::raw::c_int {
     unsafe { craw::ydb_exit() }
+}
+
+#[cfg(test)]
+mod test_lock {
+    use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+    use once_cell::sync::Lazy;
+
+    #[derive(Debug)]
+    #[must_use = "if unused the RwLock will immediately unlock"]
+    pub(crate) enum LockGuard<'a> {
+        Read(RwLockReadGuard<'a, ()>),
+        Write(RwLockWriteGuard<'a, ()>),
+    }
+
+    impl LockGuard<'_> {
+        pub(crate) fn read() -> Self {
+            // If one tests panics, don't cause all others to panic as well.
+            let guard = match TEST_LOCK.read() {
+                Ok(g) => g,
+                Err(poison) => poison.into_inner(),
+            };
+            LockGuard::Read(guard)
+        }
+
+        pub(crate) fn write() -> Self {
+            // If one tests panics, don't cause all others to panic as well.
+            let guard = match TEST_LOCK.write() {
+                Ok(g) => g,
+                Err(poison) => poison.into_inner(),
+            };
+            LockGuard::Write(guard)
+        }
+    }
+
+    pub(crate) static TEST_LOCK: Lazy<RwLock<()>> = Lazy::new(|| RwLock::new(()));
 }
