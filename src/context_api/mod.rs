@@ -45,7 +45,7 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::rc::Rc;
 use std::str::FromStr;
-use std::ops::{Deref, DerefMut};
+use std::ops::{AddAssign, Deref, DerefMut};
 use std::time::Duration;
 use std::fmt;
 
@@ -711,6 +711,12 @@ impl DerefMut for KeyContext {
     }
 }
 
+impl AddAssign<i32> for KeyContext {
+    fn add_assign(&mut self, rhs: i32) {
+        self.increment(Some(rhs.to_string().as_bytes())).expect("failed to increment node");
+    }
+}
+
 impl From<(&Context, Key)> for KeyContext {
     fn from((ctx, key): (&Context, Key)) -> Self {
         KeyContext::with_key(ctx, key)
@@ -989,7 +995,7 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^helloIncrementMe");
+    ///     let mut key = make_ckey!(ctx, "helloIncrementMe");
     ///
     ///     key.set("0")?;
     ///     key.increment(None)?;
@@ -1002,6 +1008,21 @@ impl KeyContext {
     ///
     ///     Ok(())
     /// }
+    /// ```
+    ///
+    /// As a shorthand, you can use `+=` to increment a key.
+    ///
+    /// ```
+    /// # use yottadb::context_api::{Context, KeyContext};
+    /// # use yottadb::DeleteType;
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// let ctx = Context::new();
+    /// let mut key = KeyContext::variable(&ctx, "helloAddAssign");
+    /// key += 100;
+    /// let output_buffer = key.get()?;
+    /// assert_eq!(output_buffer, b"100");
+    /// # Ok(()) }
     /// ```
     pub fn increment(&self, increment: Option<&[u8]>) -> YDBResult<Vec<u8>> {
         let tptoken = self.context.borrow().tptoken;
