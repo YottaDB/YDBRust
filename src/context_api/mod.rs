@@ -39,6 +39,22 @@
 //! ```
 //!
 
+/// This module is a very thin wrapper around the `simple_api`.
+///
+/// When adding new functions to `Context` or `KeyContext`, please remember to use the helper
+/// functions `tptoken`, `take_buffer` and `recover_buffer`; they not only simplify code, but make it
+/// easier to change `ContextInternal` if necessary.
+///
+/// The iterators could use some cleanup; in particular they have few tests.
+///
+/// Note that `Context` is separate from `ContextInternal` so that the fields can be grouped together
+/// into one `Rc<RefCell>`. The `Rc<RefCell>` is necessary because the *same* context needs to be
+/// reused among all keys, so that the tptoken is the same everywhere. Changing it to remove the
+/// `RefCell` would prevent using `Rc` (since it needs to borrow `buffer` mutably); removing the `Rc`
+/// would prevent it from being used in multiple keys.
+#[allow(unused)]
+const INTERNAL_DOCS: () = ();
+
 mod call_in;
 
 use std::cell::{Cell, RefCell};
@@ -54,7 +70,7 @@ use crate::simple_api::{
     self, tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType, TransactionStatus, TpToken,
 };
 
-// Private macro to help make iterators
+/// Private macros to help make iterators
 macro_rules! implement_iterator {
     ($name:ident, $advance:ident, $return_type:ty, $next:expr) => {
         #[allow(missing_docs)]
@@ -375,6 +391,10 @@ impl Context {
         &'a self, mut f: F, trans_id: &str, locals_to_reset: &[&str],
     ) -> Result<(), Box<dyn Error + Send + Sync>>
     where
+        // NOTE: `FnMut(&'a Self)` is a distinct type from `FnMut(&Self)`: the first takes a specific
+        // lifetime, the second is sugar for `for<'s> FnMut(&'s Self)`. See
+        // <https://doc.rust-lang.org/nomicon/hrtb.html> for details. The reason to take `&'a Self` is
+        // it imposes fewer requirements on the caller.
         F: FnMut(&'a Self) -> Result<TransactionStatus, Box<dyn Error + Send + Sync>>,
     {
         let initial_token = self.tptoken();
@@ -653,6 +673,7 @@ impl Context {
         let tptoken = self.tptoken();
         simple_api::message_t(tptoken, Vec::new(), status)
     }
+
     /// Return a string in the format `rustwr <rust wrapper version> <$ZYRELEASE>`
     ///
     /// [`$ZYRELEASE`] is the [intrinsic variable] containing the version of the underlying C database

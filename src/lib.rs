@@ -107,6 +107,14 @@
 //! [transaction processing]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
 #![deny(missing_docs)]
 
+/// This is the entry-point of the `yottadb` crate. See
+/// <https://doc.rust-lang.org/book/ch07-02-defining-modules-to-control-scope-and-privacy.html>
+/// for more information; it calls this module the "crate root".
+///
+/// The root contains functions and data shared between both the simple and context API.
+#[allow(unused)]
+const INTERNAL_DOCS: () = ();
+
 pub mod context_api;
 #[allow(missing_docs)]
 pub mod craw;
@@ -117,9 +125,13 @@ pub use simple_api::{
     call_in::{CallInDescriptor, CallInTableDescriptor},
     DataReturn, DeleteType, TransactionStatus, TpToken, YDBError, YDBResult,
 };
-// This can't use `TpToken::default` because traits cannot have `const fn`
+// This is not just a convenience for users; there is no way to construct a `TpToken` outside of
+// YDBRust because the fields are private.
 /// The default transaction processing token if no transaction is in progress.
-pub const YDB_NOTTP: TpToken = TpToken(craw::YDB_NOTTP);
+pub const YDB_NOTTP: TpToken = TpToken(
+    // This can't use `TpToken::default` because constants cannot use trait functions.
+    craw::YDB_NOTTP,
+);
 
 /// Cleans up the process connection/access to all databases and all yottadb data structures.
 ///
@@ -148,6 +160,9 @@ pub fn ydb_exit() -> std::os::raw::c_int {
     unsafe { craw::ydb_exit() }
 }
 
+/// The locks in this module prevents data races in the test suite.
+///
+/// In particular, `delete_excl` and some of the call-in tests interfere with all other concurrent tests.
 #[cfg(test)]
 mod test_lock {
     use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -161,6 +176,9 @@ mod test_lock {
     }
 
     impl LockGuard<'_> {
+        /// Use a `Read` lock if the test can be run concurrently with others.
+        ///
+        /// You may have to use unique variable names for this property to hold.
         pub(crate) fn read() -> Self {
             // If one tests panics, don't cause all others to panic as well.
             let guard = match TEST_LOCK.read() {
@@ -170,6 +188,7 @@ mod test_lock {
             LockGuard::Read(guard)
         }
 
+        /// Use a `Write` lock if the test interferes with all other concurrent tests.
         pub(crate) fn write() -> Self {
             // If one tests panics, don't cause all others to panic as well.
             let guard = match TEST_LOCK.write() {
@@ -180,5 +199,6 @@ mod test_lock {
         }
     }
 
+    /// This lock holds no data, it is used only for synchronization.
     pub(crate) static TEST_LOCK: Lazy<RwLock<()>> = Lazy::new(|| RwLock::new(()));
 }

@@ -90,6 +90,7 @@ pub const DEFAULT_CAPACITY: usize = 50;
 /// An error returned by the underlying YottaDB library.
 ///
 /// This error should not be constructed manually.
+// TODO(#37): enforce this by adding a private field
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct YDBError {
     /// YottaDB internally uses an error-handling mechanism similar to `errno` and `perror`.
@@ -144,7 +145,11 @@ pub type YDBResult<T> = Result<T, YDBError>;
 ///
 /// TpTokens can be converted to `u64`, but not vice-versa.
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-pub struct TpToken(pub(crate) u64);
+pub struct TpToken(
+    // This is private to prevent users creating their own TpTokens. YDB has unpredictable behavior
+    // when passed the wrong tptoken, such as
+    pub(crate) u64,
+);
 
 impl fmt::Debug for TpToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -319,10 +324,12 @@ impl Key {
             subscripts: subscripts.iter().cloned().map(|slice| slice.into()).collect(),
         }
     }
+
     /// Shortcut for creating a key with no subscripts.
     pub fn variable<V: Into<String>>(var: V) -> Key {
         Key::new::<V, Vec<u8>>(var, &[])
     }
+
     /// Gets the value of this key from the database and returns the value.
     ///
     /// # Errors
@@ -802,25 +809,37 @@ impl Key {
         self.growing_shrinking_call(tptoken, out_buffer, ydb_node_previous_st)
     }
 
+    /// A call that can change the number of subscripts (i.e. can return YDB_ERR_INSUFFSUBS).
+    ///
+    /// Most functions can only return YDB_ERR_INVSTRLEN if the subscripts don't have enough capacity
+    /// reserved, so the error handling for them is much simpler. This has error handling for
+    /// INSUFFSUBS, but is more complicated as a result, so it's only used where necessary.
     fn growing_shrinking_call(
         &mut self, tptoken: TpToken, mut err_buffer: Vec<u8>,
         c_func: unsafe extern "C" fn(
+            // tptoken
             u64,
+            // err_buffer_t
             *mut ydb_buffer_t,
+            // varname
             *const ydb_buffer_t,
+            // subs_used
             c_int,
+            // `subsarray`, not a single subscript
             *const ydb_buffer_t,
+            // ret_subs_used
             *mut c_int,
+            // `ret_subsarray`, not a single subscript
             *mut ydb_buffer_t,
         ) -> c_int,
     ) -> YDBResult<Vec<u8>> {
-        let len = self.subscripts.len() as i32;
+        let subs_used = self.subscripts.len() as i32;
         let mut err_buffer_t = Self::make_out_buffer_t(&mut err_buffer);
 
-        // this is a loop instead of a recursive call so we can keep the original `len`
+        // this is a loop instead of a recursive call so we can keep the original `subs_used`
         let (ret_subs_used, buffer_structs) = loop {
             // Make sure `subscripts` is not a null pointer
-            if self.subscripts.is_empty() {
+            if self.subscripts.capacity() == 0 {
                 self.subscripts.reserve(1);
             }
 
@@ -835,7 +854,7 @@ impl Key {
                     tptoken.0,
                     &mut err_buffer_t,
                     &varname,
-                    len,
+                    subs_used,
                     subscripts.as_ptr(),
                     &mut ret_subs_used as *mut _,
                     subscripts.as_mut_ptr(),
@@ -861,6 +880,7 @@ impl Key {
                 self.subscripts.resize_with(ret_subs_used, || Vec::with_capacity(10));
                 continue;
             }
+            // NOTE: `ret_subs_used` and `subscripts` came from references, so they can't be null.
             if status == crate::craw::YDB_ERR_PARAMINVALID {
                 let i = ret_subs_used;
                 panic!(
@@ -868,10 +888,10 @@ impl Key {
                     i, subscripts[i]
                 );
             }
-            // Set length of the vec containing the buffer to we can see the value
+            // Set length of the vec containing the buffer so we can see the value
             if status != YDB_OK as i32 {
                 // We could end up with a buffer of a larger size if we couldn't fit the error string
-                // into the out_buffer buffer, so make sure to pick the smaller size
+                // into the out_buffer, so make sure to pick the smaller size
                 let new_buffer_size = min(err_buffer_t.len_used, err_buffer_t.len_alloc) as usize;
                 unsafe {
                     err_buffer.set_len(new_buffer_size);
@@ -890,6 +910,7 @@ impl Key {
         );
         self.subscripts.truncate(ret_subs_used);
 
+        // Update the length of each subscript
         for (i, buff) in self.subscripts.iter_mut().enumerate() {
             let actual = buffer_structs[i].len_used as usize;
             unsafe {
@@ -1196,6 +1217,7 @@ impl Key {
         let subscripts = iter.map(Self::make_out_buffer_t).collect();
         (var, subscripts)
     }
+
     /// Same as get_buffers_mut but takes `&self`
     ///
     /// NOTE: The pointers returned in the `ConstYDBBuffer`s _must never be modified_.
@@ -1240,9 +1262,8 @@ impl From<ydb_buffer_t> for ConstYDBBuffer {
     }
 }
 
-// TODO: this is unsafe and could allow using the slice after it goes out of scope
+// TODO(#38): this is unsafe and could allow using the slice after it goes out of scope
 // TODO: this is ok for now because `ConstYDBBuffer` is only used locally within a single function.
-// TODO: possible fix: use `PhantomData` for `ConstYDBBuffer`
 impl From<&[u8]> for ConstYDBBuffer {
     fn from(slice: &[u8]) -> Self {
         Self(ydb_buffer_t {
@@ -1253,8 +1274,8 @@ impl From<&[u8]> for ConstYDBBuffer {
     }
 }
 
-/// Allow Key to mostly be treated as a `Vec<Vec<u8>>`,
-/// but without `shrink_to_fit`, `drain`, or other methods that aren't relevant
+/// Allow Key to mostly be treated as a `Vec<Vec<u8>>` of subscripts,
+/// but without `shrink_to_fit`, `drain`, or other methods that aren't relevant.
 impl Key {
     /// Remove all subscripts after the `i`th index.
     ///
@@ -1288,6 +1309,7 @@ impl Key {
     }
 }
 
+/// `Key` has all the *immutable* functions of a `Vec` of subscripts.
 impl Deref for Key {
     type Target = Vec<Vec<u8>>;
 
@@ -1345,9 +1367,13 @@ struct CallBackStruct<'a> {
     error: Option<CallBackError>,
 }
 
-extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mut c_void) -> i32 {
-    assert!(!tpfnparm.is_null());
-    assert!(!errstr.is_null());
+extern "C" fn fn_callback(tptoken: u64, _errstr: *mut ydb_buffer_t, tpfnparm: *mut c_void) -> i32 {
+    // We can't tell if the pointer is invalid (unallocated or already freed) but we can check it's not null and aligned.
+    // copied from https://github.com/rust-lang/rust/blob/84864bfea9c00fb90a1fa6e3af1d8ad52ce8f9ec/library/core/src/intrinsics.rs#L1742
+    fn is_aligned_and_not_null<T>(ptr: *const T) -> bool {
+        !ptr.is_null() && ptr as usize % std::mem::align_of::<T>() == 0
+    }
+    assert!(is_aligned_and_not_null(tpfnparm as *const CallBackStruct));
     let callback_struct = unsafe { &mut *(tpfnparm as *mut CallBackStruct) };
 
     let mut cb = panic::AssertUnwindSafe(&mut callback_struct.cb);
@@ -1365,6 +1391,8 @@ extern "C" fn fn_callback(tptoken: u64, errstr: *mut ydb_buffer_t, tpfnparm: *mu
         Err(x) => {
             // Try to cast into YDBError; if we can do that, return the error code
             // Else, rollback the transaction
+            // FIXME: it's possible for a downstream user to wrap a YDBError in their own error,
+            // in which case this may not return the right status.
             match x.downcast::<YDBError>() {
                 Ok(err) => err.status,
                 Err(err) => {
@@ -1936,9 +1964,11 @@ pub fn lock_st(
     }
 }
 
-/// See documentation for `non_allocating_call` for more details.
+/// A call to the YDB API which only needs an `err_buffer`, not an `out_buffer`.
 ///
-/// F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status
+/// See documentation for [`non_allocating_call`] for more details.
+///
+/// `F: FnMut(tptoken, out_buffer_t) -> status`
 // This has to be public so that it can be used by `ci_t!`.
 // However, it is not a supported part of the API.
 #[doc(hidden)]
@@ -1955,9 +1985,12 @@ where
     })
 }
 
+/// A call to the YDB API which could need either an `err_buffer` or an `out_buffer`, but not both at once.
+/// This uses the same underlying allocation (in `out_buffer`) for both.
+///
 /// See documentation for `non_allocating_ret_call` for more details.
 ///
-/// F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status
+/// `F: FnMut(tptoken, err_buffer_t, out_buffer_t) -> status`
 fn resize_ret_call<F>(tptoken: TpToken, mut out_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
 where
     F: FnMut(u64, *mut ydb_buffer_t, *mut ydb_buffer_t) -> c_int,

@@ -66,6 +66,16 @@ You may want to also set up pre-commit hooks:
 
 `ln -s ../../pre-commit .git/hooks/pre-commit`
 
+### Internal Documentation
+
+YDBRust has internal documentation inline with the code, the same way that user-facing
+documentation is inline. Where possible, the convention is to put internal documentation on a
+private constant named `INTERNAL_DOCS`, which allows viewing the documentation with
+`cargo doc --document-private-items`.
+
+In general, info about *what* YDBRust is doing and *why* should be user-facing, info about *how*
+should be internal.
+
 ### Developing with Docker
 
 Alternatively, you can use the provided dockerfile:
