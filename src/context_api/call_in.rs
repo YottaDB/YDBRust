@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2020 YottaDB LLC and/or its subsidiaries.       *
+* Copyright (c) 2020-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -47,7 +47,7 @@ impl Context {
     /// # Ok(())
     /// # }
     pub fn ci_tab_open(&self, file: &CStr) -> YDBResult<CallInTableDescriptor> {
-        let tptoken = self.context.borrow().tptoken;
+        let tptoken = self.tptoken();
         let buffer = self.take_buffer();
         let (descriptor, buffer) = ci_tab_open_t(tptoken, buffer, file)?;
         self.context.borrow_mut().buffer = buffer;
@@ -81,7 +81,7 @@ impl Context {
     pub fn ci_tab_switch(
         &self, new_handle: CallInTableDescriptor,
     ) -> YDBResult<CallInTableDescriptor> {
-        let tptoken = self.context.borrow().tptoken;
+        let tptoken = self.tptoken();
         let buffer = self.take_buffer();
         let (descriptor, buffer) = ci_tab_switch_t(tptoken, buffer, new_handle)?;
         self.context.borrow_mut().buffer = buffer;
