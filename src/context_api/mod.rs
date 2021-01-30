@@ -41,7 +41,7 @@
 
 mod call_in;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::error::Error;
 use std::rc::Rc;
 use std::str::FromStr;
@@ -116,12 +116,13 @@ macro_rules! make_ckey {
     );
 }
 
+/// NOTE: all fields in this struct must use interior mutability or they can't be mutated.
 #[derive(Debug)]
 struct ContextInternal {
-    buffer: Vec<u8>,
-    tptoken: TpToken,
+    tptoken: Cell<TpToken>,
+    buffer: RefCell<Vec<u8>>,
     #[cfg(test)]
-    db_lock: Option<crate::test_lock::LockGuard<'static>>,
+    db_lock: RefCell<Option<crate::test_lock::LockGuard<'static>>>,
 }
 
 impl PartialEq for ContextInternal {
@@ -135,9 +136,8 @@ impl Eq for ContextInternal {}
 #[cfg(test)]
 impl Context {
     fn write_lock(&self) {
-        let mut ctx = self.borrow_mut();
-        drop(ctx.db_lock.take());
-        ctx.db_lock = Some(crate::test_lock::LockGuard::write());
+        drop(self.context.db_lock.borrow_mut().take());
+        *self.context.db_lock.borrow_mut() = Some(crate::test_lock::LockGuard::write());
     }
 }
 
@@ -176,15 +176,14 @@ impl Context {
 /// [1]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
 #[derive(Clone, Eq, PartialEq)]
 pub struct Context {
-    context: Rc<RefCell<ContextInternal>>,
+    context: Rc<ContextInternal>,
 }
 
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ctx = self.context.borrow();
         f.debug_struct("Context")
-            .field("tptoken", &ctx.tptoken)
-            .field("buffer", &String::from_utf8_lossy(&ctx.buffer))
+            .field("tptoken", &self.tptoken())
+            .field("buffer", &String::from_utf8_lossy(&self.context.buffer.borrow()))
             .finish()
     }
 }
@@ -213,17 +212,16 @@ pub struct KeyContext {
     context: Context,
 }
 
-use core::cell::{Ref, RefMut};
 impl Context {
     /// Create a new `Context`
     pub fn new() -> Context {
         Context {
-            context: Rc::new(RefCell::new(ContextInternal {
-                buffer: Vec::new(),
-                tptoken: TpToken::default(),
+            context: Rc::new(ContextInternal {
+                tptoken: Cell::new(TpToken::default()),
+                buffer: RefCell::new(Vec::new()),
                 #[cfg(test)]
-                db_lock: Some(crate::test_lock::LockGuard::read()),
-            })),
+                db_lock: RefCell::new(Some(crate::test_lock::LockGuard::read())),
+            }),
         }
     }
 
@@ -266,7 +264,7 @@ impl Context {
     /// - [`Context::tp`](Context::tp())
     #[inline]
     pub fn tptoken(&self) -> TpToken {
-        self.borrow().tptoken
+        self.context.tptoken.get()
     }
 
     /// Start a new transaction, where `f` is the transaction to execute.
@@ -313,8 +311,11 @@ impl Context {
     /// let ctx = Context::new();
     /// let var = KeyContext::variable(&ctx, "tpRollbackTest");
     /// var.set("initial value")?;
-    /// let maybe_err = ctx.tp(|tptoken| {
+    /// println!("starting tp");
+    /// let maybe_err = ctx.tp(|ctx| {
+    ///     println!("in tp");
     ///     fallible_operation()?;
+    ///     println!("succeeded");
     ///     var.set("new value")?;
     ///     Ok(TransactionStatus::Ok)
     /// }, "BATCH", &[]);
@@ -376,19 +377,19 @@ impl Context {
     where
         F: FnMut(&'a Self) -> Result<TransactionStatus, Box<dyn Error + Send + Sync>>,
     {
-        let tptoken = self.tptoken();
+        let initial_token = self.tptoken();
         // allocate a new buffer for errors, since we need context.buffer to pass `self` to f
         let result = tp_st(
-            tptoken,
+            initial_token,
             Vec::new(),
             |tptoken: TpToken| {
-                self.context.borrow_mut().tptoken = tptoken;
+                self.context.tptoken.set(tptoken);
                 f(self)
             },
             trans_id,
             locals_to_reset,
         );
-        self.context.borrow_mut().tptoken = tptoken;
+        self.context.tptoken.set(initial_token);
         // discard the new buffer
         result.map(|_| {})
     }
@@ -529,12 +530,12 @@ impl Context {
     }
 
     fn take_buffer(&self) -> Vec<u8> {
-        std::mem::replace(&mut self.context.borrow_mut().buffer, Vec::new())
+        std::mem::replace(&mut self.context.buffer.borrow_mut(), Vec::new())
     }
 
     fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
         result.map(|x| {
-            self.context.borrow_mut().buffer = x;
+            *self.context.buffer.borrow_mut() = x;
         })
     }
 
@@ -613,12 +614,6 @@ impl Context {
         let tptoken = self.tptoken();
         let buffer = self.take_buffer();
         self.recover_buffer(lock_st(tptoken, buffer, timeout, locks))
-    }
-    fn borrow(&self) -> Ref<'_, ContextInternal> {
-        self.context.borrow()
-    }
-    fn borrow_mut(&self) -> RefMut<'_, ContextInternal> {
-        self.context.borrow_mut()
     }
 }
 
@@ -939,7 +934,7 @@ impl KeyContext {
         let tptoken = self.context.tptoken();
         let out_buffer = self.take_buffer();
         self.key.data_st(tptoken, out_buffer).map(|(y, x)| {
-            self.context.borrow_mut().buffer = x;
+            *self.context.context.buffer.borrow_mut() = x;
             y
         })
     }

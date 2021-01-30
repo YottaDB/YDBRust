@@ -50,7 +50,7 @@ impl Context {
         let tptoken = self.tptoken();
         let buffer = self.take_buffer();
         let (descriptor, buffer) = ci_tab_open_t(tptoken, buffer, file)?;
-        self.context.borrow_mut().buffer = buffer;
+        *self.context.buffer.borrow_mut() = buffer;
         Ok(descriptor)
     }
     /// Switch the active call-in table to `new_handle`. Returns the previously active table.
@@ -84,7 +84,7 @@ impl Context {
         let tptoken = self.tptoken();
         let buffer = self.take_buffer();
         let (descriptor, buffer) = ci_tab_switch_t(tptoken, buffer, new_handle)?;
-        self.context.borrow_mut().buffer = buffer;
+        *self.context.buffer.borrow_mut() = buffer;
         Ok(descriptor)
     }
 }
