@@ -132,11 +132,7 @@ impl fmt::Display for YDBError {
     }
 }
 
-impl error::Error for YDBError {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        Some(self)
-    }
-}
+impl error::Error for YDBError {}
 
 /// A specialized `Result` type returned by a YottaDB function.
 pub type YDBResult<T> = Result<T, YDBError>;
