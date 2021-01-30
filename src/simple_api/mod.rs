@@ -66,7 +66,7 @@
 
 pub mod call_in;
 
-use std::error::Error;
+use std::{error::Error, marker::PhantomData};
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr;
 use std::ffi::CString;
@@ -1225,22 +1225,8 @@ impl Key {
     /// This is why `ConstYDBBuffer` was created,
     /// so that modifying the private fields would be an error.
     fn get_buffers(&self) -> (ConstYDBBuffer, Vec<ConstYDBBuffer>) {
-        let var = ydb_buffer_t {
-            buf_addr: self.variable.as_ptr() as *mut _,
-            len_alloc: self.variable.capacity() as u32,
-            len_used: self.variable.len() as u32,
-        }
-        .into();
-        let make_buffer = |vec: &Vec<_>| {
-            ydb_buffer_t {
-                // this cast is what's unsafe
-                buf_addr: vec.as_ptr() as *mut _,
-                len_alloc: vec.capacity() as u32,
-                len_used: vec.len() as u32,
-            }
-            .into()
-        };
-        let subscripts = self.subscripts.iter().map(make_buffer).collect();
+        let var = self.variable.as_bytes().into();
+        let subscripts = self.subscripts.iter().map(|vec| vec.as_slice().into()).collect();
         (var, subscripts)
     }
 }
@@ -1248,29 +1234,24 @@ impl Key {
 #[repr(transparent)]
 /// Because of this repr(transparent), it is safe to turn a
 /// `*const ConstYDBBuffer` to `*const ydb_buffer_t`
-struct ConstYDBBuffer(ydb_buffer_t);
+struct ConstYDBBuffer<'a>(ydb_buffer_t, PhantomData<&'a [u8]>);
 
-impl ConstYDBBuffer {
+impl ConstYDBBuffer<'_> {
     fn as_ptr(&self) -> *const ydb_buffer_t {
         &self.0
     }
 }
 
-impl From<ydb_buffer_t> for ConstYDBBuffer {
-    fn from(buf: ydb_buffer_t) -> Self {
-        Self(buf)
-    }
-}
-
-// TODO(#38): this is unsafe and could allow using the slice after it goes out of scope
-// TODO: this is ok for now because `ConstYDBBuffer` is only used locally within a single function.
-impl From<&[u8]> for ConstYDBBuffer {
+impl<'a> From<&'a [u8]> for ConstYDBBuffer<'a> {
     fn from(slice: &[u8]) -> Self {
-        Self(ydb_buffer_t {
-            buf_addr: slice.as_ptr() as *mut _,
-            len_used: slice.len() as u32,
-            len_alloc: slice.len() as u32,
-        })
+        Self(
+            ydb_buffer_t {
+                buf_addr: slice.as_ptr() as *mut _,
+                len_used: slice.len() as u32,
+                len_alloc: slice.len() as u32,
+            },
+            PhantomData,
+        )
     }
 }
 
@@ -1518,14 +1499,7 @@ where
 
     let mut locals: Vec<ConstYDBBuffer> = Vec::with_capacity(locals_to_reset.len());
     for &local in locals_to_reset.iter() {
-        locals.push(
-            ydb_buffer_t {
-                buf_addr: local.as_ptr() as *const _ as *mut _,
-                len_alloc: local.len() as u32,
-                len_used: local.len() as u32,
-            }
-            .into(),
-        );
+        locals.push(local.as_bytes().into());
     }
     let locals_ptr = match locals.len() {
         0 => ptr::null(),
@@ -1619,17 +1593,8 @@ pub fn delete_excl_st(
 ) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_delete_excl_st;
 
-    let varnames: Vec<ConstYDBBuffer> = saved_variables
-        .iter()
-        .map(|var| {
-            ydb_buffer_t {
-                buf_addr: var.as_ptr() as *mut _,
-                len_used: var.len() as u32,
-                len_alloc: var.len() as u32,
-            }
-            .into()
-        })
-        .collect();
+    let varnames: Vec<ConstYDBBuffer> =
+        saved_variables.iter().map(|var| var.as_bytes().into()).collect();
 
     resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| unsafe {
         ydb_delete_excl_st(
