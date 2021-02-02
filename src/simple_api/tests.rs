@@ -934,3 +934,14 @@ fn release() {
     assert_eq!(&parts.next().unwrap()[0..1], "r");
     assert_eq!(parts.count(), 2);
 }
+
+#[test]
+fn variable_reallocated() {
+    let mut key = Key::variable(String::from("a"));
+    dbg!(key.variable.capacity());
+    Key::variable("averylongkeywithlotsofletters")
+        .set_st(YDB_NOTTP, Vec::new(), b"some val")
+        .unwrap();
+    key.sub_next_self_st(YDB_NOTTP, Vec::new()).unwrap();
+    dbg!(key.variable.capacity());
+}
