@@ -18,6 +18,9 @@ All rights reserved.
 
 ### Changed
 
+- The `tptoken` field of `YDBError` is now private. This prevents infinite hangs, aborts, or other bugs
+  when calling `error.to_string()` on an error with an invalid tptoken. As a side effect,
+  `YDBError` cannot be constructed outside of the `yottadb` crate.
 - `KeyContext::next_sub` and `prev_sub` now return a `Vec<u8>` buffer instead of a full `KeyContext`. To replicate the old behavior, you can use this snippet:
 
 ```rust

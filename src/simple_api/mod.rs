@@ -90,8 +90,7 @@ pub const DEFAULT_CAPACITY: usize = 50;
 
 /// An error returned by the underlying YottaDB library.
 ///
-/// This error should not be constructed manually.
-// TODO(#37): enforce this by adding a private field
+/// This error cannot be constructed manually.
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct YDBError {
     /// YottaDB internally uses an error-handling mechanism similar to `errno` and `perror`.
@@ -109,7 +108,7 @@ pub struct YDBError {
     /// The [transaction] that was in process when the error occurred.
     ///
     /// [transaction]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
-    pub tptoken: TpToken,
+    tptoken: TpToken,
 }
 
 impl fmt::Debug for YDBError {
@@ -2003,3 +2002,18 @@ where
 
 #[cfg(test)]
 pub(crate) mod tests;
+
+// Used for `compile_fail` tests
+#[doc(hidden)]
+#[cfg(doctest)]
+/// Tests that `YDBError` cannot be constructed outside the `yottadb` crate.
+/// ```compile_fail
+/// use yottadb::*;
+/// use yottadb::craw::YDB_OK;
+/// let ydb_err = YDBError {
+///   tptoken: YDB_NOTTP,
+///   message: Vec::new(),
+///   status: 0,
+/// };
+/// ```
+pub fn used_for_doctests() {}
