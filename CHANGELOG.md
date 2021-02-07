@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2020 YottaDB LLC and/or its subsidiaries.
+Copyright (c) 2020-2021 YottaDB LLC and/or its subsidiaries.
 All rights reserved.
 
       This source code contains the intellectual property
@@ -10,15 +10,43 @@ All rights reserved.
 
 # Changelog
 
-## [Unreleased]
+## [1.2.0] - 2021-02-07
+
+### Fixed
+
+- The following functions can no longer cause memory corruption when resizing buffers
+  ([!118](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/118)):
+  + [`Key::sub_next_self_st`](https://yottadb.gitlab.io/Lang/YDBRust/yottadb/simple_api/struct.Key.html#method.sub_next_self_st)
+  + [`Key::sub_prev_self_st`](https://yottadb.gitlab.io/Lang/YDBRust/yottadb/simple_api/struct.Key.html#method.sub_prev_self_st)
+  + [`KeyContext::next_sub_self`](https://yottadb.gitlab.io/Lang/YDBRust/yottadb/context_api/struct.KeyContext.html#method.next_sub_self)
+  + [`KeyContext::prev_sub_self`](https://yottadb.gitlab.io/Lang/YDBRust/yottadb/context_api/struct.KeyContext.html#method.prev_sub_self)
+
+  See [the test case](https://gitlab.com/YottaDB/Lang/YDBRust/-/blob/086ea414229022b93579cac8bb967415c449a764/src/simple_api/tests.rs#L939)
+  for details about exactly how this could break before.
+
+- `impl Error for YDBError` no longer returns itself in `fn cause()`. This avoids infinite loops when iterating over the source of an error.
+  [!115](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/115)
+- Returning a `YDBError` from inside a transaction no longer discards the error buffer.
+  Previously, the error buffer would always be shown as empty even if an error occurred.
+  [!121](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/121)
+- The test suite is now thread-safe. Note that this is only changed the test suite, the main YDBRust API has always been thread-safe.
+  [!112](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/112)
 
 ### Added
 
-- `yottadb` no longer requires compiling `bindgen` from source (when passed `--no-default-features`). See [!101](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/101/pipelines) for details.
+- `yottadb` no longer requires compiling `bindgen` from source (when passed `--no-default-features`).
+  See [!101](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/101/pipelines) for details.
+- `KeyContext` now implements `AddAssign` as a shortcut for `increment()`. [!113](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/113)
+- `u64` now implements `From<Tptoken>`. Previously, `u64::from(tptoken)` would be a compile error even though `let u: u64 = tptoken.into()` worked correctly. [!122](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/122)
+- Various `Debug` implementations are more readable. [!111](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/111)
 
 ### Changed
 
-- Errors for transactions are now required to implement `Send` and `Sync`.
+- The minimum supported Rust version (MSRV) has been increased to 1.40. [!110]
+- Errors for transactions are now required to implement `Send` and `Sync`. [!99](https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/99)
+- Various dependencies have been updated. [!110]
+
+[!110]: https://gitlab.com/YottaDB/Lang/YDBRust/-/merge_requests/110
 
 ## [1.1.0] - 2020-09-01
 

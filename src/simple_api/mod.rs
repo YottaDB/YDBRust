@@ -147,7 +147,7 @@ pub type YDBResult<T> = Result<T, YDBError>;
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct TpToken(
     // This is private to prevent users creating their own TpTokens. YDB has unpredictable behavior
-    // when passed the wrong tptoken, such as
+    // when passed the wrong tptoken, such as infinite loops and aborts.
     pub(crate) u64,
 );
 
