@@ -17,6 +17,11 @@
 //! In addition to easier-to-use get/set/delete/data,
 //! iteration helpers are available to iterate over values in the database in a variety of ways.
 //!
+//! # Intrinsic Variables
+//!
+//! YottaDB has several intrinsic variables which are documented [online][intrinsics].
+//! To get the value of these variables, call `get_st` on a `Key` with the name of the variable.
+//!
 //! # Examples
 //!
 //! A basic database operation (set a value, retrieve it, and delete it)
@@ -38,6 +43,25 @@
 //! }
 //! ```
 //!
+//! Get the instrinsic variable [`$tlevel`][tlevel], which gives the current transaction level.
+//!
+//! ```
+//! use yottadb::{YDB_NOTTP, YDBResult};
+//! use yottadb::context_api::{Context, KeyContext};
+//!
+//! fn main() -> YDBResult<()> {
+//!     let ctx = Context::new();
+//!     let mut key = KeyContext::variable(&ctx, "$tlevel");
+//!     let tlevel: usize = String::from_utf8_lossy(&key.get()?).parse()
+//!         .expect("$tlevel should be an integer");
+//!     assert_eq!(tlevel, 0_usize);
+//!     Ok(())
+//! }
+//! ```
+//!
+//! [key]: Key
+//! [intrinsics]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
+//! [tlevel]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#tlevel
 
 /// This module is a very thin wrapper around the `simple_api`.
 ///
@@ -67,8 +91,10 @@ use std::fmt;
 
 use crate::craw::YDB_ERR_NODEEND;
 use crate::simple_api::{
-    self, tp_st, Key, YDBResult, YDBError, DataReturn, DeleteType, TransactionStatus, TpToken,
+    self, tp_st, YDBResult, YDBError, DataReturn, DeleteType, TransactionStatus, TpToken,
 };
+
+pub use crate::simple_api::Key;
 
 /// Private macros to help make iterators
 macro_rules! implement_iterator {
@@ -123,7 +149,7 @@ macro_rules! gen_iter_proto {
 #[macro_export]
 macro_rules! make_ckey {
     ( $ctx:expr, $var:expr $(,)?) => (
-        $ctx.new_key($crate::simple_api::Key::variable($var))
+        $ctx.new_key($crate::context_api::Key::variable($var))
     );
     ( $ctx:expr, $gbl:expr $(, $x:expr)+ ) => (
         $ctx.new_key(
@@ -340,7 +366,7 @@ impl Context {
     /// } else {
     ///     b"initial value"
     /// };
-    /// assert_eq!(var.get_st(TpToken::default(), Vec::new())?, expected_val);
+    /// assert_eq!(var.get()?, expected_val);
     /// # Ok(())
     /// # }
     ///
@@ -515,6 +541,7 @@ impl Context {
         // We can't reuse `context.buffer` since we return the buffer on success
         str2zwr_st(tptoken, Vec::new(), original)
     }
+
     /// Given a buffer in 'Zwrite format', deserialize it to the original binary buffer.
     ///
     /// `zwr2str_st` writes directly to `out_buf` to avoid returning multiple output buffers.
@@ -600,8 +627,7 @@ impl Context {
     /// use std::slice;
     /// use std::time::Duration;
     /// use yottadb::TpToken;
-    /// use yottadb::context_api::{Context, KeyContext};
-    /// use yottadb::simple_api::Key;
+    /// use yottadb::context_api::{Context, KeyContext, Key};
     ///
     /// // You can use either a `Key` or a `KeyContext` to acquire a lock.
     /// // This uses a `KeyContext` to show that you need to use `.key` to get the inner `Key`.
@@ -875,7 +901,7 @@ impl KeyContext {
     ///
     /// Set and retrieve an integer, without error handling.
     /// ```
-    /// # use yottadb::simple_api::YDBResult;
+    /// # use yottadb::YDBResult;
     /// # fn main() -> YDBResult<()> {
     /// use yottadb::context_api::Context;
     /// let ctx = Context::new();
@@ -891,6 +917,7 @@ impl KeyContext {
             .and_then(|bytes| String::from_utf8(bytes).map_err(ParseError::Utf8))
             .and_then(|s| s.parse().map_err(|err| ParseError::Parse(err, s)))
     }
+
     /// Sets the value of a key in the database.
     ///
     /// # Errors
@@ -922,7 +949,7 @@ impl KeyContext {
         self.recover_buffer(result)
     }
 
-    /// Retuns the following information in DataReturn about a local or global variable node:
+    /// Returns the following information in DataReturn about a local or global variable node:
     ///
     /// * NoData: There is neither a value nor a subtree; i.e it is undefined.
     /// * ValueData: There is a value, but no subtree.
@@ -938,11 +965,11 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::simple_api::DataReturn;
+    /// use yottadb::DataReturn;
     /// use yottadb::context_api::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^helloDoesNotExist");
     ///
@@ -973,10 +1000,10 @@ impl KeyContext {
     /// ```
     /// # #[macro_use] extern crate yottadb;
     /// use yottadb::context_api::Context;
-    /// use yottadb::simple_api::{DataReturn, DeleteType};
+    /// use yottadb::{DataReturn, DeleteType};
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^helloDeleteMe");
     ///
@@ -995,13 +1022,20 @@ impl KeyContext {
         self.recover_buffer(result)
     }
 
-    /// Converts the value to a [number](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#canonical-numbers) and increments it based on the value specifed by Option. It defaults to 1 if the value is NULL.
+    /// Converts the value to a [number](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#canonical-numbers)
+    /// and increments it based on the value specifed by Option.
+    ///
+    /// `increment` defaults to 1 if the value is None.
     ///
     /// # Errors
     ///
     /// Possible errors for this function include:
     /// - YDB_ERR_NUMOFLOW
     /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
+    ///
+    /// # See also
+    ///
+    /// - [How YDB stores numbers internally](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#numeric-considerations)
     ///
     /// # Examples
     ///
@@ -1019,7 +1053,7 @@ impl KeyContext {
     ///     let output_buffer = key.get()?;
     ///     assert_eq!(output_buffer, b"1");
     ///
-    ///     key.increment(Some(b"100"));
+    ///     assert_eq!(key.increment(Some(b"100"))?, b"101");
     ///     let output_buffer = key.get()?;
     ///     assert_eq!(output_buffer, b"101");
     ///
@@ -1135,15 +1169,16 @@ impl KeyContext {
     ///
     /// fn main() -> Result<(), Box<Error>> {
     ///     let ctx = Context::new();
-    ///     let mut key = make_ckey!(ctx, "^hello", "0");
+    ///     let mut key = make_ckey!(ctx, "^hello", "a");
     ///
     ///     key.set("Hello world!")?;
-    ///     key[0] = Vec::from("1");
+    ///     key[0] = Vec::from("b");
     ///     key.set("Hello world!")?;
-    ///     key[0] = Vec::from("0");
+    ///     key[0] = Vec::from("a");
+    ///     // Starting at a, the next sub should be b
     ///     key.next_sub_self()?;
     ///
-    ///     assert_eq!(key[0], b"1");
+    ///     assert_eq!(key[0], b"b");
     ///
     ///     Ok(())
     /// }
@@ -1154,6 +1189,7 @@ impl KeyContext {
         let result = self.key.sub_next_self_st(tptoken, out_buffer);
         self.recover_buffer(result)
     }
+
     /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript, and passes itself in as the output parameter.
     ///
     /// # Errors
@@ -1265,6 +1301,9 @@ impl KeyContext {
 
     /// Facilitates depth-first traversal of a local or global variable tree, and passes itself in as the output parameter.
     ///
+    /// For more information on variable trees, see the [overview of YottaDB][how-it-works]
+    /// as well as the section on [variables and nodes][vars-nodes].
+    ///
     /// # Errors
     ///
     /// Possible errors for this function include:
@@ -1292,6 +1331,9 @@ impl KeyContext {
     ///     Ok(())
     /// }
     /// ```
+    ///
+    /// [how-it-works]: https://yottadb.com/product/how-it-works/
+    /// [vars-nodes]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts
     pub fn next_node_self(&mut self) -> YDBResult<()> {
         let tptoken = self.context.tptoken();
         let out_buffer = self.take_buffer();

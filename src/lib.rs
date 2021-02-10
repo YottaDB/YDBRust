@@ -119,13 +119,21 @@ const INTERNAL_DOCS: () = ();
 pub mod context_api;
 #[allow(missing_docs)]
 pub mod craw;
-pub mod simple_api;
+mod simple_api;
 
 pub use craw::{YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
 pub use simple_api::{
     call_in::{CallInDescriptor, CallInTableDescriptor},
     DataReturn, DeleteType, TransactionStatus, TpToken, YDBError, YDBResult,
 };
+#[doc(hidden)]
+/// This has to be public so that it can be used by `ci_t!`.
+/// However, it is not a supported part of the API.
+pub use simple_api::resize_call;
+#[doc(hidden)]
+// public for testing, no need to use this for real code
+pub use simple_api::DEFAULT_CAPACITY;
+
 // This is not just a convenience for users; there is no way to construct a `TpToken` outside of
 // YDBRust because the fields are private.
 /// The default transaction processing token if no transaction is in progress.

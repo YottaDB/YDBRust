@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2020 YottaDB LLC and/or its subsidiaries.       *
+* Copyright (c) 2020-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -10,11 +10,12 @@
 *                                                               *
 ****************************************************************/
 
-use yottadb::{simple_api, YDB_NOTTP, ydb_exit};
+use yottadb::ydb_exit;
+use yottadb::context_api::{Context, KeyContext};
 
 #[test]
 fn test_exit_before_init() {
     // If called before any previous ydb_* call, should do nothing.
     ydb_exit();
-    simple_api::Key::variable("a").data_st(YDB_NOTTP, Vec::new()).unwrap();
+    KeyContext::variable(&Context::new(), "a").data().unwrap();
 }

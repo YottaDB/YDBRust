@@ -970,3 +970,73 @@ fn error_buffer() {
     assert_eq!(ydb_err.message, inner_message.unwrap());
     println!("{}", String::from_utf8_lossy(&ydb_err.message));
 }
+
+#[test]
+fn ydb_node_st_infinite_inv_str() {
+    use crate::context_api::{Context, KeyContext};
+
+    // `set ^x(1)=aaaaa,^x(2)=bbbbb`
+    let ctx = Context::new();
+    let mut key = KeyContext::new(&ctx, "x", &["1"]);
+    key.set("a".repeat(DEFAULT_CAPACITY + 1)).unwrap();
+    key[0] = "2".into();
+    key.set("b".repeat(DEFAULT_CAPACITY + 1)).unwrap();
+    // Make sure we don't use this by accident later
+    drop(key);
+
+    // Go to the end of the nodes
+    let mut iter_key = Key::variable("x");
+    iter_key.node_next_self_st(YDB_NOTTP, Vec::with_capacity(5)).unwrap();
+    assert_eq!(
+        iter_key[0],
+        b"1",
+        "{0}({1}) != {0}(1)",
+        iter_key.variable,
+        String::from_utf8_lossy(&iter_key[0])
+    );
+    iter_key.node_next_self_st(YDB_NOTTP, Vec::with_capacity(5)).unwrap();
+    assert_eq!(iter_key[0], b"2");
+
+    // Check for YDB_ERR_NODEEND
+    // NOTE: this has knowledge of how the `simple_api` works internally.
+    // If the vec has _any_ non-zero capacity, it will not be resized.
+    let err = iter_key.node_next_self_st(YDB_NOTTP, Vec::with_capacity(1)).unwrap_err();
+    assert_eq!(err.status, craw::YDB_ERR_NODEEND);
+    eprintln!("{}", String::from_utf8(err.message).unwrap());
+
+    // Check for YDB_ERR_INVVARNAME
+    iter_key.variable = "a_b_c".to_string();
+    let err = iter_key.node_next_self_st(YDB_NOTTP, Vec::with_capacity(1)).unwrap_err();
+    assert_eq!(err.status, craw::YDB_ERR_INVVARNAME);
+    eprintln!("{}", String::from_utf8(err.message).unwrap());
+}
+
+#[test]
+fn sub_next_equivalent() {
+    // set up a node with data at `subNextSelfUser("b")`
+    let mut user = Key::new("subNextSelfUser", &["b"]);
+    user.set_st(TpToken::default(), Vec::new(), b"Hello").unwrap();
+
+    user[0] = "a".into();
+    user[0] = user.sub_next_st(TpToken::default(), Vec::new()).unwrap();
+
+    let mut ydb = Key::new("subNextSelfUser", &["a"]);
+    ydb.sub_next_self_st(TpToken::default(), Vec::new()).unwrap();
+
+    assert_eq!(user[0], ydb[0]);
+}
+
+#[test]
+fn sub_prev_equivalent() {
+    // set up a node with data at `subPrevSelfUser("a")`
+    let mut user = Key::new("subPrevSelfUser", &["a"]);
+    user.set_st(TpToken::default(), Vec::new(), b"Hello").unwrap();
+
+    user[0] = "b".into();
+    user[0] = user.sub_prev_st(TpToken::default(), Vec::new()).unwrap();
+
+    let mut ydb = Key::new("subPrevSelfUser", &["b"]);
+    ydb.sub_prev_self_st(TpToken::default(), Vec::new()).unwrap();
+
+    assert_eq!(user[0], ydb[0]);
+}

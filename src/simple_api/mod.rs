@@ -10,59 +10,15 @@
 *                                                               *
 ****************************************************************/
 
-//! Provides a more-friendly Rust-interface to the YottaDB API than the
-//! raw C API (craw).
+//! This is the main implementation of the YDBRust wrapper.
+//!
+//! The API is not particularly friendly, but it exposes only safe code.
 //!
 //! Most operations are encapsulated in methods on the [`Key`][key] struct, and generally
 //! consume a Vec<u8> and return [`YDBResult<Vec<u8>>`][YDBResult]. The return Vec<u8> will either contain
 //! the data fetched from the database or an error.
 //!
 //! The Vec<u8> may be resized as part of the call.
-//!
-//! # Intrinsic Variables
-//!
-//! YottaDB has several intrinsic variables which are documented [online][intrinsics].
-//! To get the value of these variables, call `get_st` on a `Key` with the name of the variable.
-//!
-//! # Examples
-//!
-//! A basic database operation (set a value, retrieve it, then delete it):
-//!
-//! ```
-//! use yottadb::{YDB_NOTTP, DeleteType, YDBResult};
-//! use yottadb::simple_api::Key;
-//!
-//! fn main() -> YDBResult<()> {
-//!     let mut key = yottadb::make_key!("^MyGlobal", "SubscriptA", "42");
-//!     let mut buffer = Vec::new();
-//!     let value = "This is a persistent message";
-//!     buffer = key.set_st(YDB_NOTTP, buffer, value)?;
-//!     buffer = key.get_st(YDB_NOTTP, buffer)?;
-//!     assert_eq!(&buffer, b"This is a persistent message");
-//!     key.delete_st(YDB_NOTTP, buffer, DeleteType::DelNode).unwrap();
-//!     Ok(())
-//! }
-//! ```
-//!
-//! Get the instrinsic variable [`$tlevel`][tlevel], which gives the current transaction level.
-//!
-//! ```
-//! use yottadb::{YDB_NOTTP, YDBResult};
-//!
-//! fn main() -> YDBResult<()> {
-//!     let mut key = yottadb::make_key!("$tlevel");
-//!     let buffer = Vec::new();
-//!     let buffer = key.get_st(YDB_NOTTP, buffer)?;
-//!     let tlevel: usize = String::from_utf8_lossy(&buffer).parse()
-//!         .expect("$tlevel should be an integer");
-//!     assert_eq!(tlevel, 0_usize);
-//!     Ok(())
-//! }
-//! ```
-//!
-//! [key]: Key
-//! [intrinsics]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
-//! [tlevel]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#tlevel
 
 pub mod call_in;
 
@@ -171,10 +127,10 @@ impl From<TpToken> for u64 {
     /// # Example
     /// ```
     /// use yottadb::*;
-    /// use yottadb::simple_api::*;
+    /// use yottadb::context_api::Context;
     /// use yottadb::craw::{self, ydb_buffer_t};
-    /// tp_st(YDB_NOTTP, Vec::new(), |tptoken| {
-    ///   let tptoken_raw = u64::from(tptoken);
+    /// Context::new().tp(|ctx| {
+    ///   let tptoken_raw = u64::from(ctx.tptoken());
     ///   let mut errstr = ydb_buffer_t {
     ///     buf_addr: std::ptr::null_mut(),
     ///     len_alloc: 0,
@@ -239,10 +195,10 @@ pub enum DeleteType {
 #[macro_export]
 macro_rules! make_key {
     ( $var:expr $(,)? ) => (
-        $crate::simple_api::Key::variable($var)
+        $crate::context_api::Key::variable($var)
     );
     ( $var: expr $( , $subscript: expr)+ $(,)? ) => (
-        $crate::simple_api::Key::new($var, &[
+        $crate::context_api::Key::new($var, &[
             $($subscript),*
         ])
     );
@@ -286,51 +242,9 @@ impl fmt::Debug for Key {
 }
 
 impl Key {
+    // public for `make_ckey!`
+    #[doc(hidden)]
     /// Create a new key.
-    ///
-    /// Note that not all variables are valid.
-    /// See the [upstream documentation][vars] for information on valid variables.
-    /// `Key::new()` will not currently give an error for invalid variables,
-    /// but any operation using them will return a YDBError(%YDB-E-INVVARNAME).
-    ///
-    /// # Examples
-    ///
-    /// Creating a variable from string subscripts is simple:
-    ///
-    /// ```rust
-    /// use yottadb::simple_api::Key;
-    /// Key::new("hello", &["good morning", "good evening"]);
-    /// ```
-    ///
-    /// Creating a variable with no subscripts is a little more complicated.
-    /// Consider using `Key::variable` instead.
-    ///
-    /// ```
-    /// # use yottadb::simple_api::Key;
-    /// Key::new::<_, Vec<_>>("hello", &[]);
-    /// ```
-    ///
-    /// For implementation reasons, creating a new key with bytestrings is
-    /// syntactically tricky.
-    ///
-    /// ```compile_fail
-    /// # use yottadb::simple_api::Key;
-    /// // does not work: `From<[u8; 2]> is not implemented for Vec<u8>`
-    /// Key::new("hello", &[b"hi"]);
-    /// ```
-    ///
-    /// Here is the proper syntax:
-    ///
-    /// ```
-    /// # use yottadb::simple_api::Key;
-    /// Key::new("hello", &[&b"hi"[..]]);
-    /// ```
-    ///
-    /// This has been [fixed on nightly][from-arr-issue] and will land on stable on [June 4th][release-date].
-    ///
-    /// [vars]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values
-    /// [from-arr-issue]: https://github.com/rust-lang/rust/issues/67963
-    /// [release-date]: https://forge.rust-lang.org/#current-release-versions
     pub fn new<V, S>(variable: V, subscripts: &[S]) -> Key
     where
         V: Into<String>,
@@ -344,6 +258,8 @@ impl Key {
         }
     }
 
+    // public for `make_ckey!`
+    #[doc(hidden)]
     /// Shortcut for creating a key with no subscripts.
     pub fn variable<V: Into<String>>(var: V) -> Key {
         Key::new::<V, Vec<u8>>(var, &[])
@@ -351,61 +267,18 @@ impl Key {
 
     /// Gets the value of this key from the database and returns the value.
     ///
-    /// # Errors
-    ///
-    /// Possible errors for this function include:
-    /// - YDB_ERR_GVUNDEF, YDB_ERR_INVSVN, YDB_ERR_LVUNDEF as appropriate if no such variable or node exists
-    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult};
-    ///
-    /// fn main() -> YDBResult<()> {
-    ///     let mut key = make_key!("^hello");
-    ///     let mut output_buffer = Vec::new();
-    ///
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello world!")?;
-    ///     output_buffer = key.get_st(TpToken::default(), output_buffer)?;
-    ///
-    ///     assert_eq!(&output_buffer, b"Hello world!");
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
+    /// See also [KeyContext::get](crate::context_api::KeyContext::get).
     #[inline]
-    pub fn get_st(&self, tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub(crate) fn get_st(&self, tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         self.direct_unsafe_call(tptoken, out_buffer, ydb_get_st)
     }
 
     /// Sets the value of a key in the database.
     ///
-    /// # Errors
-    ///
-    /// Possible errors for this function include:
-    /// - YDB_ERR_INVSVN if no such intrinsic special variable exists
-    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult};
-    ///
-    /// fn main() -> YDBResult<()> {
-    ///     let mut key = make_key!("^hello");
-    ///     let mut output_buffer = Vec::new();
-    ///
-    ///     key.set_st(TpToken::default(), output_buffer, b"Hello world!")?;
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    pub fn set_st<U>(&self, tptoken: TpToken, err_buffer: Vec<u8>, new_val: U) -> YDBResult<Vec<u8>>
+    /// See also [KeyContext::set](crate::context_api::KeyContext::set).
+    pub(crate) fn set_st<U>(
+        &self, tptoken: TpToken, err_buffer: Vec<u8>, new_val: U,
+    ) -> YDBResult<Vec<u8>>
     where
         U: AsRef<[u8]>,
     {
@@ -421,38 +294,10 @@ impl Key {
         self.non_allocating_call(tptoken, err_buffer, do_call)
     }
 
-    /// Retuns the following information in DataReturn about a local or global variable node:
+    /// Returns information about a local or global variable node.
     ///
-    /// - NoData: There is neither a value nor a subtree; i.e it is undefined.
-    /// - ValueData: There is a value, but no subtree.
-    /// - TreeData: There is no value, but there is a subtree.
-    /// - ValueTreeData: There are both a value and a subtree.
-    ///
-    /// # Errors
-    ///
-    /// Possible errors for this function include:
-    /// - [error return
-    /// codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult, DataReturn};
-    ///
-    /// fn main() -> YDBResult<()> {
-    ///     let mut key = make_key!("^helloValueDoesntExist");
-    ///     let mut output_buffer = Vec::new();
-    ///
-    ///     let (output, output_buffer) = key.data_st(TpToken::default(), output_buffer)?;
-    ///
-    ///     assert_eq!(DataReturn::NoData, output);
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    pub fn data_st(
+    /// See also [KeyContext::data](crate::context_api::KeyContext::data).
+    pub(crate) fn data_st(
         &self, tptoken: TpToken, err_buffer: Vec<u8>,
     ) -> YDBResult<(DataReturn, Vec<u8>)> {
         let mut retval: u32 = 0;
@@ -478,30 +323,9 @@ impl Key {
     }
 
     /// Delete nodes in the local or global variable tree or subtree specified.
-    /// A value of DelNode or DelTree for DeleteType specifies whether to delete just the node at the root, leaving the (sub)tree intact, or to delete the node as well as the (sub)tree.
     ///
-    /// # Errors
-    ///
-    /// Possible errors for this function include:
-    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult, DeleteType};
-    ///
-    /// fn main() -> YDBResult<()> {
-    ///     let mut key = make_key!("^hello");
-    ///     let mut output_buffer = Vec::new();
-    ///
-    ///     output_buffer = key.delete_st(TpToken::default(), output_buffer, DeleteType::DelTree)?;
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    pub fn delete_st(
+    /// See also [KeyContext::delete](crate::context_api::KeyContext::delete).
+    pub(crate) fn delete_st(
         &self, tptoken: TpToken, err_buffer: Vec<u8>, delete_type: DeleteType,
     ) -> YDBResult<Vec<u8>> {
         let c_delete_ty = match delete_type {
@@ -579,47 +403,10 @@ impl Key {
         })
     }
 
-    /// Converts the value to a number and increments it based on the value specifed by Option.
-    /// It defaults to 1 if the value is NULL.
+    /// Converts the value to a number and increments it based on the value specifed by `increment`.
     ///
-    /// # Errors
-    ///
-    /// Possible errors for this function include:
-    /// - YDB_ERR_NUMOFLOW
-    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # See also
-    ///
-    /// - [How YDB stores numbers internally](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#numeric-considerations)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult};
-    /// use std::error::Error;
-    ///
-    /// fn main() -> Result<(), Box<dyn Error>> {
-    ///     let mut key = make_key!("^helloIncrementDocTest");
-    ///     let mut output_buffer = Vec::new();
-    ///
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "0")?;
-    ///     output_buffer = key.get_st(TpToken::default(), output_buffer)?;
-    ///     let before: i32 = String::from_utf8_lossy(&output_buffer).parse()?;
-    ///     output_buffer = key.incr_st(TpToken::default(), output_buffer, None)?;
-    ///     let now: i32  = String::from_utf8_lossy(&output_buffer).parse()?;
-    ///     output_buffer = key.get_st(TpToken::default(), output_buffer)?;
-    ///     let after: i32 = String::from_utf8_lossy(&output_buffer).parse()?;
-    ///
-    ///     assert!(before < now);
-    ///     assert!(before + 1 == now);
-    ///     assert!(after == now);
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    pub fn incr_st(
+    /// See also [KeyContext::increment](crate::context_api::KeyContext::increment).
+    pub(crate) fn incr_st(
         &self, tptoken: TpToken, out_buffer: Vec<u8>, increment: Option<&[u8]>,
     ) -> YDBResult<Vec<u8>> {
         let mut increment_t_buf;
@@ -659,73 +446,20 @@ impl Key {
 
     /// Decrement the count of a lock held by the process.
     ///
-    /// When a lock goes from 1 to 0, it is released.
-    /// Attempting to decrement a lock not owned by the current process has no effect.
-    ///
-    /// # Errors
-    /// - `YDB_ERR_INVVARNAME` if `self.variable` is not a valid variable name.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # fn main() -> Result<(), yottadb::YDBError> {
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::Key;
-    /// use std::time::Duration;
-    ///
-    /// let key = Key::variable("lockDecrStTest");
-    /// key.lock_incr_st(TpToken::default(), Vec::new(), Duration::from_secs(1))?;
-    /// key.lock_decr_st(TpToken::default(), Vec::new())?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// # See also
-    /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-decr-s-ydb-lock-decr-st)
-    /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
-    /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
+    /// See also [KeyContext::lock_decr](crate::context_api::KeyContext::lock_decr).
     #[inline]
-    pub fn lock_decr_st(&self, tptoken: TpToken, err_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub(crate) fn lock_decr_st(&self, tptoken: TpToken, err_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         use crate::craw::ydb_lock_decr_st;
         let do_call = |tptoken, err_buffer_p, varname_p, len, subscripts_p| unsafe {
             ydb_lock_decr_st(tptoken, err_buffer_p, varname_p, len, subscripts_p)
         };
         self.non_allocating_call(tptoken, err_buffer, do_call)
     }
+
     /// Increment the count of a lock held by the process, or acquire a new lock.
     ///
-    /// If the lock is not currently held by this process, it is acquired.
-    /// Otherwise, the lock count is incremented.
-    ///
-    /// `timeout` specifies a time that the function waits to acquire the requested locks.
-    /// If `timeout` is 0, the function makes exactly one attempt to acquire the lock.
-    ///
-    /// # Errors
-    /// - `YDB_ERR_INVVARNAME` if `self.variable` is not a valid variable name.
-    /// - `YDB_LOCK_TIMEOUT` if the lock could not be acquired within the specific time.
-    /// - `YDB_ERR_TIME2LONG` if `timeout.as_nanos()` exceeds `YDB_MAX_TIME_NSEC`
-    ///                    or if `timeout.as_nanos()` does not fit into a `c_ulonglong`.
-    /// - Another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # fn main() -> Result<(), yottadb::YDBError> {
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::Key;
-    /// use std::time::Duration;
-    ///
-    /// let key = Key::variable("lockIncrStTest");
-    /// key.lock_incr_st(TpToken::default(), Vec::new(), Duration::from_secs(1))?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// # See also
-    /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-decr-s-ydb-lock-decr-st)
-    /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
-    /// - [Variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#variables-vs-subscripts-vs-values)
-    pub fn lock_incr_st(
+    /// See also [KeyContext::lock_incr](crate::context_api::KeyContext::lock_incr).
+    pub(crate) fn lock_incr_st(
         &self, tptoken: TpToken, mut err_buffer: Vec<u8>, timeout: Duration,
     ) -> YDBResult<Vec<u8>> {
         use std::convert::TryInto;
@@ -744,46 +478,12 @@ impl Key {
         };
         self.non_allocating_call(tptoken, err_buffer, do_call)
     }
+
     /// Facilitates depth-first traversal of a local or global variable tree, and passes itself in as the output parameter.
     ///
-    /// For more information on variable trees, see the [overview of YottaDB][how-it-works]
-    /// as well as the section on [variables and nodes][vars-nodes].
-    ///
-    /// # Errors
-    ///
-    /// Possible errors for this function include:
-    /// - YDB_ERR_NODEEND
-    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult};
-    /// use std::error::Error;
-    ///
-    /// fn main() -> Result<(), Box<Error>> {
-    ///     let mut key = make_key!("^helloNodeNextSelf", "a");
-    ///     let mut output_buffer = Vec::new();
-    ///
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello")?;
-    ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello")?;
-    ///     // Lose the subscript, or pretend we are starting at ""
-    ///     key[0].clear();
-    ///     output_buffer = key.node_next_self_st(TpToken::default(), output_buffer)?;
-    ///
-    ///     assert_eq!(&key[0], b"a");
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    ///
-    /// [how-it-works]: https://yottadb.com/product/how-it-works/
-    /// [vars-nodes]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts
+    /// See also [KeyContext::next_node_self](crate::context_api::KeyContext::next_node_self).
     #[inline]
-    pub fn node_next_self_st(
+    pub(crate) fn node_next_self_st(
         &mut self, tptoken: TpToken, out_buffer: Vec<u8>,
     ) -> YDBResult<Vec<u8>> {
         self.growing_shrinking_call(tptoken, out_buffer, ydb_node_next_st)
@@ -791,38 +491,9 @@ impl Key {
 
     /// Facilitates reverse depth-first traversal of a local or global variable tree and reports the predecessor node, passing itself in as the output parameter.
     ///
-    /// # Errors
-    ///
-    /// Possible errors for this function include:
-    /// - YDB_ERR_NODEEND.
-    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult};
-    /// use std::error::Error;
-    ///
-    /// fn main() -> Result<(), Box<Error>> {
-    ///     let mut key = make_key!("^helloNodePrevSelf", "a");
-    ///     let mut output_buffer = Vec::new();
-    ///
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello")?;
-    ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, "Hello")?;
-    ///     // We need to start at node beyond the node we are looking for; just add some Z's
-    ///     key[0] = Vec::from("z");
-    ///     output_buffer = key.node_prev_self_st(TpToken::default(), output_buffer)?;
-    ///
-    ///     assert_eq!(key[0], b"b");
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
+    /// See also [KeyContext::next_prev_self](crate::context_api::KeyContext::next_).
     #[inline]
-    pub fn node_prev_self_st(
+    pub(crate) fn node_prev_self_st(
         &mut self, tptoken: TpToken, out_buffer: Vec<u8>,
     ) -> YDBResult<Vec<u8>> {
         self.growing_shrinking_call(tptoken, out_buffer, ydb_node_previous_st)
@@ -942,74 +613,17 @@ impl Key {
 
     /// Implements breadth-first traversal of a tree by searching for the next subscript.
     ///
-    /// # Errors
-    ///
-    /// Possible errors for this function include:
-    /// - YDB_ERR_NODEEND
-    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult};
-    /// use std::error::Error;
-    ///
-    /// fn main() -> Result<(), Box<dyn Error>> {
-    ///     let mut key = make_key!("^helloSubNext", "a");
-    ///     let mut output_buffer = Vec::new();
-    ///
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
-    ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
-    ///     // Start at a, next subscript will be b
-    ///     key[0] = Vec::from("a");
-    ///     output_buffer = key.sub_next_st(TpToken::default(), output_buffer)?;
-    ///
-    ///     assert_eq!(&output_buffer, b"b");
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
+    /// See also [KeyContext::next_sub](crate::context_api::KeyContext::next_sub).
     #[inline]
-    pub fn sub_next_st(&self, tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub(crate) fn sub_next_st(&self, tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         self.direct_unsafe_call(tptoken, out_buffer, ydb_subscript_next_st)
     }
 
     /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript.
     ///
-    /// # Errors
-    ///
-    /// Possible errors for this function include:
-    /// - YDB_ERR_NODEEND
-    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult};
-    /// use std::error::Error;
-    ///
-    /// fn main() -> Result<(), Box<dyn Error>> {
-    ///     let mut key = make_key!("^helloSubPrev", "a");
-    ///     let mut output_buffer = Vec::new();
-    ///
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
-    ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
-    ///     // Starting at b, the previous subscript should be a
-    ///     output_buffer = key.sub_prev_st(TpToken::default(), output_buffer)?;
-    ///
-    ///     assert_eq!(&output_buffer, b"a");
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
+    /// See also [KeyContext::prev_sub](crate::context_api::KeyContext::prev_sub).
     #[inline]
-    pub fn sub_prev_st(&self, tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+    pub(crate) fn sub_prev_st(&self, tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
         self.direct_unsafe_call(tptoken, out_buffer, ydb_subscript_previous_st)
     }
 
@@ -1035,58 +649,10 @@ impl Key {
 
     /// Implements breadth-first traversal of a tree by searching for the next subscript, and passes itself in as the output parameter.
     ///
-    /// # Errors
+    /// `sub_next_self_st` can be written (less efficiently) using only safe code; see the `sub_next_equivalent` test.
     ///
-    /// Possible errors for this function include:
-    /// - YDB_ERR_NODEEND
-    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult};
-    /// use std::error::Error;
-    ///
-    /// fn main() -> YDBResult<()> {
-    ///     let mut key = make_key!("^helloSubNextSelf", "a");
-    ///     let mut output_buffer = Vec::new();
-    ///
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
-    ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
-    ///     // Starting at a, the next sub should be b
-    ///     key[0] = Vec::from("a");
-    ///     output_buffer = key.sub_next_self_st(TpToken::default(), output_buffer)?;
-    ///
-    ///     assert_eq!(&key[0], b"b");
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    ///
-    /// `sub_next_self_st` can be written (less efficiently) using only safe code:
-    /// ```
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult};
-    /// # fn main() -> YDBResult<()> {
-    ///
-    /// // set up a node with data at `subNextSelfUser("b")`
-    /// let mut user = Key::new("subNextSelfUser", &["b"]);
-    /// user.set_st(TpToken::default(), Vec::new(), b"Hello")?;
-    ///
-    /// user[0] = "a".into();
-    /// user[0] = user.sub_next_st(TpToken::default(), Vec::new())?;
-    ///
-    /// let mut ydb = Key::new("subNextSelfUser", &["a"]);
-    /// ydb.sub_next_self_st(TpToken::default(), Vec::new())?;
-    ///
-    /// assert_eq!(user[0], ydb[0]);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn sub_next_self_st(
+    /// See also [KeyContext::next_sub_self](crate::context_api::KeyContext::next_sub_self).
+    pub(crate) fn sub_next_self_st(
         &mut self, tptoken: TpToken, out_buffer: Vec<u8>,
     ) -> YDBResult<Vec<u8>> {
         let next_subscript = self.sub_next_st(tptoken, out_buffer)?;
@@ -1096,56 +662,10 @@ impl Key {
 
     /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript, and passes itself in as the output parameter.
     ///
-    /// # Errors
+    /// `sub_prev_self_st` can be written (less efficiently) using only safe code; see the `sub_prev_equivalent` test.
     ///
-    /// Possible errors for this function include:
-    /// - YDB_ERR_NODEEND
-    /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult};
-    /// use std::error::Error;
-    ///
-    /// fn main() -> YDBResult<()> {
-    ///     let mut key = make_key!("^helloSubPrevSelf", "a");
-    ///     let mut output_buffer = Vec::new();
-    ///
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
-    ///     key[0] = Vec::from("b");
-    ///     output_buffer = key.set_st(TpToken::default(), output_buffer, b"Hello")?;
-    ///     // Starting at b, previous should be a
-    ///     output_buffer = key.sub_prev_self_st(TpToken::default(), output_buffer)?;
-    ///
-    ///     assert_eq!(&key[0], b"a");
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    ///
-    /// `sub_prev_self_st` can be written (less efficiently) using only safe code:
-    /// ```
-    /// use yottadb::TpToken;
-    /// use yottadb::simple_api::{Key, YDBResult};
-    /// # fn main() -> YDBResult<()> {
-    ///
-    /// // set up a node with data at `subPrevSelfUser("a")`
-    /// let mut user = Key::new("subPrevSelfUser", &["a"]);
-    /// user.set_st(TpToken::default(), Vec::new(), b"Hello")?;
-    ///
-    /// user[0] = "b".into();
-    /// user[0] = user.sub_prev_st(TpToken::default(), Vec::new()).unwrap();
-    ///
-    /// let mut ydb = Key::new("subPrevSelfUser", &["b"]);
-    /// ydb.sub_prev_self_st(TpToken::default(), Vec::new())?;
-    ///
-    /// assert_eq!(user[0], ydb[0]);
-    /// # Ok(())
-    /// # }
-    pub fn sub_prev_self_st(
+    /// See also [KeyContext::prev_sub_self](crate::context_api::KeyContext::prev_sub_self).
+    pub(crate) fn sub_prev_self_st(
         &mut self, tptoken: TpToken, out_buffer: Vec<u8>,
     ) -> YDBResult<Vec<u8>> {
         let next_subscript = self.sub_prev_st(tptoken, out_buffer)?;
@@ -1366,109 +886,8 @@ extern "C" fn fn_callback(tptoken: u64, _errstr: *mut ydb_buffer_t, tpfnparm: *m
 
 /// Start a new transaction, where `f` is the transaction to execute.
 ///
-/// `tp` stands for 'transaction processing'.
-///
-/// The parameter `trans_id` is the name logged for the transaction.
-///     If `trans_id` has the special value `"BATCH"`, durability is not enforced by YottaDB.
-///     See the [C documentation] for details.
-///
-/// The argument passed to `f` is a [transaction processing token][threads and transactions].
-///
-/// # Rollbacks and Restarts
-/// Application code can return a [`TransactionStatus`] in order to rollback or restart.
-/// `tp_st` behaves as follows:
-/// - If `f` panics, the transaction is rolled back and the panic resumes afterwards.
-/// - If `f` returns `Ok(TransactionStatus)`,
-///      the transaction will have the behavior documented under `TransactionStatus` (commit, restart, and rollback, respectively).
-/// - If `f` returns an `Err(YDBError)`, the status from that error will be returned to the YottaDB engine.
-///      As a result, if the status for the `YDBError` is `YDB_TP_RESTART`, the transaction will be restarted.
-///      Otherwise, the transaction will be rolled back and the error returned from `tp_st`.
-/// - If `f` returns any other `Err` variant, the transaction will be rolled back and the error returned from `tp_st`.
-///
-/// `f` must be `FnMut`, not `FnOnce`, since the YottaDB engine may
-/// call `f` many times if necessary to ensure ACID properties.
-/// This may affect your application logic; if you need to know how many
-/// times the callback has been executed, get the [intrinsic variable][intrinsics]
-/// [`$trestart`](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#trestart).
-///
-/// # Nested transactions
-/// `f` may itself call `tp_st`. Such a call is called a 'nested transaction'.
-/// If `f` receives a `YDBError` with a status of `YDB_TP_RESTART` or `YDB_TP_ROLLBACK` from a nested transaction,
-/// it _must_ propagate that error back to the caller.
-///
-/// # Errors
-/// - YDB_ERR_TPTIMEOUT - The transaction took more than [`$zmaxtptime`] seconds to execute,
-///     where `$zmaxtptime` is an [intrinsic special variable][intrinsics].
-/// - YDB_TP_ROLLBACK — application logic indicates that the transaction should not be committed.
-/// - A `YDBError` returned by a YottaDB function called by `f`.
-/// - Another arbitrary error returned by `f`.
-///
-/// # Examples
-/// Rollback a transaction if an operation fails:
-/// ```
-/// use yottadb::{TpToken, TransactionStatus};
-/// use yottadb::simple_api::{Key, tp_st};
-///
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let var = Key::variable("^tpRollbackTest");
-/// var.set_st(TpToken::default(), Vec::new(), "initial value")?;
-/// let maybe_err = tp_st(TpToken::default(), Vec::new(), |tptoken| {
-///     var.set_st(tptoken, Vec::new(), "new value")?;
-///     fallible_operation()?;
-///     Ok(TransactionStatus::Ok)
-/// }, "BATCH", &[]);
-/// let expected_val: &[_] = if maybe_err.is_ok() {
-///     b"new value"
-/// } else {
-///     b"initial value"
-/// };
-/// assert_eq!(var.get_st(TpToken::default(), Vec::new())?, expected_val);
-/// # Ok(())
-/// # }
-///
-/// fn fallible_operation() -> Result<(), &'static str> {
-///     if rand::random() {
-///         Ok(())
-///     } else {
-///         Err("the operation failed")
-///     }
-/// }
-/// ```
-///
-/// Retry a transaction until it succeeds:
-/// ```
-/// use yottadb::{TpToken, TransactionStatus};
-/// use yottadb::simple_api::tp_st;
-///
-/// tp_st(TpToken::default(), Vec::new(), |tptoken| {
-///     if fallible_operation().is_ok() {
-///         Ok(TransactionStatus::Ok)
-///     } else {
-///         Ok(TransactionStatus::Restart)
-///     }
-/// }, "BATCH", &[]).unwrap();
-///
-/// fn fallible_operation() -> Result<(), ()> {
-///     if rand::random() {
-///         Ok(())
-///     } else {
-///         Err(())
-///     }
-/// }
-/// ```
-///
-/// # See Also
-/// - [`context_api::Context::tp`](super::context_api::Context::tp())
-/// - [More details about the underlying FFI call][C documentation]
-/// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
-/// - [Threads and Transaction Processing][threads and transactions]
-///
-/// [`$zmaxtptime`]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#zmaxtptime
-/// [`TransactionStatus`]: super::simple_api::TransactionStatus
-/// [intrinsics]: self#intrinsic-variables
-/// [threads and transactions]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
-/// [C documentation]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st
-pub fn tp_st<F>(
+/// See also [Context::tp](crate::context_api::KeyContext::tp).
+pub(crate) fn tp_st<F>(
     tptoken: TpToken, mut err_buffer: Vec<u8>, mut f: F, trans_id: &str, locals_to_reset: &[&str],
 ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>>
 where
@@ -1532,48 +951,8 @@ where
 
 /// Delete all local variables _except_ for those passed in `saved_variable`.
 ///
-/// Passing an empty `saved_variables` slice deletes all local variables.
-/// Attempting to save a global or intrinsic variable is an error.
-///
-/// # Errors
-/// - YDB_ERR_NAMECOUNT2HI if `saved_variables.len() > YDB_MAX_NAMES`
-/// - YDB_ERR_INVVARNAME if attempting to save a global or intrinsic variable
-/// - Another system [error return code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-///
-/// # Examples
-///
-/// ```
-/// # fn main() -> yottadb::YDBResult<()> {
-/// use yottadb::{TpToken, YDB_ERR_LVUNDEF};
-/// use yottadb::simple_api::{Key, delete_excl_st};
-///
-/// // Create three variables and set all
-/// let a = Key::variable("deleteExclTestA");
-/// a.set_st(TpToken::default(), Vec::new(), "test data")?;
-/// let b = Key::variable("deleteExclTestB");
-/// b.set_st(TpToken::default(), Vec::new(), "test data 2")?;
-/// let c = Key::variable("deleteExclTestC");
-/// c.set_st(TpToken::default(), Vec::new(), "test data 3")?;
-///
-/// // Delete all variables except `a`
-/// delete_excl_st(TpToken::default(), Vec::new(), &[&a.variable])?;
-/// assert_eq!(a.get_st(TpToken::default(), Vec::new())?, b"test data");
-/// assert_eq!(b.get_st(TpToken::default(), Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
-/// assert_eq!(c.get_st(TpToken::default(), Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
-///
-/// // Delete `a` too
-/// delete_excl_st(TpToken::default(), Vec::new(), &[])?;
-/// assert_eq!(a.get_st(TpToken::default(), Vec::new()).unwrap_err().status, YDB_ERR_LVUNDEF);
-///
-/// # Ok(())
-/// # }
-/// ```
-///
-/// # See also
-/// - The [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-delete-excl-s-ydb-delete-excl-st)
-/// - [Local and global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
-/// - [Instrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
-pub fn delete_excl_st(
+/// See also [Context::delete_excl](crate::context_api::Context::delete_excl).
+pub(crate) fn delete_excl_st(
     tptoken: TpToken, err_buffer: Vec<u8>, saved_variables: &[&str],
 ) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_delete_excl_st;
@@ -1593,25 +972,10 @@ pub fn delete_excl_st(
 
 /// Given a binary sequence, serialize it to 'Zwrite format', which is ASCII printable.
 ///
-/// # Errors
-/// - [error codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-///
-/// # Examples
-///
-/// ```
-/// # use yottadb::YDBError;
-/// # fn main() -> Result<(), YDBError> {
-/// use yottadb::simple_api::str2zwr_st;
-/// use yottadb::TpToken;
-/// assert_eq!(str2zwr_st(TpToken::default(), Vec::new(), "💖".as_bytes())?, b"\"\xf0\"_$C(159,146,150)");
-/// # Ok(())
-/// # }
-/// ```
-///
-/// # See also
-/// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
-/// - [`zwr2str_st`](zwr2str_st()), which deserializes a buffer in Zwrite format back to the original binary.
-pub fn str2zwr_st(tptoken: TpToken, out_buf: Vec<u8>, original: &[u8]) -> YDBResult<Vec<u8>> {
+/// See also [Context::str2zwr](crate::context_api::Context::str2zwr).
+pub(crate) fn str2zwr_st(
+    tptoken: TpToken, out_buf: Vec<u8>, original: &[u8],
+) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_str2zwr_st;
 
     let original_t = ConstYDBBuffer::from(original);
@@ -1622,27 +986,8 @@ pub fn str2zwr_st(tptoken: TpToken, out_buf: Vec<u8>, original: &[u8]) -> YDBRes
 
 /// Given a buffer in 'Zwrite format', deserialize it to the original binary buffer.
 ///
-/// # Errors
-/// This function returns an empty array if `serialized` is not in Zwrite format.
-/// It can also return another [error code](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code).
-///
-/// # Examples
-///
-/// ```
-/// # use yottadb::YDBError;
-/// # fn main() -> Result<(), YDBError> {
-/// use yottadb::simple_api::zwr2str_st;
-/// use yottadb::TpToken;
-/// let out_buf = zwr2str_st(TpToken::default(), Vec::new(), b"\"\xf0\"_$C(159,146,150)")?;
-/// assert_eq!(out_buf.as_slice(), "💖".as_bytes());
-/// # Ok(())
-/// # }
-/// ```
-///
-/// # See also
-/// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
-/// - [str2zwr_st](str2zwr_st()), the inverse of `zwr2str_st`.
-pub fn zwr2str_st(
+/// See also [Context::zwr2str](crate::context_api::Context::zwr2str).
+pub(crate) fn zwr2str_st(
     tptoken: TpToken, out_buf: Vec<u8>, serialized: &[u8],
 ) -> Result<Vec<u8>, YDBError> {
     use crate::craw::ydb_zwr2str_st;
@@ -1655,31 +1000,8 @@ pub fn zwr2str_st(
 
 /// Write the message corresponding to a YottaDB error code to `out_buffer`.
 ///
-/// # Errors
-/// - `YDB_ERR_UNKNOWNSYSERR` if `status` is an unrecognized status code
-///
-/// # See also
-/// - [`context_api::Context::message_t`](super::context_api::Context::message())
-/// - [`impl Display for YDBError`][`impl Display`], which should meet most use cases for `message_t`.
-/// - [Function return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#function-return-codes)
-/// - [ZMessage codes](https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes)
-/// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-message-ydb-message-t)
-///
-/// [`impl Display`]: YDBError#impl-Display
-///
-/// # Example
-/// Look up the error message for an undefined local variable:
-/// ```
-/// use yottadb::{TpToken, YDB_ERR_LVUNDEF};
-/// use yottadb::simple_api::{self, Key};
-/// let key = Key::variable("oopsNotDefined");
-/// let err = key.get_st(TpToken::default(), Vec::new()).unwrap_err();
-/// assert_eq!(err.status, YDB_ERR_LVUNDEF);
-/// let buf = simple_api::message_t(TpToken::default(), Vec::new(), err.status).unwrap();
-/// let msg = String::from_utf8(buf).unwrap();
-/// assert!(msg.contains("Undefined local variable"));
-/// ```
-pub fn message_t(tptoken: TpToken, out_buffer: Vec<u8>, status: i32) -> YDBResult<Vec<u8>> {
+/// See also [Context::message](crate::context_api::Context::message).
+pub(crate) fn message_t(tptoken: TpToken, out_buffer: Vec<u8>, status: i32) -> YDBResult<Vec<u8>> {
     resize_ret_call(tptoken, out_buffer, |tptoken, err_buffer_p, out_buffer_p| unsafe {
         ydb_message_t(tptoken, err_buffer_p, status, out_buffer_p)
     })
@@ -1687,23 +1009,8 @@ pub fn message_t(tptoken: TpToken, out_buffer: Vec<u8>, status: i32) -> YDBResul
 
 /// Return a string in the format `rustwr <rust wrapper version> <$ZYRELEASE>`
 ///
-/// [`$ZYRELEASE`] is the [intrinsic variable] containing the version of the underlying C database
-/// and `<rust wrapper version>` is the version of `yottadb` published to crates.io.
-///
-/// # Errors
-/// No errors should occur in normal operation.
-/// However, in case of system failure, an [error code] may be returned.
-///
-/// [error code]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code
-/// [intrinsic variable]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
-/// [`$ZYRELEASE`]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#zyrelease
-///
-/// # Example
-/// ```
-/// use yottadb::{simple_api, TpToken};
-/// let release = simple_api::release_t(TpToken::default(), Vec::new()).unwrap();
-/// ```
-pub fn release_t(tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<String> {
+/// See also [Context::release](crate::context_api::Context::release).
+pub(crate) fn release_t(tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<String> {
     let zrelease = Key::variable("$ZYRELEASE").get_st(tptoken, out_buffer)?;
     let zrelease = String::from_utf8(zrelease).expect("$ZRELEASE was not valid UTF8");
     Ok(format!("rustwr {} {}", env!("CARGO_PKG_VERSION"), zrelease))
@@ -1711,12 +1018,8 @@ pub fn release_t(tptoken: TpToken, out_buffer: Vec<u8>) -> YDBResult<String> {
 
 /// Runs the YottaDB deferred signal handler (if necessary).
 ///
-/// This function must be called if an application has a tight loop which never calls a YDB function.
-///
-/// # See also
-/// - [Signal Handling](super#signal-handling)
-/// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-eintr-handler-ydb-eintr-handler-t)
-pub fn eintr_handler_t(tptoken: TpToken, err_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
+/// See also [Context::eintr_handler](crate::context_api::Context::eintr_handler).
+pub(crate) fn eintr_handler_t(tptoken: TpToken, err_buffer: Vec<u8>) -> YDBResult<Vec<u8>> {
     use crate::craw::ydb_eintr_handler_t;
 
     resize_call(tptoken, err_buffer, |tptoken, err_buffer_p| unsafe {
@@ -1726,70 +1029,9 @@ pub fn eintr_handler_t(tptoken: TpToken, err_buffer: Vec<u8>) -> YDBResult<Vec<u
 
 /// Acquires locks specified in `locks` and releases all others.
 ///
-/// This operation is atomic. If any lock cannot be acquired, all locks are released.
-/// The `timeout` specifies the maximum time to wait before returning an error.
-/// If no locks are specified, all locks are released.
-///
-/// Note that YottaDB locks are per-process, not per-thread.
-///
-/// # Limitations
-///
-/// For implementation reasons, there is a hard limit to the number of `Key`s that can be passed in `locks`:
-// floor( (36 - 4)/3 ) = 10
-/// - 64-bit: 10 `Key`s
-// floor( (36 - 7)/3 ) = 9
-/// - 32-bit: 9  `Key`s
-///
-/// If more than this number of keys are passed, `lock_st` will return `YDB_ERR_MAXARGCNT`.
-///
-/// For implementation reasons, `lock_st` only works on 64-bit platforms, or on 32-bit ARM.
-///
-/// `lock_st` will not be compiled on 16, 8, or 128 bit platforms
-/// (i.e. will fail with 'cannot find function `lock_st` in module `yottadb::simple_api`').
-///
-/// On non-ARM 32-bit platforms, the compiler will allow `lock_st` to be called,
-/// but it will have unspecified behavior and has not been tested.
-/// Use [`Key::lock_incr_st`] and [`Key::lock_decr_st`] instead.
-///
-/// # Errors
-///
-/// Possible errors for this function include:
-/// - `YDB_LOCK_TIMEOUT` if all locks could not be acquired within the timeout period.
-///   In this case, no locks are acquired.
-/// - `YDB_ERR_TIME2LONG` if `timeout` is greater than `YDB_MAX_TIME_NSEC`
-/// - `YDB_ERR_MAXARGCNT` if too many locks have been passed (see [Limitations](#limitations))
-/// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
-///
-/// # Examples
-/// ```
-/// use std::slice;
-/// use std::time::Duration;
-/// use yottadb::TpToken;
-/// use yottadb::simple_api::{Key, lock_st};
-///
-/// // acquire a new lock
-/// let a = Key::variable("lockA");
-/// // using `from_ref` here allows us to use `a` later without moving it
-/// lock_st(TpToken::default(), Vec::new(), Duration::from_secs(1), slice::from_ref(&a)).unwrap();
-///
-/// // acquire multiple locks
-/// let locks = vec![a, Key::variable("lockB")];
-/// lock_st(TpToken::default(), Vec::new(), Duration::from_secs(1), &locks).unwrap();
-///
-/// // release all locks
-/// lock_st(TpToken::default(), Vec::new(), Duration::from_secs(1), &[]).unwrap();
-/// ```
-///
-/// # See also
-///
-/// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
-/// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
-/// - [`context_api::Context::lock`](super::context_api::Context::lock())
-///
-/// [`Key::lock_incr_st`]: Key::lock_incr_st()
-/// [`Key::lock_decr_st`]: Key::lock_decr_st()
+/// See also [Context::lock](crate::context_api::Context::lock).
 #[cfg(any(target_pointer_width = "64", target_pointer_width = "32"))]
-pub fn lock_st(
+pub(crate) fn lock_st(
     tptoken: TpToken, mut out_buffer: Vec<u8>, timeout: Duration, locks: &[Key],
 ) -> YDBResult<Vec<u8>> {
     use std::convert::TryFrom;
@@ -1920,8 +1162,6 @@ pub fn lock_st(
 /// See documentation for [`non_allocating_call`] for more details.
 ///
 /// `F: FnMut(tptoken, out_buffer_t) -> status`
-// This has to be public so that it can be used by `ci_t!`.
-// However, it is not a supported part of the API.
 #[doc(hidden)]
 pub fn resize_call<F>(tptoken: TpToken, err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
 where
