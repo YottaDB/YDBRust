@@ -164,9 +164,28 @@ impl Default for TpToken {
     }
 }
 
-impl Into<u64> for TpToken {
-    fn into(self) -> u64 {
-        self.0
+impl From<TpToken> for u64 {
+    /// This is useful for calling C functions that have not yet been wrapped in the `simple_api`
+    /// from inside a transaction.
+    ///
+    /// # Example
+    /// ```
+    /// use yottadb::*;
+    /// use yottadb::simple_api::*;
+    /// use yottadb::craw::{self, ydb_buffer_t};
+    /// tp_st(YDB_NOTTP, Vec::new(), |tptoken| {
+    ///   let tptoken_raw = u64::from(tptoken);
+    ///   let mut errstr = ydb_buffer_t {
+    ///     buf_addr: std::ptr::null_mut(),
+    ///     len_alloc: 0,
+    ///     len_used: 0,
+    ///   };
+    ///   unsafe { craw::ydb_stdout_stderr_adjust_t(tptoken_raw, &mut errstr) };
+    ///   Ok(TransactionStatus::Ok)
+    /// }, "BATCH", &[]);
+    /// ```
+    fn from(tptoken: TpToken) -> u64 {
+        tptoken.0
     }
 }
 
