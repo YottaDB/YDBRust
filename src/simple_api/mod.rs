@@ -1390,18 +1390,18 @@ extern "C" fn fn_callback(tptoken: u64, _errstr: *mut ydb_buffer_t, tpfnparm: *m
     };
     match retval {
         Ok(status) => status as i32,
-        Err(x) => {
+        Err(err) => {
             // Try to cast into YDBError; if we can do that, return the error code
             // Else, rollback the transaction
             // FIXME: it's possible for a downstream user to wrap a YDBError in their own error,
             // in which case this may not return the right status.
-            match x.downcast::<YDBError>() {
-                Ok(err) => err.status,
-                Err(err) => {
-                    callback_struct.error = Some(CallBackError::ApplicationError(err));
-                    YDB_TP_ROLLBACK as i32
-                }
-            }
+            let status = if let Some(ydb_err) = err.downcast_ref::<YDBError>() {
+                ydb_err.status
+            } else {
+                YDB_TP_ROLLBACK as i32
+            };
+            callback_struct.error = Some(CallBackError::ApplicationError(err));
+            status
         }
     }
 }
@@ -1551,7 +1551,13 @@ where
     } else if let Some(user_err) = callback_struct.error {
         match user_err {
             // an application error occurred; we _could_ return out_buffer if the types didn't conflict below
-            CallBackError::ApplicationError(err) => Err(err),
+            CallBackError::ApplicationError(mut err) => {
+                if let Some(mut ydb_err) = err.downcast_mut::<YDBError>() {
+                    // Use the outer tptoken, not the inner one. The inner transaction has already ended.
+                    ydb_err.tptoken = tptoken;
+                }
+                Err(err)
+            }
             // reraise the panic now that we're past the FFI barrier
             CallBackError::Panic(payload) => panic::resume_unwind(payload),
         }

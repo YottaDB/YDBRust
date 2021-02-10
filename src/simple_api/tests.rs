@@ -945,3 +945,28 @@ fn variable_reallocated() {
     key.sub_next_self_st(YDB_NOTTP, Vec::new()).unwrap();
     dbg!(key.variable.capacity());
 }
+
+#[test]
+fn error_buffer() {
+    let mut inner_message = None;
+    let err = tp_st(
+        YDB_NOTTP,
+        Vec::new(),
+        |inner_tptoken| {
+            let err = Key::variable("invalid_value")
+                .set_st(inner_tptoken, Vec::new(), "new value")
+                .unwrap_err();
+            inner_message = Some(err.message.clone());
+            return Err(Box::new(err));
+        },
+        "BATCH",
+        &[],
+    )
+    .err()
+    .expect("should have returned YDB_ERR_INVVARNAME");
+    let ydb_err = err.downcast::<YDBError>().unwrap();
+    // This should have the tptoken of the *outer* transaction, not the inner one.
+    assert_eq!(ydb_err.tptoken, YDB_NOTTP);
+    assert_eq!(ydb_err.message, inner_message.unwrap());
+    println!("{}", String::from_utf8_lossy(&ydb_err.message));
+}
