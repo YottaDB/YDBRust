@@ -21,14 +21,14 @@ use std::ffi::{CString, CStr};
 use crate::craw::ci_name_descriptor;
 use super::{resize_call, YDBResult, TpToken};
 
-/// The descriptor for a call-in table opened with [`ci_tab_open_t`].
+/// The descriptor for a call-in table opened with [`ci_tab_open`].
 ///
 /// `CallInTableDescriptor::default()` returns a table which,
-/// when called with [`ci_tab_switch_t`], uses the environment variable `ydb_ci`.
+/// when called with [`ci_tab_switch`], uses the environment variable `ydb_ci`.
 /// This is also the table that is used if `ci_tab_switch_t` is never called.
 ///
-/// [`ci_tab_open_t`]: ci_tab_open_t()
-/// [`ci_tab_switch_t`]: ci_tab_switch_t()
+/// [`ci_tab_open`]: crate::Context::ci_tab_open
+/// [`ci_tab_switch`]: crate::Context::ci_tab_switch
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct CallInTableDescriptor(usize);
 

@@ -18,15 +18,14 @@
 //! There are two major APIs:
 //! - [`craw`], the FFI bindings generated directly by bindgen.
 //!     These are not recommended for normal use,
-//!     but are available in case the `context_api` is missing functionality.
-//! - [`context_api`], which is a safe wrapper around the C API which
-//!     stores the current tptoken and an error buffer
-//!     so you don't have to keep track of them yourself.
-//!     The reason this metadata is necessary is because this crate binds to
-//!     the threaded version of YottaDB, which requires a `tptoken` and `err_buffer`.
-//!     See [transaction processing] for more details on transactions and `tptoken`s.
+//!     but are available in case the Context API is missing functionality.
+//! - The main Context API, which is a safe wrapper around the C API which
+//!     stores the current tptoken and an error buffer so you don't have to keep track of them yourself.
+//!     The reason this metadata is necessary is because this crate binds to the threaded version of
+//!     YottaDB, which requires a `tptoken` and `err_buffer`. See [transaction processing] for more
+//!     details on transactions and `tptoken`s.
 //!
-//! Most operations are encapsulated in methods in the [KeyContext] struct.
+//! Most operations are encapsulated in methods in the [`KeyContext`] struct.
 //! Iteration helpers are available to iterate over values in the database in a variety of ways.
 //!
 //! # Examples
@@ -47,6 +46,13 @@
 //! }
 //! ```
 //!
+//! # Intrinsic Variables
+//!
+//! YottaDB has several intrinsic variables which are documented [online][intrinsics].
+//! To get the value of these variables, call `get_st` on a `Key` with the name of the variable.
+//!
+//! ## Example
+//!
 //! Get the instrinsic variable [`$tlevel`][tlevel], which gives the current transaction level.
 //!
 //! ```
@@ -62,12 +68,7 @@
 //! }
 //! ```
 //!
-//! # Intrinsic Variables
-//!
-//! YottaDB has several intrinsic variables which are documented [online][intrinsics].
-//! To get the value of these variables, call `get_st` on a `Key` with the name of the variable.
-//!
-//! ## Features
+//! # Features
 //!
 //! Since `yottadb` is a set of bindings to a C library, it uses `bindgen` to generate the bindings.
 //! There are two ways to do this:
@@ -78,14 +79,14 @@
 //! even when you don't have admin priviledges to install programs.
 //! Using a pre-installed version means compile times are much lower.
 //!
-//! ## Signal handling
+//! # Signal handling
 //!
 //! YottaDB performs its own signal handling in addition to any signal handlers you may have set up.
 //! Since many functions in C are not async-safe, it defers any action until the next time `ydb_eintr_handler` is called.
 //! All YDB functions will automatically call `ydb_eintr_handler` if necessary,
 //! so in most cases this should not affect your application. However, there are some rare cases
 //! when the handler will not be called:
-//! - If you have a tight loop inside a [`tp`] that does not call a YDB function
+//! - If you have a tight loop inside a [`Context::tp`] that does not call a YDB function
 //!
 //! For example, the following loop will run forever even if sent SIGINT:
 //! ```no_run
@@ -101,7 +102,7 @@
 //! # }
 //! ```
 //!
-//! To avoid this, call [`eintr_handler`] in the loop:
+//! To avoid this, call [`Context::eintr_handler`] in the loop:
 //!
 //! ```no_run
 //! # fn main() -> yottadb::YDBResult<()> {
@@ -126,20 +127,14 @@
 //! YottaDB does not register any signal handlers until the first time `ydb_init` is called,
 //! and deregisters its handlers after `ydb_exit`.
 //!
-//! ### See also
+//! ## See also
 //!
 //! - The [C documentation on signals](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#signals)
-//! - [`eintr_handler`]
-//! - [`eintr_handler_t`]
-//! - [`tp`]
+//! - [`Context::eintr_handler`]
+//! - [`Context::tp`](crate::Context::tp)
 //!
-//! [`YDBError`]: simple_api::YDBError
-//! [`eintr_handler`]: context_api::Context::eintr_handler()
-//! [`eintr_handler_t`]: simple_api::eintr_handler_t()
-//! [`tp`]: context_api::Context::tp()
 //! [YottaDB]: https://yottadb.com/
 //! [transaction processing]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
-//! [key]: Key
 //! [intrinsics]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
 //! [tlevel]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#tlevel
 #![deny(missing_docs)]
@@ -153,14 +148,15 @@
 #[allow(unused)]
 const INTERNAL_DOCS: () = ();
 
-// Public to reduce churn when upgrading versions, but it's recommended to use the top-level re-exports instead.
+/// Public to reduce churn when upgrading versions, but it's recommended to use the top-level re-exports instead.
 #[doc(hidden)]
-pub mod context_api;
+mod context_api;
 #[allow(missing_docs)]
 pub mod craw;
 mod simple_api;
 
 pub use craw::{YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
+#[doc(inline)] // needed because of rust-lang/rust#81890
 pub use context_api::*; // glob import so we catch all the iterators
 pub use simple_api::{
     call_in::{CallInDescriptor, CallInTableDescriptor},

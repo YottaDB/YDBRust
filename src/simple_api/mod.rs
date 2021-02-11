@@ -14,7 +14,7 @@
 //!
 //! The API is not particularly friendly, but it exposes only safe code.
 //!
-//! Most operations are encapsulated in methods on the [`Key`][key] struct, and generally
+//! Most operations are encapsulated in methods on the [`Key`] struct, and generally
 //! consume a Vec<u8> and return [`YDBResult<Vec<u8>>`][YDBResult]. The return Vec<u8> will either contain
 //! the data fetched from the database or an error.
 //!
@@ -97,7 +97,7 @@ pub type YDBResult<T> = Result<T, YDBError>;
 /// A transaction processing token, used by yottadb to ensure ACID properties.
 ///
 /// The only valid values for a TpToken are the default (`TpToken::default()`)
-/// or a token passed in from [`tp_st`](tp_st()).
+/// or a token passed in from [`Context::tp`](crate::Context::tp).
 ///
 /// TpTokens can be converted to `u64`, but not vice-versa.
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
@@ -147,7 +147,7 @@ impl From<TpToken> for u64 {
 /// The type of data available at the current node.
 ///
 /// # See also
-/// - [`Key::data_st()`]
+/// - [`KeyContext::data()`](crate::KeyContext::data)
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum DataReturn {
     /// There is no data present, either here or lower in the tree.
@@ -163,7 +163,7 @@ pub enum DataReturn {
 /// The type of deletion that should be carried out.
 ///
 /// # See also
-/// - [`Key::delete_st()`]
+/// - [`KeyContext::delete_st()`](crate::KeyContext::delete)
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum DeleteType {
     /// Delete only this node.
@@ -817,9 +817,9 @@ impl<S: Into<String>> From<S> for Key {
     }
 }
 
-/// The status returned from a callback passed to [`tp_st`]
+/// The status returned from a callback passed to [`Context::tp`]
 ///
-/// [`tp_st`]: tp_st()
+/// [`Context::tp`]: crate::Context::tp
 #[derive(Debug, Copy, Clone)]
 pub enum TransactionStatus {
     /// Complete the transaction and commit all changes

@@ -347,14 +347,12 @@ impl Context {
     /// ```
     ///
     /// # See Also
-    /// - [`simple_api::tp_st`](super::simple_api::tp_st())
     /// - [More details about the underlying FFI call][C documentation]
     /// - [Transaction Processing in YottaDB](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing)
     /// - [Threads and Transaction Processing][threads and transactions]
     ///
     /// [`$zmaxtptime`]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#zmaxtptime
-    /// [`TransactionStatus`]: super::simple_api::TransactionStatus
-    /// [intrinsics]: crate::simple_api#intrinsic-variables
+    /// [intrinsics]: crate#intrinsic-variables
     /// [threads and transactions]: https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads-and-transaction-processing
     /// [C documentation]: https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-tp-s-ydb-tp-st
     pub fn tp<'a, F>(
@@ -424,7 +422,6 @@ impl Context {
     /// ```
     ///
     /// # See also
-    /// - [`simple_api::delete_excl_st`](super::simple_api::delete_excl_st())
     /// - The [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-delete-excl-s-ydb-delete-excl-st)
     /// - [Local and global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
     /// - [Instrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
@@ -590,7 +587,6 @@ impl Context {
     ///
     /// - The C [Simple API documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-lock-s-ydb-lock-st)
     /// - [Locks](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#locks)
-    /// - [`simple_api::lock_st`](super::simple_api::lock_st())
     ///
     /// [`KeyContext::lock_incr`]: KeyContext::lock_incr()
     /// [`KeyContext::lock_decr`]: KeyContext::lock_decr()
@@ -611,7 +607,6 @@ impl Context {
     /// - `YDB_ERR_UNKNOWNSYSERR` if `status` is an unrecognized status code
     ///
     /// # See also
-    /// - [`simple_api::message_t`](super::simple_api::message_t())
     /// - [`impl Display for YDBError`][`impl Display`], which should meet most use cases for `message_t`.
     /// - [Function return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#function-return-codes)
     /// - [ZMessage codes](https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes)
