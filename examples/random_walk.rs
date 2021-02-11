@@ -19,8 +19,7 @@ use std::{thread, time};
 
 use threadpool::ThreadPool;
 
-use yottadb::context_api::Context;
-use yottadb::DeleteType;
+use yottadb::{Context, DeleteType};
 
 use rand::Rng;
 

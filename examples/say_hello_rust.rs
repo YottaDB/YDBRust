@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2020 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2020-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -12,8 +12,7 @@
 
 //! An example of `yottadb` using the `context_api`.
 
-use yottadb::context_api::{Context, KeyContext as Key};
-use yottadb::YDBError;
+use yottadb::{Context, KeyContext as Key, YDBError};
 
 fn main() -> Result<(), YDBError> {
     let ctx = Context::new();

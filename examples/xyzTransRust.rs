@@ -21,8 +21,7 @@ use std::error::Error;
 use std::time::{Duration, SystemTime};
 
 use rand::Rng;
-use yottadb::TransactionStatus;
-use yottadb::context_api::{Context, KeyContext};
+use yottadb::{Context, KeyContext, TransactionStatus};
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut rng = rand::thread_rng();

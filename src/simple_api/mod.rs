@@ -127,8 +127,7 @@ impl From<TpToken> for u64 {
     /// # Example
     /// ```
     /// use yottadb::*;
-    /// use yottadb::context_api::Context;
-    /// use yottadb::craw::{self, ydb_buffer_t};
+    /// use yottadb::craw::ydb_buffer_t;
     /// Context::new().tp(|ctx| {
     ///   let tptoken_raw = u64::from(ctx.tptoken());
     ///   let mut errstr = ydb_buffer_t {
@@ -195,10 +194,10 @@ pub enum DeleteType {
 #[macro_export]
 macro_rules! make_key {
     ( $var:expr $(,)? ) => (
-        $crate::context_api::Key::variable($var)
+        $crate::Key::variable($var)
     );
     ( $var: expr $( , $subscript: expr)+ $(,)? ) => (
-        $crate::context_api::Key::new($var, &[
+        $crate::Key::new($var, &[
             $($subscript),*
         ])
     );

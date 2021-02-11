@@ -10,8 +10,7 @@
 *                                                               *
 ****************************************************************/
 
-use yottadb::context_api::{Context, KeyContext};
-use yottadb::{craw, ydb_exit};
+use yottadb::{Context, KeyContext, craw, ydb_exit};
 
 #[test]
 fn test_exit() {

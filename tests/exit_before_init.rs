@@ -11,7 +11,7 @@
 ****************************************************************/
 
 use yottadb::ydb_exit;
-use yottadb::context_api::{Context, KeyContext};
+use yottadb::{Context, KeyContext};
 
 #[test]
 fn test_exit_before_init() {

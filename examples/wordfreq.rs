@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -20,8 +20,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::error::Error;
 
-use yottadb::DeleteType;
-use yottadb::context_api::Context;
+use yottadb::{Context, DeleteType};
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Clean out old values

@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -16,8 +16,7 @@
 //!
 //! [Signal Handling]: https://yottadb.gitlab.io/Lang/YDBRust/yottadb/index.html#signal-handling
 
-use yottadb::YDBResult;
-use yottadb::context_api::Context;
+use yottadb::{Context, YDBResult};
 
 fn main() -> YDBResult<()> {
     let ctx = Context::new();

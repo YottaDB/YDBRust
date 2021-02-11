@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -30,7 +30,7 @@ use sdl2::rect::Rect;
 use sdl2::gfx::framerate::FPSManager;
 use sdl2::gfx::primitives::DrawRenderer;
 
-use yottadb::context_api::Context;
+use yottadb::Context;
 
 struct Circle<'a> {
     id: usize,

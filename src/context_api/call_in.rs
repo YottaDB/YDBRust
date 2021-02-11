@@ -147,7 +147,7 @@ impl Context {
     /// ```
     /// # fn main() -> yottadb::YDBResult<()> {
     /// use std::ffi::CString;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     ///
     /// let ctx = Context::new();
     /// let file = CString::new("examples/m-ffi/calltab.ci").unwrap();
@@ -182,7 +182,7 @@ impl Context {
     /// ```
     /// # fn main() -> yottadb::YDBResult<()> {
     /// use std::ffi::CString;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     ///
     /// let ctx = Context::new();
     /// let file = CString::new("examples/m-ffi/calltab.ci").unwrap();

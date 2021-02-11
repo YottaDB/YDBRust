@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2020 YottaDB LLC and/or its subsidiaries.       *
+* Copyright (c) 2020-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -19,8 +19,7 @@
 
 use std::error::Error;
 use std::process;
-use yottadb::YDBError;
-use yottadb::context_api::{Context, KeyContext as Key};
+use yottadb::{Context, KeyContext as Key, YDBError};
 use yottadb::craw::YDB_ERR_NODEEND;
 
 fn main() -> Result<(), Box<dyn Error>> {

@@ -15,23 +15,57 @@
 //! YottaDB runs in-process, like SQLite, with no need for a daemon.
 //! This crate is a Rust wrapper around the C implementation of YottaDB.
 //!
-//! There are three major APIs:
+//! There are two major APIs:
 //! - [`craw`], the FFI bindings generated directly by bindgen.
 //!     These are not recommended for normal use,
-//!     but are available in case the other APIs are missing functionality.
-//! - [`simple_api`], a wrapper around the `craw` API
-//!     which handles resizing buffers and various other recoverable errors.
-//!     The simple API also provides a [`YDBError`] struct so that errors are
-//!     returned as `Result` instead of an error code.
-//! - [`context_api`], which is a wrapper around the `simple_api` that
+//!     but are available in case the `context_api` is missing functionality.
+//! - [`context_api`], which is a safe wrapper around the C API which
 //!     stores the current tptoken and an error buffer
 //!     so you don't have to keep track of them yourself.
-//!     The reason the context_api is necessary is because this crate binds to
+//!     The reason this metadata is necessary is because this crate binds to
 //!     the threaded version of YottaDB, which requires a `tptoken` and `err_buffer`.
 //!     See [transaction processing] for more details on transactions and `tptoken`s.
 //!
-//! The context_api is recommended for normal use, but the others are available if your
-//! needs are more specialized.
+//! Most operations are encapsulated in methods in the [KeyContext] struct.
+//! Iteration helpers are available to iterate over values in the database in a variety of ways.
+//!
+//! # Examples
+//!
+//! A basic database operation (set a value, retrieve it, and delete it)
+//!
+//! ```
+//! use yottadb::{Context, KeyContext, DeleteType, YDBResult};
+//!
+//! fn main() -> YDBResult<()> {
+//!     let ctx = Context::new();
+//!     let mut key = KeyContext::new(&ctx, "^MyGlobal", &["SubscriptA", "42"]);
+//!     key.set("This is a persistent message")?;
+//!     let buffer = key.get()?;
+//!     assert_eq!(&buffer, b"This is a persistent message");
+//!     key.delete(DeleteType::DelNode)?;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Get the instrinsic variable [`$tlevel`][tlevel], which gives the current transaction level.
+//!
+//! ```
+//! use yottadb::{Context, KeyContext, YDB_NOTTP, YDBResult};
+//!
+//! fn main() -> YDBResult<()> {
+//!     let ctx = Context::new();
+//!     let mut key = KeyContext::variable(&ctx, "$tlevel");
+//!     let tlevel: usize = String::from_utf8_lossy(&key.get()?).parse()
+//!         .expect("$tlevel should be an integer");
+//!     assert_eq!(tlevel, 0_usize);
+//!     Ok(())
+//! }
+//! ```
+//!
+//! # Intrinsic Variables
+//!
+//! YottaDB has several intrinsic variables which are documented [online][intrinsics].
+//! To get the value of these variables, call `get_st` on a `Key` with the name of the variable.
 //!
 //! ## Features
 //!
@@ -56,7 +90,7 @@
 //! For example, the following loop will run forever even if sent SIGINT:
 //! ```no_run
 //! # fn main() -> yottadb::YDBResult<()> {
-//! use yottadb::context_api::{Context, KeyContext};
+//! use yottadb::{Context, KeyContext};
 //! let ctx = Context::new();
 //! let loop_callback = |_| loop {
 //!     std::thread::sleep(std::time::Duration::from_secs(1));
@@ -71,7 +105,7 @@
 //!
 //! ```no_run
 //! # fn main() -> yottadb::YDBResult<()> {
-//! # use yottadb::context_api::{Context, KeyContext};
+//! # use yottadb::{Context, KeyContext};
 //! # let ctx = Context::new();
 //! # let release = ctx.release()?;
 //! loop {
@@ -105,6 +139,9 @@
 //! [`tp`]: context_api::Context::tp()
 //! [YottaDB]: https://yottadb.com/
 //! [transaction processing]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
+//! [key]: Key
+//! [intrinsics]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
+//! [tlevel]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#tlevel
 #![deny(missing_docs)]
 #![allow(clippy::upper_case_acronyms)]
 
@@ -116,15 +153,18 @@
 #[allow(unused)]
 const INTERNAL_DOCS: () = ();
 
+// Public to reduce churn when upgrading versions, but it's recommended to use the top-level re-exports instead.
+#[doc(hidden)]
 pub mod context_api;
 #[allow(missing_docs)]
 pub mod craw;
 mod simple_api;
 
 pub use craw::{YDB_ERR_GVUNDEF, YDB_ERR_LVUNDEF};
+pub use context_api::*; // glob import so we catch all the iterators
 pub use simple_api::{
     call_in::{CallInDescriptor, CallInTableDescriptor},
-    DataReturn, DeleteType, TransactionStatus, TpToken, YDBError, YDBResult,
+    DataReturn, DeleteType, Key, TransactionStatus, TpToken, YDBError, YDBResult,
 };
 #[doc(hidden)]
 /// This has to be public so that it can be used by `ci_t!`.

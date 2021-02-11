@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2020 YottaDB LLC and/or its subsidiaries.       *
+* Copyright (c) 2020-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -17,8 +17,7 @@
 //! and its use is discussed there.
 //!
 //! This is the initialization program for the Acculturation Workshop.
-use yottadb::{DeleteType, YDBResult};
-use yottadb::context_api::{Context, KeyContext as Key};
+use yottadb::{Context, KeyContext as Key, DeleteType, YDBResult};
 
 fn main() -> YDBResult<()> {
     // Set up the keys

@@ -24,8 +24,7 @@ use std::sync::{Arc, Barrier};
 use std::time::SystemTime;
 
 use threadpool::ThreadPool;
-use yottadb::context_api::Context;
-use yottadb::{YDB_ERR_GVUNDEF, DeleteType, DataReturn, TransactionStatus, YDBError};
+use yottadb::{YDB_ERR_GVUNDEF, Context, DeleteType, DataReturn, TransactionStatus, YDBError};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let ctx = Context::new();

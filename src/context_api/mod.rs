@@ -10,60 +10,10 @@
 *                                                               *
 ****************************************************************/
 
-//! Provides a Rust-interface for YottaDB which hides some of the complexity related to
-//! managing error-return buffers and tptokens.
-//!
-//! Most operations are encapsulated in methods in the [KeyContext] struct.
-//! In addition to easier-to-use get/set/delete/data,
-//! iteration helpers are available to iterate over values in the database in a variety of ways.
-//!
-//! # Intrinsic Variables
-//!
-//! YottaDB has several intrinsic variables which are documented [online][intrinsics].
-//! To get the value of these variables, call `get_st` on a `Key` with the name of the variable.
-//!
-//! # Examples
-//!
-//! A basic database operation (set a value, retrieve it, and delete it)
-//!
-//! ```
-//! # #[macro_use] extern crate yottadb;
-//! use yottadb::context_api::Context;
-//! use yottadb::{DeleteType, YDBResult};
-//!
-//! fn main() -> YDBResult<()> {
-//!     let ctx = Context::new();
-//!     let mut key = make_ckey!(ctx, "^MyGlobal", "SubscriptA", "42");
-//!     let value = "This is a persistent message";
-//!     key.set(value)?;
-//!     let buffer = key.get()?;
-//!     assert_eq!(&buffer, b"This is a persistent message");
-//!     key.delete(DeleteType::DelNode)?;
-//!     Ok(())
-//! }
-//! ```
-//!
-//! Get the instrinsic variable [`$tlevel`][tlevel], which gives the current transaction level.
-//!
-//! ```
-//! use yottadb::{YDB_NOTTP, YDBResult};
-//! use yottadb::context_api::{Context, KeyContext};
-//!
-//! fn main() -> YDBResult<()> {
-//!     let ctx = Context::new();
-//!     let mut key = KeyContext::variable(&ctx, "$tlevel");
-//!     let tlevel: usize = String::from_utf8_lossy(&key.get()?).parse()
-//!         .expect("$tlevel should be an integer");
-//!     assert_eq!(tlevel, 0_usize);
-//!     Ok(())
-//! }
-//! ```
-//!
-//! [key]: Key
-//! [intrinsics]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
-//! [tlevel]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#tlevel
-
 /// This module is a very thin wrapper around the `simple_api`.
+///
+/// Provides a Rust-interface for YottaDB which hides some of the complexity related to
+/// managing error-return buffers and tptokens.
 ///
 /// When adding new functions to `Context` or `KeyContext`, please remember to use the helper
 /// functions `tptoken`, `take_buffer` and `recover_buffer`; they not only simplify code, but make it
@@ -91,10 +41,8 @@ use std::fmt;
 
 use crate::craw::YDB_ERR_NODEEND;
 use crate::simple_api::{
-    self, tp_st, YDBResult, YDBError, DataReturn, DeleteType, TransactionStatus, TpToken,
+    self, tp_st, YDBResult, YDBError, DataReturn, DeleteType, Key, TransactionStatus, TpToken,
 };
-
-pub use crate::simple_api::Key;
 
 /// Private macros to help make iterators
 macro_rules! implement_iterator {
@@ -136,7 +84,7 @@ macro_rules! gen_iter_proto {
 ///
 /// ```
 /// use std::error::Error;
-/// use yottadb::context_api::Context;
+/// use yottadb::Context;
 ///
 /// fn main() -> Result<(), Box<Error>> {
 ///     let mut ctx = Context::new();
@@ -149,7 +97,7 @@ macro_rules! gen_iter_proto {
 #[macro_export]
 macro_rules! make_ckey {
     ( $ctx:expr, $var:expr $(,)?) => (
-        $ctx.new_key($crate::context_api::Key::variable($var))
+        $ctx.new_key($crate::Key::variable($var))
     );
     ( $ctx:expr, $gbl:expr $(, $x:expr)+ ) => (
         $ctx.new_key(
@@ -203,8 +151,7 @@ impl Context {
 /// Example:
 ///
 /// ```compile_fail,E0277
-/// use yottadb::context_api::Context;
-/// use yottadb::{TransactionStatus, make_ckey};
+/// use yottadb::{Context, TransactionStatus, make_ckey};
 ///
 /// let ctx = Context::new();
 /// let mut key1 = make_ckey!(ctx, "key1");
@@ -287,8 +234,7 @@ impl Context {
     /// ```
     /// use std::env;
     /// use std::ffi::CStr;
-    /// use yottadb::context_api::Context;
-    /// use yottadb::{ci_t, TransactionStatus, YDB_NOTTP};
+    /// use yottadb::{ci_t, Context, TransactionStatus, YDB_NOTTP};
     ///
     /// env::set_var("ydb_routines", "examples/m-ffi");
     /// env::set_var("ydb_ci", "examples/m-ffi/calltab.ci");
@@ -346,8 +292,7 @@ impl Context {
     /// # Examples
     /// Rollback a transaction if an operation fails:
     /// ```
-    /// use yottadb::{TpToken, TransactionStatus};
-    /// use yottadb::context_api::{Context, KeyContext};
+    /// use yottadb::{Context, KeyContext, TpToken, TransactionStatus};
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let ctx = Context::new();
@@ -381,8 +326,7 @@ impl Context {
     ///
     /// Retry a transaction until it succeeds:
     /// ```
-    /// use yottadb::{TpToken, TransactionStatus};
-    /// use yottadb::context_api::Context;
+    /// use yottadb::{Context, TpToken, TransactionStatus};
     ///
     /// let ctx = Context::new();
     /// ctx.tp(|tptoken| {
@@ -454,8 +398,7 @@ impl Context {
     ///
     /// ```
     /// # fn main() -> yottadb::YDBResult<()> {
-    /// use yottadb::{TpToken, YDB_ERR_LVUNDEF};
-    /// use yottadb::context_api::{Context, KeyContext};
+    /// use yottadb::{Context, KeyContext, TpToken, YDB_ERR_LVUNDEF};
     ///
     /// // Create three variables and set all
     /// let ctx = Context::new();
@@ -520,8 +463,7 @@ impl Context {
     /// ```
     /// # use yottadb::YDBError;
     /// # fn main() -> Result<(), YDBError> {
-    /// use yottadb::context_api::Context;
-    /// use yottadb::TpToken;
+    /// use yottadb::Context;
     ///
     /// let ctx = Context::new();
     /// assert_eq!(ctx.str2zwr("💖".as_bytes())?, b"\"\xf0\"_$C(159,146,150)");
@@ -555,8 +497,7 @@ impl Context {
     /// ```
     /// # use yottadb::YDBError;
     /// # fn main() -> Result<(), YDBError> {
-    /// use yottadb::TpToken;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     ///
     /// let ctx = Context::new();
     /// let out_buf = ctx.zwr2str(Vec::new(), b"\"\xf0\"_$C(159,146,150)")?;
@@ -626,8 +567,7 @@ impl Context {
     /// ```
     /// use std::slice;
     /// use std::time::Duration;
-    /// use yottadb::TpToken;
-    /// use yottadb::context_api::{Context, KeyContext, Key};
+    /// use yottadb::{Context, KeyContext, Key, TpToken};
     ///
     /// // You can use either a `Key` or a `KeyContext` to acquire a lock.
     /// // This uses a `KeyContext` to show that you need to use `.key` to get the inner `Key`.
@@ -682,8 +622,7 @@ impl Context {
     /// # Example
     /// Look up the error message for an undefined local variable:
     /// ```
-    /// use yottadb::{TpToken, YDB_ERR_LVUNDEF};
-    /// use yottadb::context_api::{Context, KeyContext};
+    /// use yottadb::{Context, KeyContext, TpToken, YDB_ERR_LVUNDEF};
     ///
     /// let ctx = Context::new();
     /// let key = KeyContext::variable(&ctx, "oopsNotDefined");
@@ -716,7 +655,7 @@ impl Context {
     /// # Example
     /// ```
     /// # fn main() -> yottadb::YDBResult<()> {
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// let ctx = Context::new();
     /// let release = ctx.release()?;
     /// # Ok(())
@@ -852,7 +791,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<Error>> {
@@ -880,8 +819,7 @@ impl KeyContext {
     /// # Examples
     /// Set and retrieve an integer, with error handling.
     /// ```
-    /// use yottadb::context_api::Context;
-    /// use yottadb::context_api::ParseError;
+    /// use yottadb::{Context, ParseError};
     /// let ctx = Context::new();
     /// let mut key = ctx.new_key("weekday");
     /// key.set(5.to_string())?;
@@ -903,7 +841,7 @@ impl KeyContext {
     /// ```
     /// # use yottadb::YDBResult;
     /// # fn main() -> YDBResult<()> {
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// let ctx = Context::new();
     /// let mut key = ctx.new_key("weekday");
     /// key.set(5.to_string())?;
@@ -930,7 +868,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<Error>> {
@@ -965,8 +903,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::DataReturn;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::{Context, DataReturn};
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<dyn Error>> {
@@ -999,8 +936,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
-    /// use yottadb::{DataReturn, DeleteType};
+    /// use yottadb::{Context, DataReturn, DeleteType};
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<dyn Error>> {
@@ -1041,7 +977,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<dyn Error>> {
@@ -1064,8 +1000,7 @@ impl KeyContext {
     /// As a shorthand, you can use `+=` to increment a key.
     ///
     /// ```
-    /// # use yottadb::context_api::{Context, KeyContext};
-    /// # use yottadb::DeleteType;
+    /// # use yottadb::{Context, KeyContext, DeleteType};
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let ctx = Context::new();
@@ -1099,7 +1034,7 @@ impl KeyContext {
     ///
     /// ```
     /// # fn main() -> Result<(), yottadb::YDBError> {
-    /// use yottadb::context_api::{Context, KeyContext};
+    /// use yottadb::{Context, KeyContext};
     /// use std::time::Duration;
     ///
     /// let ctx = Context::new();
@@ -1131,7 +1066,7 @@ impl KeyContext {
     ///
     /// ```
     /// # fn main() -> Result<(), yottadb::YDBError> {
-    /// use yottadb::context_api::{Context, KeyContext};
+    /// use yottadb::{Context, KeyContext};
     /// use std::time::Duration;
     ///
     /// let ctx = Context::new();
@@ -1164,7 +1099,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<Error>> {
@@ -1202,7 +1137,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<Error>> {
@@ -1239,7 +1174,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<dyn Error>> {
@@ -1275,7 +1210,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<dyn Error>> {
@@ -1314,7 +1249,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<Error>> {
@@ -1353,7 +1288,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<Error>> {
@@ -1391,7 +1326,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<dyn Error>> {
@@ -1427,7 +1362,7 @@ impl KeyContext {
     ///
     /// ```
     /// # #[macro_use] extern crate yottadb;
-    /// use yottadb::context_api::Context;
+    /// use yottadb::Context;
     /// use std::error::Error;
     ///
     /// fn main() -> Result<(), Box<dyn Error>> {
