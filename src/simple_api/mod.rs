@@ -1169,7 +1169,7 @@ impl Key {
             // SAFETY: This is only written to by `ydb_next_subscript` or `ydb_prev_subscript`, which only write variable names, not arbitrary data.
             // Since variable names are always ASCII, this is sound.
             this.subscripts.last_mut().unwrap_or(this.variable.as_mut_vec())
-        };
+        }
 
         let status = loop {
             // NOTE: this can't be hoisted out of the loop because the variable or subscripts could be resized on INVSTRLEN.

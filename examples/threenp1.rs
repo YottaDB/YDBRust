@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -122,10 +122,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let start_time = SystemTime::now();
         // Wait for them to finish
         end_barrier.wait();
-        let time = match start_time.elapsed() {
-            Ok(elapsed) => elapsed.as_millis(),
-            Err(x) => panic!(x),
-        } as f64;
+        let time = start_time.elapsed().unwrap().as_millis() as f64;
 
         let updt = updates.get()?;
         let updt = String::from_utf8_lossy(&updt);
