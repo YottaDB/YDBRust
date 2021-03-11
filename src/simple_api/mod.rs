@@ -1864,7 +1864,7 @@ pub fn lock_st(
 
     // To get around this, `lock_st` calls the undocumented `ydb_call_variadic_plist_func` function.
     // `ydb_call_variadic_plist_func` takes the function to call, and a { len, args } struct.
-    // `args` is required to be stack-allocated and has a maximum capacity of MAXVPARMS.
+    // `args` is a pointer to an array of length at most MAXVPARMS.
     // Under the covers, this effectively reimplements a user-land `va_list`,
     // turning a function that takes explicit number of parameters of a known type (`ydb_call_variadic_plist_func`)
     // into a variadic function call (`ydb_lock_st`).
@@ -1921,6 +1921,7 @@ pub fn lock_st(
         }
         #[cfg(target_endian = "big")]
         {
+            let LOCK_ST_IS_UNTESTED_AND_UNSUPPORTED_ON_THIS_PLATFORM = ();
             arg[0] = (tptoken >> 32) as Void;
             arg[1] = (tptoken & 0xffffffff) as Void;
             arg[4] = (timeout_ns >> 32) as Void;
