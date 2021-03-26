@@ -106,6 +106,7 @@
 //! [YottaDB]: https://yottadb.com/
 //! [transaction processing]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
 #![deny(missing_docs)]
+#![allow(clippy::upper_case_acronyms)]
 
 /// This is the entry-point of the `yottadb` crate. See
 /// <https://doc.rust-lang.org/book/ch07-02-defining-modules-to-control-scope-and-privacy.html>
