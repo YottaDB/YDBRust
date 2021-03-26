@@ -75,6 +75,7 @@ use std::time::Duration;
 use std::cmp::min;
 use std::fmt;
 use std::error;
+use std::mem;
 use std::panic;
 use crate::craw::{
     ydb_buffer_t, ydb_get_st, ydb_set_st, ydb_data_st, ydb_delete_st, ydb_message_t, ydb_incr_st,
@@ -1089,7 +1090,9 @@ impl Key {
     pub fn sub_next_self_st(
         &mut self, tptoken: TpToken, out_buffer: Vec<u8>,
     ) -> YDBResult<Vec<u8>> {
-        self.sub_self_call(tptoken, out_buffer, ydb_subscript_next_st)
+        let next_subscript = self.sub_next_st(tptoken, out_buffer)?;
+        // SAFETY: if there are no subscripts, `subscript_next` returns the next variable, which is always ASCII.
+        Ok(unsafe { self.replace_last_buffer(next_subscript) })
     }
 
     /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript, and passes itself in as the output parameter.
@@ -1146,92 +1149,21 @@ impl Key {
     pub fn sub_prev_self_st(
         &mut self, tptoken: TpToken, out_buffer: Vec<u8>,
     ) -> YDBResult<Vec<u8>> {
-        self.sub_self_call(tptoken, out_buffer, ydb_subscript_previous_st)
+        let next_subscript = self.sub_prev_st(tptoken, out_buffer)?;
+        // SAFETY: if there are no subscripts, `subscript_prev` returns the next variable, which is always ASCII.
+        Ok(unsafe { self.replace_last_buffer(next_subscript) })
     }
 
-    // `sub_prev_self` and `sub_next_self` use the same memory allocation logic.
-    fn sub_self_call(
-        &mut self, tptoken: TpToken, mut err_buffer: Vec<u8>,
-        func: unsafe extern "C" fn(
-            u64,
-            *mut ydb_buffer_t,
-            *const ydb_buffer_t,
-            i32,
-            *const ydb_buffer_t,
-            *mut ydb_buffer_t,
-        ) -> c_int,
-    ) -> YDBResult<Vec<u8>> {
-        let mut err_buffer_t = Self::make_out_buffer_t(&mut err_buffer);
-
-        unsafe fn get_last_buffer(this: &mut Key) -> &mut Vec<u8> {
-            // There is no performance difference, and using `or_else` causes a borrow-check error.
-            #[allow(clippy::or_fun_call)]
-            // SAFETY: This is only written to by `ydb_next_subscript` or `ydb_prev_subscript`, which only write variable names, not arbitrary data.
-            // Since variable names are always ASCII, this is sound.
-            this.subscripts.last_mut().unwrap_or(this.variable.as_mut_vec())
-        }
-
-        let status = loop {
-            // NOTE: this can't be hoisted out of the loop because the variable or subscripts could be resized on INVSTRLEN.
-            // WARNING: It's invalid for the unique reference returned by `get_last_buffer` to be
-            // active at the same time that the variable or subscripts are being read from.
-            // `last_self_buffer` only holds raw pointers, so it's ok for it not to be dropped
-            // before calling `self.get_buffers()`.
-            // NOTE: this is a purely compile time issue; the Rust compiler adds `noalias` to all
-            // mut references. It can only go wrong from a miscompilation, not from a
-            // use-after-free.
-            let mut last_self_buffer = Key::make_out_buffer_t(unsafe { get_last_buffer(self) });
-
-            // Get pointers to the varname and to the first subscript
-            // NOTE: ideally this would only update the subscript or variable that changed in the previous loop iteration.
-            // Without benchmarks, I'm not sure how much that would help performance, and this is simpler to work with.
-            // This can't be moved outside the loop because the buffers could be resized on INVSTRLEN.
-            let (varname, subscripts) = self.get_buffers();
-
-            let status = unsafe {
-                func(
-                    tptoken.0,
-                    &mut err_buffer_t,
-                    varname.as_ptr(),
-                    subscripts.len() as i32,
-                    subscripts.as_ptr() as *const _,
-                    &mut last_self_buffer,
-                )
-            };
-
-            // See comments on `last_self_buffer` for why this has to be recalculated.
-            let t = unsafe { get_last_buffer(self) };
-            // If these are different, the `set_len` below is very wrong and will cause UB.
-            assert_eq!(t.as_ptr() as *const _, last_self_buffer.buf_addr);
-
-            // HACK: by looking at the source I saw that this only returns INVSTRLEN for variable or subscript,
-            // not the error buffer (it will just write a shorter message).
-            // So it's safe to only resize `t`.
-            if status == YDB_ERR_INVSTRLEN {
-                // From the docs for `reserve()`:
-                // > After calling reserve, capacity will be greater than or equal to self.len() + additional
-                t.reserve(last_self_buffer.len_used as usize - t.len());
-                continue;
-            }
-            unsafe {
-                t.set_len(min(last_self_buffer.len_alloc, last_self_buffer.len_used) as usize);
-            }
-            break status;
+    /// Replace the last subscript of this node with `next_subscript`, or replace the variable if
+    /// there are no subscripts.
+    ///
+    /// SAFETY: `next_subscript` must be valid UTF8 if there are no subscripts.
+    unsafe fn replace_last_buffer(&mut self, next_subscript: Vec<u8>) -> Vec<u8> {
+        let buffer = match self.last_mut() {
+            Some(subscr) => subscr,
+            None => self.variable.as_mut_vec(),
         };
-
-        if status != YDB_OK as i32 {
-            // Resize the vec with the buffer to we can see the value
-            // We could end up with a buffer of a larger size if we couldn't fit the error string
-            // into the out_buffer, so make sure to pick the smaller size
-            unsafe {
-                err_buffer.set_len(min(err_buffer_t.len_alloc, err_buffer_t.len_used) as usize);
-            }
-            // See https://gitlab.com/YottaDB/DB/YDB/-/issues/619
-            debug_assert_ne!(status, YDB_ERR_TPRETRY);
-            Err(YDBError { message: err_buffer, status, tptoken })
-        } else {
-            Ok(err_buffer)
-        }
+        mem::replace(buffer, next_subscript)
     }
 
     fn make_out_buffer_t(out_buffer: &mut Vec<u8>) -> ydb_buffer_t {
@@ -1301,21 +1233,21 @@ impl Key {
     /// Remove all subscripts after the `i`th index.
     ///
     /// # See also
-    /// - [`Vec::truncate()`](std::vec::Vec::truncate())
+    /// - [`Vec::truncate()`]
     pub fn truncate(&mut self, i: usize) {
         self.subscripts.truncate(i);
     }
     /// Remove all subscripts, leaving only the `variable`.
     ///
     /// # See also
-    /// - [`Vec::clear()`](std::vec::Vec::clear())
+    /// - [`Vec::clear()`]
     pub fn clear(&mut self) {
         self.subscripts.clear();
     }
     /// Add a new subscript, keeping all existing subscripts in place.
     ///
     /// # See also
-    /// - [`Vec::push()`](std::vec::Vec::push())
+    /// - [`Vec::push()`]
     pub fn push(&mut self, subscript: Vec<u8>) {
         self.subscripts.push(subscript);
     }
@@ -1324,9 +1256,17 @@ impl Key {
     /// Note that this will _not_ return the `variable` even if there are no subscripts present.
     ///
     /// # See also
-    /// - [`Vec::pop()`](std::vec::Vec::pop())
+    /// - [`Vec::pop()`]
     pub fn pop(&mut self) -> Option<Vec<u8>> {
         self.subscripts.pop()
+    }
+
+    /// Returns a mutable pointer to the last subscript, or `None` if there are no subscripts.
+    ///
+    /// # See also
+    /// - [`Vec::last_mut()`]
+    pub fn last_mut(&mut self) -> Option<&mut Vec<u8>> {
+        self.subscripts.last_mut()
     }
 }
 

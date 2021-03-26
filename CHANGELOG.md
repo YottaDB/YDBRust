@@ -10,6 +10,12 @@ All rights reserved.
 
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added [`Key::last_mut`], which is a shorter and non-panicking version of `&mut key[key.len() - 1]`.
+
 ## [1.2.0] - 2021-02-07
 
 ### Fixed
