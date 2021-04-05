@@ -16,6 +16,15 @@ All rights reserved.
 
 - Added [`Key::last_mut`], which is a shorter and non-panicking version of `&mut key[key.len() - 1]`.
 
+### Changed
+
+- `KeyContext::next_sub` and `prev_sub` now return a `Vec<u8>` buffer instead of a full `KeyContext`. To replicate the old behavior, you can use this snippet:
+
+```rust
+let mut new_key = key.clone();
+new_key.next_sub_self()?;
+```
+
 ## [1.2.0] - 2021-02-07
 
 ### Fixed

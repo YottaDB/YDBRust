@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2020 YottaDB LLC and/or its subsidiaries.       *
+* Copyright (c) 2020-2021 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -43,13 +43,15 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                 // ^Crab(ms) = ^Crab(lasttime) - n
                 let crab = KeyContext::new(&ctx, "^Crab", &[us.as_bytes()]);
-                let last_crab = crab.prev_sub()?;
+                let mut last_crab = crab.clone();
+                last_crab.prev_sub_self()?;
                 let last_crab_val: i64 = std::str::from_utf8(&last_crab.get()?)?.parse()?;
                 crab.set((last_crab_val - n).to_string())?;
 
                 // ^Horse(ms) = ^Horse(lasttime) + n
                 let horse = KeyContext::new(&ctx, "^Horse", &[us]);
-                let last_horse = horse.prev_sub()?;
+                let mut last_horse = horse.clone();
+                last_horse.prev_sub_self()?;
                 let last_horse_val: i64 = String::from_utf8_lossy(&last_horse.get()?).parse()?;
                 horse.set((last_horse_val + n).to_string())?;
 

@@ -1214,17 +1214,17 @@ impl KeyContext {
     ///     key[0] = Vec::from("1");
     ///     key.set("Hello world!")?;
     ///     key[0] = Vec::from("0");
-    ///     let k2 = key.next_sub()?;
+    ///     let subscript = key.next_sub()?;
     ///
-    ///     assert_eq!(&k2[0], b"1");
+    ///     assert_eq!(subscript, b"1");
     ///
     ///     Ok(())
     /// }
     /// ```
-    pub fn next_sub(&self) -> YDBResult<KeyContext> {
-        let mut ret = self.clone();
-        ret.next_sub_self()?;
-        Ok(ret)
+    pub fn next_sub(&self) -> YDBResult<Vec<u8>> {
+        let tptoken = self.context.tptoken();
+        let out_buffer = self.take_buffer();
+        self.key.sub_next_st(tptoken, out_buffer)
     }
 
     /// Implements reverse breadth-first traversal of a tree by searching for the previous subscript.
@@ -1250,17 +1250,17 @@ impl KeyContext {
     ///     key[0] = Vec::from("1");
     ///     key.set("Hello world!")?;
     ///     key[0] = Vec::from("1");
-    ///     let k2 = key.prev_sub()?;
+    ///     let subscript = key.prev_sub()?;
     ///
-    ///     assert_eq!(&k2[0], b"0");
+    ///     assert_eq!(subscript, b"0");
     ///
     ///     Ok(())
     /// }
     /// ```
-    pub fn prev_sub(&self) -> YDBResult<KeyContext> {
-        let mut ret = self.clone();
-        ret.prev_sub_self()?;
-        Ok(ret)
+    pub fn prev_sub(&self) -> YDBResult<Vec<u8>> {
+        let tptoken = self.context.tptoken();
+        let out_buffer = self.take_buffer();
+        self.key.sub_prev_st(tptoken, out_buffer)
     }
 
     /// Facilitates depth-first traversal of a local or global variable tree, and passes itself in as the output parameter.
