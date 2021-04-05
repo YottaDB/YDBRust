@@ -86,7 +86,7 @@ docker:
     - ''
   script:
     - docker build . -t ydbrust
-    - docker run -v $(realpath .):/opt/ydbrust ydbrust bash -c 'source $(pkg-config --variable=prefix yottadb)/ydb_env_set && cargo run --example say_hello_rust'
+    - docker run -v $(realpath .):/opt/ydbrust ydbrust bash -i -c 'source $(pkg-config --variable=prefix yottadb)/ydb_env_set && cargo run --example say_hello_rust'
 
 pages:
   image: yottadb/yottadb-base:latest-master
