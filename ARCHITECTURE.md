@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2020 YottaDB LLC and/or its subsidiaries.
+Copyright (c) 2020-2021 YottaDB LLC and/or its subsidiaries.
 All rights reserved.
 
       This source code contains the intellectual property
@@ -21,12 +21,15 @@ but handles reallocation and also converts error codes from C into `YDBResult`.
 `Result` is the canonical way to do error handling in Rust,
 see [the book][book-result] for more info.
 This API also aims to be 'safe' (see [below](#safety-in-rust)).
+This API is private because it's low-level and not very convenient to use,
+to avoid the user having to decide which API they want.
 
 The `context_api` aims to be easy to use while avoiding excessive copies.
 Unlike the `easy_api` in Go, there is no unnecessary allocation
 (not quite true: there is an [extra error buffer] created when
 starting a new transaction).
 The API is meant to look like a key/value store instead of FFI.
+This is the only safe public API.
 
 ## Simple API
 
@@ -41,14 +44,19 @@ As mentioned above, it has three jobs:
 
 Currently, the `simple_api` works like this:
 
-There is a public-facing `buffers` struct which allows arbitrary changes.
-This allows code like this to compile:
+1. `Key` allow arbitrary *immutable* access to the buffer of subscripts. This allows viewing the
+  length and searching for subscripts, among other things.
+2. `Key` allows for select *mutable* access to the buffer of subscripts.
+  That allows code like this to compile:
 
 ```rust
 let mut key = Key::variable("^hello");
 key.push("world");
 key[1] = "Philadelphia";
 ```
+
+Arbitrary mutable access was removed because it makes the API hard to read: not all methods on
+`Vec` are relevant, so `Key` only exposes the ones that are useful.
 
 However, there is a problem:
 [`Vec`], the dynamically resizable array type in Rust, is not FFI-compatible
@@ -70,11 +78,11 @@ and `delete()` to be immutable. See [#12] for more discussion.
 
 There is one more catch: on breadth- and depth-first traversal of the tree,
 the `Key` is updated by the YDB API. In this case, we need to do a
-`reverse_sync`, which updates _`buffers`_ with _`buffer_structs`_.
+`growing_shrinking_call`, which updates `subscripts` with the new buffers.
 
 ## Context API
 
-The `context_api` is the simplest part of the wrapper.
+The `context_api` is the simplest part of YDBRust.
 It is a very simple wrapper around the `simple_api` which
 keeps track of an internal `buffer` and `tptoken`.
 Everything else is offloaded to the `simple_api`.

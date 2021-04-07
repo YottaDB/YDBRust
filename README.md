@@ -22,14 +22,6 @@ Include YDBRust in your Cargo.toml:
 yottadb = "1.0"
 ```
 
-Add this into your project:
-
-```rust
-extern crate yottadb;
-
-use yottadb::simple_api::Key;
-```
-
 Before building or using a project which depends on YottaDB, you need to
 
 1. [Ensure that YottaDB is set up](https://yottadb.com/product/get-started/)
@@ -41,6 +33,8 @@ Before building or using a project which depends on YottaDB, you need to
 
 2. [Ensure that rust and cargo are set up](https://doc.rust-lang.org/book/ch01-01-installation.html#installing-rustup-on-linux-or-macos/)
    and configured.
+
+See `examples/` for some examples of how to use the API, or the documentation for a full reference.
 
 ## Development Setup
 

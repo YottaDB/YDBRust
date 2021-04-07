@@ -77,7 +77,7 @@ macro_rules! ci_t {
 /// However, since Rust does not allow implementing variadic functions, it is a macro instead.
 ///
 /// # See also
-/// - [`CallInDescriptor`](crate::simple_api::call_in::CallInDescriptor)
+/// - [`CallInDescriptor`](crate::CallInDescriptor)
 /// - [`ci_t!`], which has more information about call-ins in YottaDB.
 ///
 /// # Safety

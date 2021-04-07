@@ -18,9 +18,13 @@ All rights reserved.
 
 ### Changed
 
+- The `simple_api` is now private. We recommend using the `context_api` instead.
+  TODO: write up a migration guide.
 - The `tptoken` field of `YDBError` is now private. This prevents infinite hangs, aborts, or other bugs
   when calling `error.to_string()` on an error with an invalid tptoken. As a side effect,
   `YDBError` cannot be constructed outside of the `yottadb` crate.
+- The `context_api` module is now hidden from the documentation and its items are re-exported at
+  the crate root; we recommend using the top-level items instead. However, it still remains public to make migration to 2.0 easier.
 - `KeyContext::next_sub` and `prev_sub` now return a `Vec<u8>` buffer instead of a full `KeyContext`. To replicate the old behavior, you can use this snippet:
 
 ```rust

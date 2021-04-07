@@ -188,12 +188,10 @@ impl Default for Context {
 /// Keys are used to get, set, and delete values in the database.
 ///
 /// # See also
-/// - [`Key`](super::simple_api::Key)
+/// - [`Key`]
 /// - [Keys, values, nodes, variables, and subscripts](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#keys-values-nodes-variables-and-subscripts)
 /// - [Local and Global variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#local-and-global-variables)
 /// - [Intrinsic special variables](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables)
-///
-/// [`Key`]: super::simple_api::Key
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct KeyContext {
     /// `KeyContext` implements `Deref<Target = Key>`
@@ -612,7 +610,7 @@ impl Context {
     /// - [ZMessage codes](https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes)
     /// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-message-ydb-message-t)
     ///
-    /// [`impl Display`]: super::simple_api::YDBError#impl-Display
+    /// [`impl Display`]: YDBError#impl-Display
     ///
     /// # Example
     /// Look up the error message for an undefined local variable:

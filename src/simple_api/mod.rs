@@ -40,9 +40,7 @@ use crate::craw::{
     YDB_DEL_NODE, YDB_TP_RESTART, YDB_TP_ROLLBACK,
 };
 
-#[doc(hidden)]
-// public for testing, no need to use this for real code
-pub const DEFAULT_CAPACITY: usize = 50;
+const DEFAULT_CAPACITY: usize = 50;
 
 /// An error returned by the underlying YottaDB library.
 ///
@@ -1161,7 +1159,7 @@ pub(crate) fn lock_st(
 /// See documentation for [`non_allocating_call`] for more details.
 ///
 /// `F: FnMut(tptoken, out_buffer_t) -> status`
-#[doc(hidden)]
+#[doc(hidden)] // public for `ci_t!`
 pub fn resize_call<F>(tptoken: TpToken, err_buffer: Vec<u8>, mut func: F) -> YDBResult<Vec<u8>>
 where
     F: FnMut(u64, *mut ydb_buffer_t) -> c_int,

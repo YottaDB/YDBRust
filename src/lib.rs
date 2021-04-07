@@ -150,7 +150,7 @@ const INTERNAL_DOCS: () = ();
 
 /// Public to reduce churn when upgrading versions, but it's recommended to use the top-level re-exports instead.
 #[doc(hidden)]
-mod context_api;
+pub mod context_api;
 #[allow(missing_docs)]
 pub mod craw;
 mod simple_api;
@@ -166,9 +166,6 @@ pub use simple_api::{
 /// This has to be public so that it can be used by `ci_t!`.
 /// However, it is not a supported part of the API.
 pub use simple_api::resize_call;
-#[doc(hidden)]
-// public for testing, no need to use this for real code
-pub use simple_api::DEFAULT_CAPACITY;
 
 // This is not just a convenience for users; there is no way to construct a `TpToken` outside of
 // YDBRust because the fields are private.
@@ -190,7 +187,7 @@ pub const YDB_NOTTP: TpToken = TpToken(
 /// This has no effect on any [`Key`]s, which will be automatically dropped when they go out of scope.
 ///
 /// # Errors
-/// - `YDB_ERR_INVYDBEXIT` if `ydb_exit()` is called through M FFI (e.g. through `simple_api::ci_t`)
+/// - `YDB_ERR_INVYDBEXIT` if `ydb_exit()` is called through M FFI (e.g. through [`ci_t`])
 ///
 /// Possible errors for this function include:
 /// - [error return codes](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#error-return-code)
@@ -200,7 +197,6 @@ pub const YDB_NOTTP: TpToken = TpToken(
 /// ```no_run
 /// yottadb::ydb_exit();
 /// ```
-/// [`Key`]: simple_api::Key
 pub fn ydb_exit() -> std::os::raw::c_int {
     unsafe { craw::ydb_exit() }
 }
