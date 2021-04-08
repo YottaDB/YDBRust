@@ -1263,7 +1263,7 @@ impl Key {
     /// Returns a mutable pointer to the last subscript, or `None` if there are no subscripts.
     ///
     /// # See also
-    /// - [`Vec::last_mut()`]
+    /// - [`slice::last_mut()`](https://doc.rust-lang.org/std/primitive.slice.html#method.last_mut)
     pub fn last_mut(&mut self) -> Option<&mut Vec<u8>> {
         self.subscripts.last_mut()
     }

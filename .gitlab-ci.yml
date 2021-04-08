@@ -101,7 +101,7 @@ pages:
     - export DEADLINKS_VERSION=$(wget -q -O - https://api.github.com/repos/deadlinks/cargo-deadlinks/releases/latest | jq --raw-output .tag_name)
     - wget https://github.com/deadlinks/cargo-deadlinks/releases/download/$DEADLINKS_VERSION/cargo-deadlinks-linux -O cargo-deadlinks
     - chmod +x ./cargo-deadlinks
-    - PATH=".:$PATH" cargo deadlinks
+    - PATH=".:$PATH" RUSTDOCFLAGS=-Dwarnings cargo deadlinks
     - mv target/doc public
     - echo '<meta http-equiv="refresh" content="0; url=yottadb">' > public/index.html
   artifacts:
