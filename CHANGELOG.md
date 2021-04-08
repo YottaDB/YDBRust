@@ -19,7 +19,29 @@ All rights reserved.
 ### Changed
 
 - The `simple_api` is now private. We recommend using the `context_api` instead.
-  TODO: write up a migration guide.
+
+  Most functions in the simple_api had one of two forms: either free functions, or associated functions of `Key`.
+  For free functions, you can replace your calls with a call to `Context`:
+
+  ```rust
+  // previous code
+  let serialized = yottadb::simple_api::str2zwr_st(TpToken::default(), Vec::new(), "💖".as_bytes());
+  // new code
+  let ctx = yottadb::Context::new();
+  let serialized = ctx.str2zwr("💖".as_bytes());
+  ```
+
+  For functions on `Key`, you can use `KeyContext` instead:
+  ```rust
+  // previous code
+  let key = yottadb::simple_api::Key::variable("^hello");
+  let value = key.get_st(TpToken::default(), Vec::new())?;
+  // new code
+  let ctx = yottadb::Context::new();
+  let key = yottadb::KeyContext::variable(&ctx, "^hello");
+  let value = key.get()?;
+  ```
+
 - The `tptoken` field of `YDBError` is now private. This prevents infinite hangs, aborts, or other bugs
   when calling `error.to_string()` on an error with an invalid tptoken. As a side effect,
   `YDBError` cannot be constructed outside of the `yottadb` crate.
