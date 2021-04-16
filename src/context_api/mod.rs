@@ -461,7 +461,11 @@ impl Context {
     /// use yottadb::Context;
     ///
     /// let ctx = Context::new();
-    /// assert_eq!(ctx.str2zwr("💖".as_bytes())?, b"\"\xf0\"_$C(159,146,150)");
+    /// let str2zwr = ctx.str2zwr("💖".as_bytes())?;
+    /// // The "||" usage below is to handle different str2zwr() return values
+    /// // (depending on whether the env var "ydb_chset" is M or UTF-8 mode respectively).
+    /// // Note: The "$C" below cannot be expanded to "$CH" or "$CHAR" as that is the output returned by "str2zwr()" in M mode.
+    /// assert!((str2zwr == b"\"\xf0\"_$C(159,146,150)") || (str2zwr == b"\"\xf0\x9f\x92\x96\""));
     /// # Ok(())
     /// # }
     /// ```
@@ -495,7 +499,9 @@ impl Context {
     /// use yottadb::Context;
     ///
     /// let ctx = Context::new();
-    /// let out_buf = ctx.zwr2str(Vec::new(), b"\"\xf0\"_$C(159,146,150)")?;
+    /// // Use "$ZCH" (instead of "$C") below as that will work in both M and UTF-8 modes (of "ydb_chset" env var)
+    /// // Note: Cannot use "$ZCHAR" below as "$ZCH" is the only input format recognized by "zwr2str()".
+    /// let out_buf = ctx.zwr2str(Vec::new(), b"\"\xf0\"_$ZCH(159,146,150)")?;
     /// assert_eq!(out_buf.as_slice(), "💖".as_bytes());
     /// # Ok(())
     /// # }
