@@ -494,8 +494,7 @@ impl Context {
         use simple_api::str2zwr_st;
 
         let tptoken = self.tptoken();
-        // We can't reuse `context.buffer` since we return the buffer on success
-        str2zwr_st(tptoken, Vec::new(), original)
+        str2zwr_st(tptoken, self.take_buffer(), original)
     }
 
     /// Given a buffer in 'Zwrite format', deserialize it to the original binary buffer.
@@ -516,7 +515,7 @@ impl Context {
     /// let ctx = Context::new();
     /// // Use "$ZCH" (instead of "$C") below as that will work in both M and UTF-8 modes (of "ydb_chset" env var)
     /// // Note: Cannot use "$ZCHAR" below as "$ZCH" is the only input format recognized by "zwr2str()".
-    /// let out_buf = ctx.zwr2str(Vec::new(), b"\"\xf0\"_$ZCH(159,146,150)")?;
+    /// let out_buf = ctx.zwr2str(b"\"\xf0\"_$ZCH(159,146,150)")?;
     /// assert_eq!(out_buf.as_slice(), "💖".as_bytes());
     /// # Ok(())
     /// # }
@@ -525,12 +524,11 @@ impl Context {
     /// # See also
     /// - [Zwrite format](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#zwrite-formatted)
     /// - [str2zwr](Context::str2zwr()), the inverse of `zwr2str`.
-    pub fn zwr2str(&self, out_buffer: Vec<u8>, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
+    pub fn zwr2str(&self, serialized: &[u8]) -> Result<Vec<u8>, YDBError> {
         use simple_api::zwr2str_st;
 
         let tptoken = self.tptoken();
-        // We can't reuse `context.buffer` since we return the buffer on success
-        zwr2str_st(tptoken, out_buffer, serialized)
+        zwr2str_st(tptoken, self.take_buffer(), serialized)
     }
 
     fn take_buffer(&self) -> Vec<u8> {

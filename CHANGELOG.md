@@ -54,6 +54,8 @@ let mut new_key = key.clone();
 new_key.next_sub_self()?;
 ```
 
+- `Context::zwr2str` no longer requires an `out_buffer` parameter.
+
 ## [1.2.0] - 2021-02-07
 
 ### Fixed
