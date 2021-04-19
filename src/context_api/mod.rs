@@ -455,19 +455,34 @@ impl Context {
     ///
     /// # Examples
     ///
+    /// When `ydb_chset=UTF-8` is set, this will preserve UTF-8 characters:
+    ///
     /// ```
-    /// # use yottadb::YDBError;
-    /// # fn main() -> Result<(), YDBError> {
+    /// # fn main() -> Result<(), yottadb::YDBError> {
     /// use yottadb::Context;
     ///
     /// let ctx = Context::new();
     /// let str2zwr = ctx.str2zwr("💖".as_bytes())?;
-    /// // The "||" usage below is to handle different str2zwr() return values
-    /// // (depending on whether the env var "ydb_chset" is M or UTF-8 mode respectively).
-    /// // Note: The "$C" below cannot be expanded to "$CH" or "$CHAR" as that is the output returned by "str2zwr()" in M mode.
-    /// assert!((str2zwr == b"\"\xf0\"_$C(159,146,150)") || (str2zwr == b"\"\xf0\x9f\x92\x96\""));
+    /// if std::env::var("ydb_chset").as_deref() == Ok("UTF-8") {
+    ///     assert_eq!(str2zwr, "\"💖\"".as_bytes());
+    /// } else {
+    ///     // Note: The "$C" below cannot be expanded to "$CH" or "$CHAR" as that is the output returned by "str2zwr()" in M mode.
+    ///     assert_eq!(str2zwr, b"\"\xf0\"_$C(159,146,150)");
+    /// }
     /// # Ok(())
     /// # }
+    /// ```
+    ///
+    /// When the input is invalid UTF-8, it will use the more verbose Zwrite format:
+    /// ```
+    /// # fn main() -> Result<(), yottadb::YDBError> {
+    /// use yottadb::Context;
+    ///
+    /// let ctx = Context::new();
+    /// let input = b"\xff";
+    /// assert!(std::str::from_utf8(input).is_err());
+    /// assert_eq!(ctx.str2zwr(input)?, b"$ZCH(255)");
+    /// # Ok(()) }
     /// ```
     ///
     /// # See also
