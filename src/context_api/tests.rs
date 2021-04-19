@@ -360,3 +360,11 @@ fn ydb_lock_st() {
     ctx.lock(Duration::from_secs(1), &[]).unwrap();
     assert_eq!(lock_count(&key.variable), 0);
 }
+
+#[test]
+fn architecture_example() {
+    let mut key = Key::variable("^hello");
+    key.push(b"world".to_vec());
+    key[0] = b"Philadelphia".to_vec();
+    assert_eq!(key, Key::new("^hello", &["Philadelphia"]));
+}

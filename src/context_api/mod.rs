@@ -364,10 +364,9 @@ impl Context {
         F: FnMut(&'a Self) -> Result<TransactionStatus, Box<dyn Error + Send + Sync>>,
     {
         let initial_token = self.tptoken();
-        // allocate a new buffer for errors, since we need context.buffer to pass `self` to f
         let result = tp_st(
             initial_token,
-            Vec::new(),
+            self.take_buffer(),
             |tptoken: TpToken| {
                 self.context.tptoken.set(tptoken);
                 f(self)
@@ -376,8 +375,9 @@ impl Context {
             locals_to_reset,
         );
         self.context.tptoken.set(initial_token);
-        // discard the new buffer
-        result.map(|_| {})
+        result.map(|x| {
+            *self.context.buffer.borrow_mut() = x;
+        })
     }
 
     /// Delete all local variables _except_ for those passed in `saved_variable`.
