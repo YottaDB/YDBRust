@@ -43,7 +43,7 @@ rust-latest:
     - timeout 5s cargo run --example xyzTransRust && false || [ $? = 124 ]
     - cargo run --example xyzVerifyRust
 
-gpgkey-verify:
+commit-verify:
   image: ubuntu:18.04
   stage: build
   before_script:
