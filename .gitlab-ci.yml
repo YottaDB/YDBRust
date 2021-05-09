@@ -97,6 +97,8 @@ pages:
     paths:
       - ~/.cargo/bin/cargo-deadlinks
   script:
+    # TODO: remove this when https://github.com/rust-lang/rust/issues/85037 is fixed
+    - rustup default 1.51
     - apt-get update -qq && apt-get install -y -qq jq
     - export DEADLINKS_VERSION=$(wget -q -O - https://api.github.com/repos/deadlinks/cargo-deadlinks/releases/latest | jq --raw-output .tag_name)
     - wget https://github.com/deadlinks/cargo-deadlinks/releases/download/$DEADLINKS_VERSION/cargo-deadlinks-linux -O cargo-deadlinks
