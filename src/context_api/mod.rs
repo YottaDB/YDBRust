@@ -532,7 +532,7 @@ impl Context {
     }
 
     fn take_buffer(&self) -> Vec<u8> {
-        std::mem::replace(&mut self.context.buffer.borrow_mut(), Vec::new())
+        std::mem::take(&mut self.context.buffer.borrow_mut())
     }
 
     fn recover_buffer(&self, result: YDBResult<Vec<u8>>) -> YDBResult<()> {
