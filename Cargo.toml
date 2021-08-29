@@ -33,6 +33,11 @@ default = ["vendor"]
 opt-level = 3
 debug = false
 
+# The only dependencies YDBRust has are build dependencies on bindgen and pkg-config.
+# These execute basically instantaneously, so there is no need to optimize them.
+[profile.release.package."*"]
+opt-level = 0
+
 [build-dependencies]
 pkg-config = "0.3"
 
