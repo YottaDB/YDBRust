@@ -86,7 +86,7 @@ macro_rules! gen_iter_proto {
 /// use std::error::Error;
 /// use yottadb::Context;
 ///
-/// fn main() -> Result<(), Box<Error>> {
+/// fn main() -> Result<(), Box<dyn Error>> {
 ///     let mut ctx = Context::new();
 ///     let mut key = yottadb::make_ckey!(ctx, "^hello", "world");
 ///     key.data()?;
@@ -806,7 +806,7 @@ impl KeyContext {
     /// use yottadb::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello");
     ///
@@ -883,7 +883,7 @@ impl KeyContext {
     /// use yottadb::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello");
     ///
@@ -1114,7 +1114,7 @@ impl KeyContext {
     /// use yottadb::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "a");
     ///
@@ -1152,7 +1152,7 @@ impl KeyContext {
     /// use yottadb::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0");
     ///
@@ -1264,7 +1264,7 @@ impl KeyContext {
     /// use yottadb::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0", "0");
     ///
@@ -1303,7 +1303,7 @@ impl KeyContext {
     /// use yottadb::Context;
     /// use std::error::Error;
     ///
-    /// fn main() -> Result<(), Box<Error>> {
+    /// fn main() -> Result<(), Box<dyn Error>> {
     ///     let ctx = Context::new();
     ///     let mut key = make_ckey!(ctx, "^hello", "0", "0");
     ///
