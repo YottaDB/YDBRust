@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2022 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -1033,8 +1033,8 @@ pub(crate) fn lock_st(
 ) -> YDBResult<Vec<u8>> {
     use std::convert::TryFrom;
     use crate::craw::{
-        YDB_ERR_MAXARGCNT, YDB_ERR_TIME2LONG, MAXVPARMS, ydb_lock_st, ydb_call_variadic_plist_func,
-        gparam_list,
+        YDB_ERR_MAXARGCNT, YDB_ERR_TIME2LONG, MAX_GPARAM_LIST_ARGS, ydb_lock_st,
+        ydb_call_variadic_plist_func, gparam_list,
     };
     // `ydb_lock_st` is hard to work with because it uses variadic arguments.
     // The only way to pass a variable number of arguments in Rust is to pass a slice
@@ -1042,7 +1042,7 @@ pub(crate) fn lock_st(
 
     // To get around this, `lock_st` calls the undocumented `ydb_call_variadic_plist_func` function.
     // `ydb_call_variadic_plist_func` takes the function to call, and a { len, args } struct.
-    // `args` is a pointer to an array of length at most MAXVPARMS.
+    // `args` is a pointer to an array of length at most MAX_GPARAM_LIST_ARGS.
     // Under the covers, this effectively reimplements a user-land `va_list`,
     // turning a function that takes explicit number of parameters of a known type (`ydb_call_variadic_plist_func`)
     // into a variadic function call (`ydb_lock_st`).
@@ -1064,7 +1064,7 @@ pub(crate) fn lock_st(
     // Setup the initial args.
     // Note that all these arguments are required to have size of `void*`,
     // whatever that is on the target.
-    let mut arg = [0 as Void; MAXVPARMS as usize];
+    let mut arg = [0 as Void; MAX_GPARAM_LIST_ARGS as usize];
     let mut i: usize;
 
     // we can't just use `as usize` since on 32-bit platforms that will discard the upper half of the value
@@ -1111,10 +1111,10 @@ pub(crate) fn lock_st(
     }
 
     for (var, subscripts) in keys.iter() {
-        if i + 2 >= MAXVPARMS as usize {
+        if i + 2 >= MAX_GPARAM_LIST_ARGS as usize {
             return Err(YDBError {
                 status: YDB_ERR_MAXARGCNT,
-                message: format!("Expected at most {} arguments, got {}", MAXVPARMS, i)
+                message: format!("Expected at most {} arguments, got {}", MAX_GPARAM_LIST_ARGS, i)
                     .into_bytes(),
                 tptoken,
             });
@@ -1127,16 +1127,23 @@ pub(crate) fn lock_st(
         i += 3;
     }
 
-    let args = gparam_list { n: i as isize, arg };
+    // In C, all pointers are mutable by default `const` is specified. Accordingly, `args` is
+    // declared as mutable here, since it will be passed to C as the `cvplist` argument of
+    // `ydb_call_variadic_plist_func()`, which is not declared as `const`.
+    let mut args = gparam_list { n: i as isize, arg };
     let status = unsafe {
-        // The types on `ydb_call_variadic_plist_func` are not correct.
+        // The types on `ydb_call_variadic_plist_func` are not correct. That is, `ydb_vplist_func` is defined as
+        //      `typedef	uintptr_t	(*ydb_vplist_func)(uintptr_t cnt, ...)`,
+        // but the type signature for `ydb_lock_st` is
+        //      `int	ydb_lock_st(uint64_t tptoken, ydb_buffer_t *errstr, unsigned long long timeout_nsec, int namecount, ...);`.
+        //
         // Additionally, `ydb_lock_st` on its own is a unique zero-sized-type (ZST):
         // See https://doc.rust-lang.org/reference/types/function-item.html#function-item-types for more details on function types
         // and https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts for details on ZSTs.
         // This `as *const ()` turns the unique ZST for `ydb_lock_st` into a proper function pointer.
         // Without the `as` cast, `transmute` will return `1_usize` and `ydb_call` will subsequently segfault.
         let ydb_lock_as_vplist_func = std::mem::transmute(ydb_lock_st as *const ());
-        ydb_call_variadic_plist_func(Some(ydb_lock_as_vplist_func), &args as *const _ as usize)
+        ydb_call_variadic_plist_func(Some(ydb_lock_as_vplist_func), &mut args as *mut gparam_list)
     };
 
     // We could end up with a buffer of a larger size if we couldn't fit the error string

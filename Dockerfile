@@ -1,6 +1,6 @@
 #################################################################
 #                                                               #
-# Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  #
+# Copyright (c) 2019-2022 YottaDB LLC and/or its subsidiaries.  #
 # All rights reserved.                                          #
 #                                                               #
 #       This source code contains the intellectual property     #
@@ -10,7 +10,7 @@
 #                                                               #
 #################################################################
 
-FROM yottadb/yottadb-base
+FROM yottadb/yottadb-base:latest-master
 
 # Install packaged dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \

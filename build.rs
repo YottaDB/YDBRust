@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2022 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -51,7 +51,7 @@ fn generate_bindings_via_library(include_path: String, out_path: &Path) {
         .whitelist_var("YDB_.*")
         // for `ydb_lock`
         .whitelist_type("gparam_list.*")
-        .whitelist_var("MAXVPARMS")
+        .whitelist_var("MAX_GPARAM_LIST_ARGS")
         .blacklist_item("YDB_NOTTP")
         // Finish the builder and generate the bindings.
         .generate()
@@ -72,7 +72,7 @@ fn generate_bindings_via_cli(include_path: String, out_path: &Path) {
         "--whitelist-function", "ydb_.*",
         "--whitelist-var", "YDB_.*",
         "--whitelist-type", "gparam_list.*",
-        "--whitelist-var", "MAXVPARMS",
+        "--whitelist-var", "MAX_GPARAM_LIST_ARGS",
         "--blacklist-item", "YDB_NOTTP",
         // This was a String originally, so it's safe to unwrap.
         // It only went through `Path` so that the file separator would be right.
