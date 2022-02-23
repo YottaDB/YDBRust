@@ -1,6 +1,6 @@
 #################################################################
 #                                                               #
-# Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  #
+# Copyright (c) 2019-2022 YottaDB LLC and/or its subsidiaries.  #
 # All rights reserved.                                          #
 #                                                               #
 #       This source code contains the intellectual property     #
@@ -97,7 +97,7 @@ pages:
     paths:
       - ~/.cargo/bin/cargo-deadlinks
   script:
-    - apt-get update -qq && apt-get install -y -qq jq
+    - apt-get update -qq && apt-get install -y -qq jq wget
     - export DEADLINKS_VERSION=$(wget -q -O - https://api.github.com/repos/deadlinks/cargo-deadlinks/releases/latest | jq --raw-output .tag_name)
     - wget https://github.com/deadlinks/cargo-deadlinks/releases/download/$DEADLINKS_VERSION/cargo-deadlinks-linux -O cargo-deadlinks
     - chmod +x ./cargo-deadlinks
