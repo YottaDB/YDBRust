@@ -46,13 +46,13 @@ fn generate_bindings_via_library(include_path: String, out_path: &Path) {
     bindgen::Builder::default()
         .header("wrapper.h")
         .clang_arg(include_path)
-        .whitelist_type("ydb_.*")
-        .whitelist_function("ydb_.*")
-        .whitelist_var("YDB_.*")
+        .allowlist_type("ydb_.*")
+        .allowlist_function("ydb_.*")
+        .allowlist_var("YDB_.*")
         // for `ydb_lock`
-        .whitelist_type("gparam_list.*")
-        .whitelist_var("MAX_GPARAM_LIST_ARGS")
-        .blacklist_item("YDB_NOTTP")
+        .allowlist_type("gparam_list.*")
+        .allowlist_var("MAX_GPARAM_LIST_ARGS")
+        .blocklist_item("YDB_NOTTP")
         // Finish the builder and generate the bindings.
         .generate()
         // Unwrap the Result and panic on failure.
@@ -68,12 +68,12 @@ fn generate_bindings_via_cli(include_path: String, out_path: &Path) {
     #[rustfmt::skip] // rustfmt doesn't know the arguments are related
     let args = [
         "wrapper.h",
-        "--whitelist-type", "ydb_.*",
-        "--whitelist-function", "ydb_.*",
-        "--whitelist-var", "YDB_.*",
-        "--whitelist-type", "gparam_list.*",
-        "--whitelist-var", "MAX_GPARAM_LIST_ARGS",
-        "--blacklist-item", "YDB_NOTTP",
+        "--allowlist-type", "ydb_.*",
+        "--allowlist-function", "ydb_.*",
+        "--allowlist-var", "YDB_.*",
+        "--allowlist-type", "gparam_list.*",
+        "--allowlist-var", "MAX_GPARAM_LIST_ARGS",
+        "--blocklist-item", "YDB_NOTTP",
         // This was a String originally, so it's safe to unwrap.
         // It only went through `Path` so that the file separator would be right.
         "--output", out_path.to_str().unwrap(),
