@@ -68,12 +68,12 @@ fn generate_bindings_via_cli(include_path: String, out_path: &Path) {
     #[rustfmt::skip] // rustfmt doesn't know the arguments are related
     let args = [
         "wrapper.h",
-        "--allowlist-type", "ydb_.*",
-        "--allowlist-function", "ydb_.*",
-        "--allowlist-var", "YDB_.*",
-        "--allowlist-type", "gparam_list.*",
-        "--allowlist-var", "MAX_GPARAM_LIST_ARGS",
-        "--blocklist-item", "YDB_NOTTP",
+        "--whitelist-type", "ydb_.*",
+        "--whitelist-function", "ydb_.*",
+        "--whitelist-var", "YDB_.*",
+        "--whitelist-type", "gparam_list.*",
+        "--whitelist-var", "MAX_GPARAM_LIST_ARGS",
+        "--blacklist-item", "YDB_NOTTP",
         // This was a String originally, so it's safe to unwrap.
         // It only went through `Path` so that the file separator would be right.
         "--output", out_path.to_str().unwrap(),
