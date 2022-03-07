@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2021 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2021-2022 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -733,14 +733,6 @@ proptest::proptest! {
         let serialized = str2zwr_st(YDB_NOTTP, Vec::new(), &s).unwrap();
         let deserialized = zwr2str_st(YDB_NOTTP, Vec::new(), &serialized).unwrap();
         assert_eq!(s, deserialized);
-    }
-    #[test]
-    fn no_invlnpairlist_lock_proptest(timeout: Duration, keys in arb_keys()) {
-        // lock_st should never return `INVLNPAIRLIST`
-        match lock_st(YDB_NOTTP, Vec::new(), timeout, &keys) {
-            Err(YDBError { status: craw::YDB_ERR_INVLNPAIRLIST, .. }) => panic!("lock_st should never return YDB_ERR_INVLNPAIRLIST"),
-            _ => {}
-        }
     }
     #[test]
     // no Rust Simple API should ever return INVSTRLEN or INSUFFSUBS
