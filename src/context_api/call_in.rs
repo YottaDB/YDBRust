@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2020-2021 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2020-2022 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -55,6 +55,7 @@ use super::Context;
 /// assert_eq!(&buf, b"entry called");
 /// ```
 /// [repr-c]: https://doc.rust-lang.org/nomicon/ffi.html#interoperability-with-foreign-code
+/// [`cip_t!`]: crate::cip_t!
 #[macro_export]
 macro_rules! ci_t {
     ($tptoken: expr, $err_buffer: expr, $routine: expr $(, $args: expr)* $(,)?) => {{
@@ -108,6 +109,7 @@ macro_rules! ci_t {
 /// }
 /// assert_eq!(&buf, b"entry called");
 /// ```
+/// [`ci_t!`]: crate::ci_t!
 #[macro_export]
 macro_rules! cip_t {
     ($tptoken: expr, $err_buffer: expr, $routine: expr, $($args: expr),* $(,)?) => {{
@@ -131,6 +133,8 @@ impl Context {
     /// - [C SimpleAPI documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-ci-tab-open-ydb-ci-tab-open-t)
     /// - [Call-in interface](https://docs.yottadb.com/ProgrammersGuide/extrout.html#call-in-interface)
     /// - [`ci_t!`] and [`cip_t!`]
+    /// [`cip_t!`]: crate::cip_t!
+    /// [`ci_t!`]: crate::ci_t!
     ///
     /// # Errors
 
