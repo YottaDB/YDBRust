@@ -21,6 +21,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 # Using a separate rustup-init.sh file allows passing CLI arguments.
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup-init.sh
 RUN sh rustup-init.sh -y --default-toolchain stable
+# Update the index at image creation, so it's cached
+RUN ~/.cargo/bin/cargo install empty-library || true
 
 VOLUME /opt/ydbrust
 WORKDIR /opt/ydbrust
