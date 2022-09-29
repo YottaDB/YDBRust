@@ -133,6 +133,7 @@ impl Context {
     /// - [C SimpleAPI documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-ci-tab-open-ydb-ci-tab-open-t)
     /// - [Call-in interface](https://docs.yottadb.com/ProgrammersGuide/extrout.html#call-in-interface)
     /// - [`ci_t!`] and [`cip_t!`]
+    ///
     /// [`cip_t!`]: crate::cip_t!
     /// [`ci_t!`]: crate::ci_t!
     ///

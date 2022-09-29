@@ -629,7 +629,7 @@ impl Context {
     /// - [ZMessage codes](https://docs.yottadb.com/MessageRecovery/errormsgref.html#zmessage-codes)
     /// - The [C documentation](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-message-ydb-message-t)
     ///
-    /// [`impl Display`]: YDBError#impl-Display
+    /// [`impl Display`]: YDBError#impl-Display-for-YDBError
     ///
     /// # Example
     /// Look up the error message for an undefined local variable:
