@@ -79,8 +79,6 @@ services:
 
 docker:
   image: docker:latest
-  variables:
-    DOCKER_HOST: tcp://docker:2375/
   stage: build
   before_script:
     - ''
