@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2021 YottaDB LLC and/or its subsidiaries.       *
+* Copyright (c) 2021-2022 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -262,11 +262,12 @@ fn ydb_delete_excl_st() {
     assert_eq!(data_type, DataReturn::NoData);
 
     // Saving a global/intrinsic variable should be an error
-    use crate::craw::YDB_ERR_INVVARNAME;
+    use crate::craw::YDB_ERR_GVNUNSUPPORTED;
     let err = key.context.delete_excl(&["^global"]).unwrap_err();
-    assert_eq!(err.status, YDB_ERR_INVVARNAME);
+    assert_eq!(err.status, YDB_ERR_GVNUNSUPPORTED);
+    use crate::craw::YDB_ERR_ISVUNSUPPORTED;
     let err = ctx.delete_excl(&["$ZSTATUS"]).unwrap_err();
-    assert_eq!(err.status, YDB_ERR_INVVARNAME);
+    assert_eq!(err.status, YDB_ERR_ISVUNSUPPORTED);
 
     // Saving a variable that doesn't exist should do nothing and return YDB_OK.
     ctx.delete_excl(&["local"]).unwrap();

@@ -159,11 +159,12 @@ fn ydb_delete_excl_st() {
     assert_eq!(data_type, DataReturn::NoData);
 
     // Saving a global/intrinsic variable should be an error
-    use crate::craw::YDB_ERR_INVVARNAME;
+    use crate::craw::YDB_ERR_GVNUNSUPPORTED;
     let err = delete_excl_st(YDB_NOTTP, out_buf, &["^global"]).unwrap_err();
-    assert_eq!(err.status, YDB_ERR_INVVARNAME);
+    assert_eq!(err.status, YDB_ERR_GVNUNSUPPORTED);
+    use crate::craw::YDB_ERR_ISVUNSUPPORTED;
     let err = delete_excl_st(YDB_NOTTP, Vec::new(), &["$ZSTATUS"]).unwrap_err();
-    assert_eq!(err.status, YDB_ERR_INVVARNAME);
+    assert_eq!(err.status, YDB_ERR_ISVUNSUPPORTED);
 
     // Saving a variable that doesn't exist should do nothing and return YDB_OK.
     delete_excl_st(YDB_NOTTP, Vec::new(), &["local"]).unwrap();
@@ -176,7 +177,7 @@ fn ydb_delete_excl_st() {
 
     // Passing a buffer that has insufficient capacity for an error should resize the buffer
     let err = delete_excl_st(YDB_NOTTP, Vec::new(), &["^global"]).unwrap_err();
-    assert_eq!(err.status, YDB_ERR_INVVARNAME);
+    assert_eq!(err.status, YDB_ERR_GVNUNSUPPORTED);
 }
 
 #[test]
@@ -876,7 +877,7 @@ fn common_errors() {
     expect_err("^", craw::YDB_ERR_INVVARNAME, true);
     expect_err("1", craw::YDB_ERR_INVVARNAME, true);
     expect_err("a_b_c", craw::YDB_ERR_INVVARNAME, true);
-    expect_err("$ZCHSET", craw::YDB_ERR_UNIMPLOP, false);
+    expect_err("$ZCHSET", craw::YDB_ERR_ISVUNSUPPORTED, false);
     expect_err("$NOTANINTRINSIC", craw::YDB_ERR_INVSVN, true);
     expect_err(
         "^ThisIsAVeryLongVariableNameWithFarTooManyLetters",
