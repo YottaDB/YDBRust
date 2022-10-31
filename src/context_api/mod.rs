@@ -481,7 +481,11 @@ impl Context {
     /// let ctx = Context::new();
     /// let input = b"\xff";
     /// assert!(std::str::from_utf8(input).is_err());
-    /// assert_eq!(ctx.str2zwr(input)?, b"$ZCH(255)");
+    /// if std::env::var("ydb_chset").as_deref() == Ok("UTF-8") {
+    ///     assert_eq!(ctx.str2zwr(input)?, b"$ZCH(255)");
+    /// } else {
+    ///     assert_eq!(ctx.str2zwr(input)?, b"$C(255)");
+    /// }
     /// # Ok(()) }
     /// ```
     ///
