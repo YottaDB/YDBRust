@@ -61,7 +61,7 @@ rust-no-vendor:
     paths:
       - ~/.cargo/bin/bindgen
   script:
-    - cargo install --debug bindgen-cli
+    - cargo install --debug --version 0.62.0 bindgen-cli
     - cargo check --no-default-features
 
 rust-nightly:
