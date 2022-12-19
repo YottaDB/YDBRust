@@ -15,10 +15,10 @@
 //! The API is not particularly friendly, but it exposes only safe code.
 //!
 //! Most operations are encapsulated in methods on the [`Key`] struct, and generally
-//! consume a Vec<u8> and return [`YDBResult<Vec<u8>>`][YDBResult]. The return Vec<u8> will either contain
+//! consume a `Vec<u8>` and return [`YDBResult<Vec<u8>>`][YDBResult]. The return `Vec<u8>` will either contain
 //! the data fetched from the database or an error.
 //!
-//! The Vec<u8> may be resized as part of the call.
+//! The `Vec<u8>` may be resized as part of the call.
 
 pub mod call_in;
 
@@ -860,7 +860,7 @@ extern "C" fn fn_callback(tptoken: u64, _errstr: *mut ydb_buffer_t, tpfnparm: *m
         Ok(val) => val,
         Err(payload) => {
             callback_struct.error = Some(CallBackError::Panic(payload));
-            return YDB_TP_ROLLBACK as i32;
+            return YDB_TP_ROLLBACK;
         }
     };
     match retval {
@@ -873,7 +873,7 @@ extern "C" fn fn_callback(tptoken: u64, _errstr: *mut ydb_buffer_t, tpfnparm: *m
             let status = if let Some(ydb_err) = err.downcast_ref::<YDBError>() {
                 ydb_err.status
             } else {
-                YDB_TP_ROLLBACK as i32
+                YDB_TP_ROLLBACK
             };
             callback_struct.error = Some(CallBackError::ApplicationError(err));
             status
