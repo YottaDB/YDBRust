@@ -34,7 +34,7 @@ rust-latest:
   image: yottadb/yottadb-base:latest-master
   script:
     - cargo fmt -- --check
-    - cargo clippy -- --deny clippy::all
+    - cargo clippy -- --deny clippy::all --allow clippy::uninlined-format-args
     - cargo build --verbose
     - cargo test --verbose
     - cargo run --example xyzInitRust
