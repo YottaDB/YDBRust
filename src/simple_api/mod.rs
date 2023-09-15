@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2022 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2023 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -926,7 +926,7 @@ where
         match user_err {
             // an application error occurred; we _could_ return out_buffer if the types didn't conflict below
             CallBackError::ApplicationError(mut err) => {
-                if let Some(mut ydb_err) = err.downcast_mut::<YDBError>() {
+                if let Some(ydb_err) = err.downcast_mut::<YDBError>() {
                     // Use the outer tptoken, not the inner one. The inner transaction has already ended.
                     ydb_err.tptoken = tptoken;
                 }

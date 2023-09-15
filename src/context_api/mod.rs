@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2022 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2023 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -57,6 +57,7 @@ macro_rules! implement_iterator {
 
             fn next(&mut self) -> Option<Self::Item> {
                 match self.key.$advance() {
+                    #[allow(clippy::redundant_closure_call)]
                     Ok(_) => $next(self),
                     Err(YDBError { status: YDB_ERR_NODEEND, .. }) => None,
                     Err(x) => Some(Err(x)),
