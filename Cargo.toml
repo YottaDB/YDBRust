@@ -42,7 +42,7 @@ opt-level = 0
 pkg-config = "0.3"
 
 [build-dependencies.bindgen]
-version = "0.59"
+version = "0.68"
 optional = true
 default-features = false
 features = ['runtime']
