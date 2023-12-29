@@ -227,7 +227,7 @@ impl fmt::Debug for Key {
         use std::fmt::Write;
 
         f.write_str(&self.variable)?;
-        if let Some(first) = self.subscripts.get(0) {
+        if let Some(first) = self.subscripts.first() {
             write!(f, "({:?}", String::from_utf8_lossy(first))?;
             for subscript in &self.subscripts[1..] {
                 write!(f, ", {:?}", String::from_utf8_lossy(subscript))?;
