@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2023 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2024 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -1142,7 +1142,10 @@ pub(crate) fn lock_st(
         // and https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts for details on ZSTs.
         // This `as *const ()` turns the unique ZST for `ydb_lock_st` into a proper function pointer.
         // Without the `as` cast, `transmute` will return `1_usize` and `ydb_call` will subsequently segfault.
-        let ydb_lock_as_vplist_func = std::mem::transmute(ydb_lock_st as *const ());
+        let ydb_lock_as_vplist_func = std::mem::transmute::<
+            *const (),
+            unsafe extern "C" fn() -> usize,
+        >(ydb_lock_st as *const ());
         ydb_call_variadic_plist_func(Some(ydb_lock_as_vplist_func), &mut args as *mut gparam_list)
     };
 
