@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2020-2022 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2020-2024 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -137,6 +137,7 @@ impl Context {
     /// [`cip_t!`]: crate::cip_t!
     /// [`ci_t!`]: crate::ci_t!
     ///
+    #[allow(clippy::empty_line_after_doc_comments)]
     /// # Errors
 
     // The upstream documentation says
@@ -171,6 +172,7 @@ impl Context {
     ///
     /// `new_handle` is a file descriptor returned by [`ci_tab_open`].
     ///
+    #[allow(clippy::empty_line_after_doc_comments)]
     /// # Errors
 
     // The upstream docs say this:
