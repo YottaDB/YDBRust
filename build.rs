@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2022 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2024 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -80,7 +80,7 @@ fn generate_bindings_via_cli(include_path: String, out_path: &Path) {
         "--",
         &include_path,
     ];
-    match Command::new("bindgen").args(&args).status() {
+    match Command::new("bindgen").args(args).status() {
         Ok(status) => assert!(status.success(), "error: failed to generate bindings with bindgen\nhelp: there may be more error output above"),
         Err(err) => panic!("error: failed to run bindgen: {}\n\
             help: make sure `bindgen` is installed and in $PATH\n\

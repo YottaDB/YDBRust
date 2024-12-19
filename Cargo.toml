@@ -1,6 +1,6 @@
 #################################################################
 #								#
-# Copyright (c) 2019-2022 YottaDB LLC and/or its subsidiaries.	#
+# Copyright (c) 2019-2024 YottaDB LLC and/or its subsidiaries.	#
 # All rights reserved.						#
 #								#
 #	This source code contains the intellectual property	#
@@ -12,7 +12,7 @@
 
 [package]
 name = "yottadb"
-version = "2.0.0"
+version = "2.1.0"
 authors = ["YottaDB, LLC <info@yottadb.com>"]
 edition = "2018"
 
@@ -42,6 +42,7 @@ opt-level = 0
 pkg-config = "0.3"
 
 [build-dependencies.bindgen]
+# Note that there is a later version of bindgen available, but it generates code that uses features that are not available in Rust 1.75. We are pinning it here for now.
 version = "0.68"
 optional = true
 default-features = false

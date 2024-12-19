@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2020-2021 YottaDB LLC and/or its subsidiaries.
+Copyright (c) 2020-2024 YottaDB LLC and/or its subsidiaries.
 All rights reserved.
 
       This source code contains the intellectual property
@@ -11,6 +11,20 @@ All rights reserved.
 # Changelog
 
 ## Unreleased
+
+## [2.1.0] - 2024-12-19
+
+### Changed
+
+- `bindgen` has been updated from 0.59 to 0.68.
+
+### Fixed
+
+- Various broken intra-doc links have been fixed.
+- The doc-example for str2zwr has been extended to also work in non-UTF8 mode.
+- The build script for YDBRust is now compatible with bindgen 0.63+.
+
+## [2.0.0] - 2022-03-01
 
 ### Added
 
