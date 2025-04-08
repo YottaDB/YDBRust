@@ -1,14 +1,18 @@
-/****************************************************************
-*                                                               *
-* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
-* All rights reserved.                                          *
-*                                                               *
-*       This source code contains the intellectual property     *
-*       of its copyright holder(s), and is made available       *
-*       under a license.  If you do not know the terms of       *
-*       the license, please stop and do not read further.       *
-*                                                               *
-****************************************************************/
+/**********************************************************************
+*                                                                     *
+* Copyright (c) 2019-2021, 2025 YottaDB LLC and/or its subsidiaries.  *
+* All rights reserved.                                                *
+*                                                                     *
+*       This source code contains the intellectual property           *
+*       of its copyright holder(s), and is made available             *
+*       under a license.  If you do not know the terms of             *
+*       the license, please stop and do not read further.             *
+*                                                                     *
+***********************************************************************/
+#![deny(missing_docs)]
+#![allow(clippy::upper_case_acronyms)]
+// too many false positives: https://github.com/rust-lang/rust-clippy/issues/14275#issuecomment-2786492705
+#![allow(clippy::doc_overindented_list_items)]
 
 //! [YottaDB] is a NoSQL Database suitable for high-performance systems.
 //!
@@ -137,8 +141,6 @@
 //! [transaction processing]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#transaction-processing
 //! [intrinsics]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#intrinsic-special-variables
 //! [tlevel]: https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#tlevel
-#![deny(missing_docs)]
-#![allow(clippy::upper_case_acronyms)]
 
 /// This is the entry-point of the `yottadb` crate. See
 /// <https://doc.rust-lang.org/book/ch07-02-defining-modules-to-control-scope-and-privacy.html>
