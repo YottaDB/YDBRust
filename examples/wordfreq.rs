@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2026 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut word_key = make_ckey!(ctx, "^words", "");
     for word in words {
         let word = word.to_lowercase();
-        if word != "" {
+        if !word.is_empty() {
             word_key[0] = Vec::from(word);
             word_key.increment(None)?;
         }

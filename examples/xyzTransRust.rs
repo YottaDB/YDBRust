@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2020-2021 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2020-2026 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -24,7 +24,7 @@ use rand::Rng;
 use yottadb::{Context, KeyContext, TransactionStatus};
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let ctx = Context::new();
 
     loop {
@@ -34,21 +34,21 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     .duration_since(SystemTime::UNIX_EPOCH)?
                     .as_micros()
                     .to_string();
-                let n: i64 = rng.gen::<i32>().into();
+                let n: i64 = rng.random::<i32>().into();
 
                 // ^Delta(us) = n
-                let delta = KeyContext::new(&ctx, "^Delta", &[us.as_bytes()]);
+                let delta = KeyContext::new(ctx, "^Delta", &[us.as_bytes()]);
                 delta.set(n.to_string())?;
 
                 // ^Crab(ms) = ^Crab(lasttime) - n
-                let crab = KeyContext::new(&ctx, "^Crab", &[us.as_bytes()]);
+                let crab = KeyContext::new(ctx, "^Crab", &[us.as_bytes()]);
                 let mut last_crab = crab.clone();
                 last_crab.prev_sub_self()?;
                 let last_crab_val: i64 = std::str::from_utf8(&last_crab.get()?)?.parse()?;
                 crab.set((last_crab_val - n).to_string())?;
 
                 // ^Horse(ms) = ^Horse(lasttime) + n
-                let horse = KeyContext::new(&ctx, "^Horse", &[us]);
+                let horse = KeyContext::new(ctx, "^Horse", &[us]);
                 let mut last_horse = horse.clone();
                 last_horse.prev_sub_self()?;
                 let last_horse_val: i64 = String::from_utf8_lossy(&last_horse.get()?).parse()?;

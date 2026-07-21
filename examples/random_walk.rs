@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2026 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -24,7 +24,7 @@ use yottadb::{Context, DeleteType};
 use rand::Rng;
 
 fn get_global() -> &'static str {
-    match rand::thread_rng().gen_range(0..=2) {
+    match rand::rng().random_range(0..=2) {
         0 => "^MyGlobal1",
         1 => "^MyGlobal2",
         2 => "^MyGlobal3",
@@ -36,15 +36,15 @@ fn random_walk(ctx: &Context) {
     let mut key =
         make_ckey!(ctx, get_global(), get_global(), get_global(), get_global(), get_global());
     // Randomly select between 0 and 4 subscripts
-    let mut rng = rand::thread_rng();
-    key.truncate(rng.gen_range(0..=4));
+    let mut rng = rand::rng();
+    key.truncate(rng.random_range(0..=4));
     // Select a random operation
-    match rng.gen_range(0..=6) {
+    match rng.random_range(0..=6) {
         0 => key.delete(DeleteType::DelNode).unwrap(),
-        1 | 4 | 5 => match key.get() {
-            // we don't unwrap this because failures are fine
-            _ => (),
-        },
+        // we don't unwrap this because failures are fine
+        1 | 4 | 5 => {
+            let _ = key.get();
+        }
         2 => key.set(b"Hello world!").unwrap(),
         3 => {
             key.increment(None).unwrap();

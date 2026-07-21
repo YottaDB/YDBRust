@@ -1,6 +1,6 @@
 #################################################################
 #                                                               #
-# Copyright (c) 2019-2025 YottaDB LLC and/or its subsidiaries.  #
+# Copyright (c) 2019-2026 YottaDB LLC and/or its subsidiaries.  #
 # All rights reserved.                                          #
 #                                                               #
 #       This source code contains the intellectual property     #
@@ -29,20 +29,19 @@ rust-compat:
     - rustup default 1.71.0
     - cargo build --verbose
 
-# Rust latest disabled due to https://gitlab.com/YottaDB/Lang/YDBRust/-/issues/54
-# rust-latest:
-#  stage: build
-#  image: yottadb/yottadb-base:latest-master
-#  script:
-#    - cargo fmt -- --check
-#    - cargo clippy -- --deny clippy::all --allow clippy::uninlined-format-args
-#    - cargo build --verbose
-#    - cargo test --verbose
-#    - cargo run --example xyzInitRust
-#    # NOTE: exits with success if and only if `xyzTransRust` times out
-#    # This prevents false negatives due to the compile failing and false positives due to the timeout.
-#    - timeout 5s cargo run --example xyzTransRust && false || [ $? = 124 ]
-#    - cargo run --example xyzVerifyRust
+rust-latest:
+  stage: build
+  image: yottadb/yottadb-base:latest-master
+  script:
+    - cargo fmt -- --check
+    - cargo clippy -- --deny clippy::all --allow clippy::uninlined-format-args
+    - cargo build --verbose
+    - cargo test --verbose
+    - cargo run --example xyzInitRust
+    # NOTE: exits with success if and only if `xyzTransRust` times out
+    # This prevents false negatives due to the compile failing and false positives due to the timeout.
+    - timeout 5s cargo run --example xyzTransRust && false || [ $? = 124 ]
+    - cargo run --example xyzVerifyRust
 
 commit-verify:
   image: ubuntu:24.04

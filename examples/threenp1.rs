@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2026 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -49,15 +49,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         let line = line?;
         let tokens: Vec<usize> =
             line.split_whitespace().map(|x| x.parse::<usize>().unwrap()).collect();
-        let (endnum, streams, mut blk) = match tokens.as_slice() {
-            &[] => (0, cpus * 2, 0),
-            &[endnum] => (endnum, cpus * 2, 0),
-            &[endnum, streams] => (endnum, streams, 0),
-            &[endnum, streams, blk] => (endnum, streams, blk),
+        let (endnum, streams, mut blk) = match *tokens.as_slice() {
+            [] => (0, cpus * 2, 0),
+            [endnum] => (endnum, cpus * 2, 0),
+            [endnum, streams] => (endnum, streams, 0),
+            [endnum, streams, blk] => (endnum, streams, blk),
             _ => panic!("Too many parameters passed!"),
         };
 
         print!(" endnum={} streams={}", endnum, streams);
+        // `.div_ceil()` (clippy::manual_div_ceil) is not available at our MSRV of 1.71
+        #[allow(clippy::manual_div_ceil)]
         let maxblk = (endnum + (streams - 1)) / streams;
         if blk != 0 && blk <= maxblk {
             print!(" blk={}", blk);
@@ -91,7 +93,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 tmp = endnum;
             }
             limits[0] = Vec::from(i.to_string());
-            limits.set(&Vec::from(tmp.to_string()))?;
+            limits.set(Vec::from(tmp.to_string()))?;
             i += 1;
         }
 
@@ -167,11 +169,11 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Local to prevent collisions until engine is fully multithreaded
     let index_s = index.to_string();
-    let updates_l = make_ckey!(ctx, "updates", index_s.clone());
+    let updates_l = make_ckey!(ctx, "updates", index_s.as_str());
     updates_l.set(b"0")?;
-    let reads_l = make_ckey!(ctx, "reads", index_s.clone());
+    let reads_l = make_ckey!(ctx, "reads", index_s.as_str());
     reads_l.set(b"0")?;
-    let highest_l = make_ckey!(ctx, "highest", index_s.clone());
+    let highest_l = make_ckey!(ctx, "highest", index_s.as_str());
     highest_l.set(b"0")?;
     let mut currpath_l = make_ckey!(ctx, "currpath", index_s.as_str(), "");
 
@@ -218,13 +220,13 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error + Send + Sync>> {
                     break;
                 }
                 currpath_l[1] = Vec::from(i.to_string());
-                currpath_l.set(&Vec::from(n.to_string()))?;
+                currpath_l.set(Vec::from(n.to_string()))?;
                 n = if n % 2 == 0 { n / 2 } else { 3 * n + 1 };
                 let highest_v = highest_l.get()?;
                 let highest_v = String::from_utf8_lossy(&highest_v);
                 let highest_v = highest_v.parse::<u64>()?;
                 if n > highest_v {
-                    highest_l.set(&Vec::from(n.to_string()))?;
+                    highest_l.set(Vec::from(n.to_string()))?;
                 }
                 i += 1;
             }
@@ -247,7 +249,7 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error + Send + Sync>> {
                         let result_v = String::from_utf8_lossy(&result_v);
                         let result_v = result_v.parse::<u64>()?;
                         if result_v < i {
-                            result.set(&Vec::from(i.to_string()))?;
+                            result.set(Vec::from(i.to_string()))?;
                         }
                         Ok(TransactionStatus::Ok)
                     },
@@ -261,7 +263,7 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error + Send + Sync>> {
                     let n = n.parse::<u64>()?;
                     updates_l.increment(None)?;
                     step[0] = val;
-                    step.set(&Vec::from((i - n).to_string()))?;
+                    step.set(Vec::from((i - n).to_string()))?;
                 }
             }
         }
@@ -283,7 +285,7 @@ fn doblk(index: usize) -> Result<(), Box<dyn Error + Send + Sync>> {
             let high_l = String::from_utf8_lossy(&high_l);
             let high_l = high_l.parse::<u64>()?;
             if high < high_l {
-                highest.set(&Vec::from(high_l.to_string()))?;
+                highest.set(Vec::from(high_l.to_string()))?;
             }
             Ok(TransactionStatus::Ok)
         },

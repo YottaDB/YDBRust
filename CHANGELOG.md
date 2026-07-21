@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2020-2024 YottaDB LLC and/or its subsidiaries.
+Copyright (c) 2020-2026 YottaDB LLC and/or its subsidiaries.
 All rights reserved.
 
       This source code contains the intellectual property
@@ -11,6 +11,17 @@ All rights reserved.
 # Changelog
 
 ## Unreleased
+
+### Changed
+
+- The examples now use `rand` 0.9 (previously 0.8). If you copy an example into your
+  own project, note that `rand` is a dev-dependency of this crate and must be declared
+  in your own `Cargo.toml`.
+
+### Fixed
+
+- The `xyzTransRust` example now compiles under Rust edition 2024, in which `gen` is a
+  reserved keyword.
 
 ## [2.1.0] - 2024-12-19
 

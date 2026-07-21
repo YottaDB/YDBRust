@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2021 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2026 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -43,6 +43,9 @@ struct Circle<'a> {
 }
 
 impl<'a> Circle<'a> {
+    // a circle is defined by this many independent attributes; grouping them into a struct
+    // would only add indirection to what is meant to be a readable demo
+    #[allow(clippy::too_many_arguments)]
     fn new(
         id: usize, x: i16, y: i16, r: i16, xvel: i16, yvel: i16, color: Color,
         tc: &'a TextureCreator<WindowContext>,
@@ -62,11 +65,11 @@ impl<'a> Circle<'a> {
         let (r, g, b) =
             (rand::random::<u8>() % 255, rand::random::<u8>() % 255, rand::random::<u8>() % 255);
         let mut key = make_ckey!(ctx, "^balls", id.to_string().as_str(), "color", "r");
-        key.set(&Vec::from(r.to_string())).unwrap();
+        key.set(Vec::from(r.to_string())).unwrap();
         key[2] = Vec::from(String::from("g"));
-        key.set(&Vec::from(g.to_string())).unwrap();
+        key.set(Vec::from(g.to_string())).unwrap();
         key[2] = Vec::from(String::from("b"));
-        key.set(&Vec::from(b.to_string())).unwrap();
+        key.set(Vec::from(b.to_string())).unwrap();
         Circle::new(
             id,
             (rand::random::<u16>() % 512 + 5) as i16,
@@ -87,15 +90,15 @@ impl<'a> Circle<'a> {
 
     fn save(&self, ctx: &Context) -> Result<(), Box<dyn Error>> {
         let mut key = make_ckey!(ctx, "^balls", self.id.to_string().as_str(), "x");
-        key.set(&Vec::from(self.x.to_string()))?;
+        key.set(Vec::from(self.x.to_string()))?;
         key[1] = Vec::from("y");
-        key.set(&Vec::from(self.y.to_string()))?;
+        key.set(Vec::from(self.y.to_string()))?;
         key[1] = Vec::from("xvel");
-        key.set(&Vec::from(self.xvel.to_string()))?;
+        key.set(Vec::from(self.xvel.to_string()))?;
         key[1] = Vec::from("yvel");
-        key.set(&Vec::from(self.yvel.to_string()))?;
+        key.set(Vec::from(self.yvel.to_string()))?;
         key[1] = Vec::from("r");
-        key.set(&Vec::from(self.r.to_string()))?;
+        key.set(Vec::from(self.r.to_string()))?;
         Ok(())
     }
 

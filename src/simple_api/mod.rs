@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2019-2024 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2019-2026 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -83,7 +83,7 @@ impl fmt::Display for YDBError {
                 std::borrow::Cow::from(format!("<error retrieving error message: {}>", err.status))
             }
         };
-        write!(f, "YDB Error ({}): {}", message, &String::from_utf8_lossy(&self.message))
+        write!(f, "YDB Error ({}): {}", message, String::from_utf8_lossy(&self.message))
     }
 }
 
@@ -847,6 +847,8 @@ struct CallBackStruct<'a> {
 extern "C" fn fn_callback(tptoken: u64, _errstr: *mut ydb_buffer_t, tpfnparm: *mut c_void) -> i32 {
     // We can't tell if the pointer is invalid (unallocated or already freed) but we can check it's not null and aligned.
     // copied from https://github.com/rust-lang/rust/blob/84864bfea9c00fb90a1fa6e3af1d8ad52ce8f9ec/library/core/src/intrinsics.rs#L1742
+    // `.is_multiple_of()` (clippy::manual_is_multiple_of) is not available at our MSRV of 1.71
+    #[allow(clippy::manual_is_multiple_of)]
     fn is_aligned_and_not_null<T>(ptr: *const T) -> bool {
         !ptr.is_null() && ptr as usize % std::mem::align_of::<T>() == 0
     }
