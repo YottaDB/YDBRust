@@ -57,11 +57,21 @@ commit-verify:
 rust-no-vendor:
   stage: build
   image: yottadb/yottadb-base:latest-master
+  # Cache paths have to be inside the project directory, and the cache needs a key of its own so that
+  # other jobs using the default key do not overwrite it. The key carries the bindgen-cli version, so
+  # bumping that version starts from an empty cache rather than reusing the old binary.
   cache:
+    key: bindgen-cli-0.62.0
     paths:
-      - ~/.cargo/bin/bindgen
+      - .cargo-tools
   script:
-    - cargo install --debug --version 0.62.0 bindgen-cli
+    # "cargo install --root" keeps the binary inside the project directory, where the cache can hold
+    # it; install only when a previous run has not already left it there.
+    - |
+      if [ ! -x .cargo-tools/bin/bindgen ]; then
+        cargo install --debug --version 0.62.0 --root .cargo-tools bindgen-cli
+      fi
+    - export PATH="$PWD/.cargo-tools/bin:$PATH"
     - cargo check --no-default-features
 
 rust-nightly:
@@ -90,13 +100,24 @@ pages:
   stage: docs
   dependencies:
     - rust-compat
+  # Cache paths have to be inside the project directory, and the cache needs a key of its own so that
+  # other jobs using the default key do not overwrite it.
   cache:
+    key: cargo-deadlinks
     paths:
-      - ~/.cargo/bin/cargo-deadlinks
+      - cargo-deadlinks
+      - cargo-deadlinks.version
   script:
     - apt-get update -qq && apt-get install -y -qq jq wget
-    - export DEADLINKS_VERSION=$(wget -q -O - https://api.github.com/repos/deadlinks/cargo-deadlinks/releases/latest | jq --raw-output .tag_name)
-    - wget https://github.com/deadlinks/cargo-deadlinks/releases/download/$DEADLINKS_VERSION/cargo-deadlinks-linux -O cargo-deadlinks
+    # wget treats a 5xx as fatal and does not retry it by default, so ask for retries explicitly.
+    - WGET_RETRY="--tries=3 --waitretry=5 --retry-on-http-error=500,502,503,504"
+    - export DEADLINKS_VERSION=$(wget -q $WGET_RETRY -O - https://api.github.com/repos/deadlinks/cargo-deadlinks/releases/latest | jq --raw-output .tag_name)
+    # Download only when the cached binary is absent or is not the version just resolved.
+    - |
+      if [ ! -s cargo-deadlinks ] || [ "$(cat cargo-deadlinks.version 2>/dev/null)" != "$DEADLINKS_VERSION" ]; then
+        wget $WGET_RETRY "https://github.com/deadlinks/cargo-deadlinks/releases/download/$DEADLINKS_VERSION/cargo-deadlinks-linux" -O cargo-deadlinks
+        echo "$DEADLINKS_VERSION" > cargo-deadlinks.version
+      fi
     - chmod +x ./cargo-deadlinks
     - PATH=".:$PATH" RUSTDOCFLAGS=-Dwarnings cargo deadlinks
     - mv target/doc public
