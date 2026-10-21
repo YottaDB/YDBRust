@@ -1,6 +1,6 @@
 /****************************************************************
 *                                                               *
-* Copyright (c) 2021-2022 YottaDB LLC and/or its subsidiaries.  *
+* Copyright (c) 2021-2026 YottaDB LLC and/or its subsidiaries.  *
 * All rights reserved.                                          *
 *                                                               *
 *       This source code contains the intellectual property     *
@@ -930,6 +930,7 @@ fn release() {
 
 #[test]
 fn variable_reallocated() {
+    let _guard = LockGuard::read();
     let mut key = Key::variable(String::from("a"));
     dbg!(key.variable.capacity());
     Key::variable("averylongkeywithlotsofletters")
@@ -1006,6 +1007,7 @@ fn ydb_node_st_infinite_inv_str() {
 
 #[test]
 fn sub_next_equivalent() {
+    let _guard = LockGuard::read();
     // set up a node with data at `subNextSelfUser("b")`
     let mut user = Key::new("subNextSelfUser", &["b"]);
     user.set_st(TpToken::default(), Vec::new(), b"Hello").unwrap();
@@ -1021,6 +1023,7 @@ fn sub_next_equivalent() {
 
 #[test]
 fn sub_prev_equivalent() {
+    let _guard = LockGuard::read();
     // set up a node with data at `subPrevSelfUser("a")`
     let mut user = Key::new("subPrevSelfUser", &["a"]);
     user.set_st(TpToken::default(), Vec::new(), b"Hello").unwrap();
