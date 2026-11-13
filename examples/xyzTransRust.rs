@@ -30,9 +30,15 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     loop {
         ctx.tp(
             |ctx| {
+                // Use the current time in microseconds as the subscript; if another process committed
+                // a later time, use the next microsecond after it so this update is appended after the last node
+                let last_us: u128 =
+                    String::from_utf8_lossy(&KeyContext::new(ctx, "^Horse", &[""]).prev_sub()?)
+                        .parse()?;
                 let us = SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)?
                     .as_micros()
+                    .max(last_us + 1)
                     .to_string();
                 let n: i64 = rng.random::<i32>().into();
 
